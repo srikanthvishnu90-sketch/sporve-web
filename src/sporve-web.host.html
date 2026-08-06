@@ -5056,6 +5056,50 @@ function pageHTML(id){
     ${pageKX(id)}
     </div>`;
   }
+  if(id==="what-is"){
+    /* Recipe α, Soccer. Expressive register — the flagship explainer, warm and
+       athletic. Grounds slate→white→slate→slate→white (a slate chapter in the
+       middle), every accent wearing Soccer via --ps. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Every sport your kid wants to try, <em>one place to find it.</em></h1>
+      <p class="pg-sub">Sporve is where families find background-checked coaches, camps, and clubs across 20+ sports — search, message, and book a real open slot in minutes. One account for every sport your family plays.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · One search","Twenty sports, one bar","Soccer this season, swim the next. One account and one search covers every sport your family plays — no ten apps, no ten logins."],
+         ["02 · Real people","Verified, not vouched","Every coach clears their own background check before a single slot is bookable. A business can never vouch for an individual in their place."],
+         ["03 · Booked in minutes","A slot, not a callback","Pick a real opening and pay in the same flow. No enquiry form that vanishes into a voicemail, no waiting to hear back."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:18ch">The shortlist a parent can <em>actually trust.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">search</span>  by sport, age, level, price, and distance</div>
+        <div><span class="k">every coach</span> <span class="hl">background-checked</span> · per person, before bookable</div>
+        <div><span class="k">message</span> a coach before you commit — free</div>
+        <div><span class="k">book</span>    a real open slot · pay in one flow</div>
+        <div><span class="k">cost</span>    <span class="hl">$0</span> to browse, save, and message</div>
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["20+","sports live on Sporve today"],["100%","of bookable coaches, background-checked"],["$0","to browse, message, and save"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Find the coach <em>your kid remembers.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
   /* Scaffold for pages still fanning out: real hero + cross-links so the route
      resolves and the link graph has no orphan. */
   return `<div class="${cls}">
