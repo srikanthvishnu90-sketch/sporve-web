@@ -1152,6 +1152,13 @@ h2.ctr{margin-bottom:10px}
 .cmdchip svg{width:15px;height:15px}.cmdchip:hover{color:var(--ink);background:var(--raise)}
 .cmdchip.on{color:var(--slate-deep);background:var(--slate-tint)}
 .cmdchip:focus-visible{outline:2px solid var(--slate);outline-offset:-2px}
+/* leading history icon: icon-only, sits at the far left of the action bar */
+.cmdhist{padding:0;width:36px;justify-content:center;color:var(--faint)}
+/* "View all actions" pushed to the right, behind a hairline, per the reference */
+.cmdchip-end{margin-left:auto;position:relative;padding-left:16px}
+.cmdchip-end::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--rule)}
+/* the model selector's dropdown chevron */
+.cmdmodel .cmdchev{opacity:.65;flex:0 0 auto}
 .cmdinput{
   display:flex;align-items:center;gap:8px;min-height:68px;padding:10px 12px 10px 16px;border:0;
   border-radius:0;background:transparent;box-shadow:none;transition:.16s;
@@ -3849,17 +3856,29 @@ function dashboardHTML(){
     </section>
 
     <section class="cmdbar" aria-label="Sporve AI command center">
+      ${/* Leading history icon, then the actions, then "View all actions"
+           pushed to the right after a hairline — the reference's action-bar
+           shape. The history button opens the activity log below. */""}
       <div class="cmdchips" aria-label="AI actions">
-        ${cmdActions.map(([label,icon])=>`<button class="cmdchip ${S.cmdAction===label?"on":""}"
+        <button class="cmdchip cmdhist" type="button" data-cmdhist="1" aria-label="Recent activity">
+          ${PICON.clock}</button>
+        ${cmdActions.map(([label,icon])=>{
+          const last=label==="View all actions";
+          return `<button class="cmdchip ${last?"cmdchip-end":""} ${S.cmdAction===label?"on":""}"
           type="button" data-cmdmode="${esc(label)}" aria-pressed="${S.cmdAction===label}">
-          ${icon}<span>${esc(label)}</span></button>`).join("")}
+          ${icon}<span>${esc(label)}</span></button>`;}).join("")}
       </div>
+      ${/* Icon order mirrors the reference: the input takes the row, and the
+           model selector + attach + mic cluster to the RIGHT, with the send
+           button appearing only once there is text. Attach was on the left
+           before; the reference groups every control on the right. */""}
       <form class="cmdinput ${S.cmdDraft?"has-value":""} ${S.cmdSending?"sending":""}" id="cmdForm">
-        <button type="button" class="cmdicon" data-attach="1" aria-label="Attach a file" ${S.cmdSending?"disabled":""}>${PICON.doc}</button>
         <input id="cmdField" value="${esc(S.cmdDraft||"")}" placeholder="Ask Sporve anything…"
           aria-label="Ask Sporve anything" aria-describedby="${S.cmdError?"cmdError":""}" autocomplete="off" ${S.cmdSending?"disabled":""}>
-        <button type="button" class="cmdmodel" data-cmdmodel="1" aria-label="AI mode: Sporve AI">
-          ${PICON.spark}<span>Sporve AI</span></button>
+        <button type="button" class="cmdmodel" data-cmdmodel="1" aria-label="AI mode: Sporve AI" ${S.cmdSending?"disabled":""}>
+          ${PICON.spark}<span>Sporve AI</span>
+          <svg class="cmdchev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button type="button" class="cmdicon" data-attach="1" aria-label="Attach a file" ${S.cmdSending?"disabled":""}>${PICON.doc}</button>
         <button type="button" class="cmdicon" data-voice="1" aria-label="Voice input" ${S.cmdSending?"disabled":""}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M18 12a6 6 0 0 1-12 0H4a8 8 0 0 0 7 7.9V22h2v-2.1A8 8 0 0 0 20 12z"/></svg>
         </button>
@@ -5026,6 +5045,7 @@ function wire(){
   });
   $("[data-attach]").forEach(b=>b.onclick=()=>toast("Attachments are available when a conversation has a family or session context"));
   $("[data-cmdmodel]").forEach(b=>b.onclick=()=>toast("Sporve AI uses your live calendar, roster, and listings"));
+  $("[data-cmdhist]").forEach(b=>b.onclick=()=>toast(S.cmdLog&&S.cmdLog.length?"Recent Sporve AI activity is shown below":"No Sporve AI activity yet"));
   $("[data-voice]").forEach(b=>b.onclick=()=>
     toast("Voice input needs a microphone permission this demo doesn't request"));
   $("[data-qact]").forEach(b=>b.onclick=()=>{
