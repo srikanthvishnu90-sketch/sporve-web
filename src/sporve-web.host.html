@@ -1963,6 +1963,43 @@ h2.ctr{margin-bottom:10px}
 /* Frameless feature rows: the list marker is the page's sport dot. */
 .pg-triad .pg-tnum .psdot{display:inline-block;width:8px;height:8px;border-radius:var(--r-pill);
   background:var(--ps);margin-right:7px;vertical-align:middle}
+
+/* ── Asymmetric editorial layout (page: views). Two-column hero with a floating
+   result card, a full-bleed dark demo, and numbered claim/proof rows — the
+   composition breaks the single-column stack. Everything stacks on narrow. */
+.pg-hero.split .shell{display:grid;grid-template-columns:1.06fr .94fr;gap:52px;align-items:center}
+.pg-hero.split .pg-heroL{min-width:0}
+.pg-herocard{background:var(--paper);border-radius:var(--r-xl);padding:20px;max-width:400px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
+.pg-herocard .hc-top{display:flex;align-items:center;gap:9px}
+.pg-herocard .hc-dot{width:11px;height:11px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.pg-herocard .hc-sport{font-size:var(--text-sm);font-weight:700;letter-spacing:-.01em;color:var(--muted)}
+.pg-herocard .hc-name{font-weight:800;font-size:var(--text-lg);letter-spacing:-.02em;margin-top:13px;line-height:1.15}
+.pg-herocard .hc-meta{color:var(--muted);font-size:var(--text-sm);margin-top:7px}
+.pg-herocard .hc-chk{color:var(--ps-ink);font-weight:700}
+.pg-herocard .hc-foot{display:flex;align-items:center;justify-content:space-between;margin-top:17px;padding-top:15px;border-top:1px solid var(--rule)}
+.pg-herocard .hc-price{font-weight:800;font-size:var(--text-lg)}
+.pg-herocard .hc-book{background:var(--ps-ink);color:#fff;font-weight:600;font-size:var(--text-sm);padding:9px 17px;border-radius:var(--r-ctl)}
+.pgband.dark.bleed{padding:0}
+.pgband.dark.bleed>.shell{max-width:none;padding:0}
+.pgband.dark.bleed .db-in{max-width:1180px;margin:0 auto;padding:64px 32px;display:grid;
+  grid-template-columns:.82fr 1.18fr;gap:50px;align-items:center}
+.pg-demo.wide{max-width:none;margin-top:0}
+.pg-rows{display:flex;flex-direction:column}
+.pg-row{display:grid;grid-template-columns:54px 1fr 1.15fr;gap:34px;align-items:start;padding:32px 0;border-top:1px solid var(--rule)}
+.pg-row:first-child{border-top:0}
+.pg-rnum{font-size:var(--text-sm);font-weight:700;color:var(--faint);display:flex;align-items:center;gap:8px;padding-top:4px}
+.pg-rnum .psdot{width:8px;height:8px;border-radius:var(--r-pill);background:var(--ps);display:inline-block;flex:0 0 auto}
+.pg-rclaim b{display:block;font-size:var(--text-xl);font-weight:800;letter-spacing:-.02em;line-height:1.16}
+.pg-rproof{color:var(--muted);font-size:var(--text-base);line-height:1.55}
+.pg-rproof .hl{color:var(--ps-ink);font-weight:700}
+@media(max-width:860px){
+  .pg-hero.split .shell{grid-template-columns:1fr;gap:30px}
+  .pg-herocard{margin-left:0;max-width:none}
+  .pgband.dark.bleed .db-in{grid-template-columns:1fr;gap:26px;padding:46px 22px}
+  .pg-row{grid-template-columns:1fr;gap:9px;padding:24px 0}
+  .pg-rnum{padding-top:0}
+}
 /* S1 hero */
 .pg-hero .shell{max-width:960px}
 .pg-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;background:var(--paper);
@@ -5082,22 +5119,32 @@ function pageHTML(id){
     </div>`;
   }
   if(id==="what-is"){
-    /* Recipe γ, Soccer. Vertical arc, top to bottom: hero (slate #F1F5F9) →
-       obsidian demo (#09090B, a real dark search demo behind a Demo-data pill) →
-       frameless triad with sport dots → stats → close. The dark band is the
-       tempo drop; every accent wears Soccer via --ps / --ps-bright. */
+    /* Asymmetric editorial, Soccer. Two-column hero (headline left, floating
+       result card right) → full-bleed obsidian demo (headline + wide dark search
+       demo, side by side) → numbered claim/proof rows → stats → close. The
+       composition is off the single-column stack. Accents wear Soccer via --ps. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Every sport your kid wants to try, <em>one place to find it.</em></h1>
-      <p class="pg-sub">Sporve is where families find background-checked coaches, camps, and clubs across 20+ sports — search, message, and book a real open slot in minutes. One account for every sport your family plays.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">Every sport your kid wants to try, <em>one place to find it.</em></h1>
+        <p class="pg-sub">Background-checked coaches, camps, and clubs across 20+ sports — search, message, and book a real open slot in minutes. One account for every sport your family plays.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Soccer · Miami, FL</span></div>
+        <div class="hc-name">Coral Reef FC — U12 Development</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 9–12</div>
+        <div class="hc-foot"><span class="hc-price">$45<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband dark"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(28px,3.6vw,40px);max-width:15ch">One search, <em>real coaches back.</em></h2>
-      <p class="pg-sub" style="max-width:52ch;margin-top:12px">Type what you need. Every result is a background-checked coach with a real open slot — the same catalogue the search, the map, and the assistant all read from.</p>
-      <div class="pg-demo" aria-hidden="true">
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:13ch">One search, <em>real coaches back.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Type what you need. Every result is a background-checked coach with a real open slot — the same catalogue the search, the map, and the assistant all read from.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
         <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
         <div class="dq">${PICON.search} soccer coach · U12 · within 10 mi of Miami</div>
         <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
@@ -5108,15 +5155,21 @@ function pageHTML(id){
           <div><div class="dname">Miami United — Saturday Skills</div>
             <div class="dmeta"><span class="dchk">Background-checked</span> · All levels · ages 8–12</div></div>
           <span class="dprice">$30</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Biscayne Youth SC — Weeknight Skills</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · Beginner · ages 7–11</div></div>
+          <span class="dprice">$38</span></div>
+      </div>
+    </div></div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <div class="pg-rows">
+        ${[["01","Twenty sports, one bar","One account and one search covers every sport your family plays — soccer this season, swim the next. No ten apps, no ten logins."],
+           ["02","Verified, not vouched","Every coach clears their <span class=\"hl\">own background check</span> before a single slot is bookable. A business can never vouch for an individual in their place."],
+           ["03","A slot, not a callback","Pick a real opening and <span class=\"hl\">pay in the same flow</span>. No enquiry form that vanishes into a voicemail, no waiting to hear back."]]
+          .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
       </div>
     </div></section>
-
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["One search","Twenty sports, one bar","Soccer this season, swim the next. One account and one search covers every sport your family plays — no ten apps, no ten logins."],
-         ["Real people","Verified, not vouched","Every coach clears their own background check before a single slot is bookable. A business can never vouch for an individual in their place."],
-         ["Booked in minutes","A slot, not a callback","Pick a real opening and pay in the same flow. No enquiry form that vanishes into a voicemail, no waiting to hear back."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum"><span class="psdot"></span>${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
-    </div></div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
