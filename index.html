@@ -357,7 +357,7 @@ img{max-width:100%;display:block}
 .smrow.on .box{background:var(--sc,var(--slate));border-color:var(--sc,var(--slate))}
 .smrow .box svg{opacity:0}
 .smrow.on .box svg{opacity:1}
-.smrow .em{font-size:17px;line-height:1;filter:grayscale(1) opacity(.8)}
+.smrow .em{width:8px;height:8px;border-radius:var(--r-pill);flex:0 0 auto}
 .smrow.on{color:var(--ink)}
 .smrow.on .em{filter:none}
 .smrow .n{margin-left:auto;color:var(--faint);font-size:var(--text-sm);font-weight:600}
@@ -990,7 +990,7 @@ h2.ctr{margin-bottom:10px}
   border:1px solid var(--rule);border-radius:var(--r-l);background:var(--paper);transition:.16s;text-align:left;
 }
 .stile:hover{border-color:var(--ink);transform:translateY(-2px);box-shadow:var(--shadow)}
-.sglyph{width:42px;height:42px;border-radius:var(--r-m);display:grid;place-items:center;font-size:21px}
+.sdot{width:11px;height:11px;border-radius:var(--r-pill);margin-bottom:3px}
 .stile b{font-size:var(--text-base);letter-spacing:-.015em}
 .stile span.num{font-size:var(--text-sm);color:var(--muted)}
 .segwrap{display:flex;justify-content:center;margin:24px 0 30px}
@@ -2028,6 +2028,25 @@ h2.ctr{margin-bottom:10px}
   .pg-row{grid-template-columns:1fr;gap:9px;padding:24px 0}
   .pg-rnum{padding-top:0}
 }
+/* S2 ticker — one full-width marquee of sport names, dot-separated (no glyph),
+   ~34s loop, pause on hover, static under reduced-motion. The row emits the
+   sequence twice so translateX(-50%) loops seamlessly. */
+.pg-ticker{overflow:hidden;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  padding:18px 0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.pg-tickrow{display:inline-flex;align-items:center;white-space:nowrap;will-change:transform;
+  animation:pgtick 34s linear infinite}
+.pg-ticker:hover .pg-tickrow{animation-play-state:paused}
+.pg-tickrow .tk{font-weight:700;font-size:var(--text-lg);letter-spacing:-.01em;color:var(--ink-2);padding:0 3px}
+.pg-tickrow .tksep{width:6px;height:6px;border-radius:var(--r-pill);background:var(--ps);margin:0 20px;flex:0 0 auto}
+@keyframes pgtick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(max-width:640px){.pg-tickrow{animation-duration:22s}.pg-tickrow .tk{font-size:var(--text-base)}}
+@media(prefers-reduced-motion:reduce){.pg-tickrow{animation:none}}
+/* S6 founder note */
+.pg-founder .pg-fnote{font-size:var(--text-lg);line-height:1.55;color:var(--ink-2);max-width:60ch}
+.pg-founder .pg-fpull{font-size:clamp(24px,3vw,34px);line-height:1.2;margin-top:20px;color:var(--ink)}
+.pg-founder .pg-fpull em{font-style:italic;color:var(--ps-ink)}
+.pg-founder .pg-fattr{margin-top:16px;font-size:var(--text-sm);font-weight:700;letter-spacing:.02em;color:var(--muted)}
 /* S1 hero */
 .pg-hero .shell{max-width:960px}
 .pg-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;background:var(--paper);
@@ -2755,7 +2774,7 @@ function sportMenuHTML(){
           return `<button class="smrow ${on?"on":""}" data-sporttoggle="${esc(s)}"
                   role="checkbox" aria-checked="${on}" style="--sc:${sportColor(s)}">
             <span class="box" aria-hidden="true">${ICON.check||TICK(11,3.4)}</span>
-            <span class="em" aria-hidden="true">${sportGlyph(s)}</span>
+            <span class="em" aria-hidden="true" style="background:${sportColor(s)}"></span>
             <span>${esc(s)}</span>
             <span class="n">${count}</span></button>`;
         }).join("")}
@@ -2883,7 +2902,7 @@ function landingHTML(){
         ${gridSports.map(s=>{
           const n=PROGRAMS.filter(p=>p.sport===s).length;
           return `<button class="stile" data-sportjump="${esc(s)}">
-            <span class="sglyph" style="background:${sportColor(s)}1F;color:${sportColor(s)}">${sportGlyph(s)}</span>
+            <span class="sdot" style="background:${sportColor(s)}" aria-hidden="true"></span>
             <b>${esc(s)}</b>
             <span class="num">${n} program${n>1?"s":""}</span></button>`;}).join("")}
       </div>
@@ -2922,7 +2941,7 @@ function landingHTML(){
               this is the unweighted mean of the 30 programme ratings, and the
               two round differently (4.6 vs 4.7). Labelled for what it is. */""}
         <div class="lrow"><span>Average programme rating · ${f.reviews} reviews</span>
-          <em>${f.rating} ★</em></div>
+          <em>${f.rating} ${ICON.star}</em></div>
         <div class="lrow"><span>Sessions start from</span><em>${money(f.minPrice)}</em></div>
       </div>
     </div>
@@ -3079,7 +3098,7 @@ function famFrames(){
       <div class="fsearch">Soccer · Miami, FL</div>
       ${PROGRAMS.slice(0,3).map(x=>`<div class="frow">
         <span class="fthumb" style="background:${sportColor(x.sport)}22"></span>
-        <span><b>${esc(x.title.slice(0,26))}</b><span class="num">${money(x.price)} · ★ ${x.rating}</span></span></div>`).join("")}
+        <span><b>${esc(x.title.slice(0,26))}</b><span class="num">${money(x.price)} · ${ICON.star} ${x.rating}</span></span></div>`).join("")}
     </div><p class="fcap">Search results, filtered to checked coaches</p></div>
   <div class="frame"><div class="fbar"><i></i><i></i><i></i></div>
     <div class="fbody">
@@ -3090,7 +3109,7 @@ function famFrames(){
     </div><p class="fcap">Coach profile with the trust badge</p></div>
   <div class="frame"><div class="fbar"><i></i><i></i><i></i></div>
     <div class="fbody ctr">
-      <span class="fcheck">✓</span>
+      <span class="fcheck">${ICON.check}</span>
       <b>You're booked</b>
       <span class="num" style="color:var(--muted)">Mon, May 4 · 05:00 PM</span>
       <span class="fpill good">Paid</span>
@@ -4199,7 +4218,7 @@ function dashboardHTML(){
         ${(()=>{const rv=(S.reviews||[]).filter(r=>mine.some(p=>p.id===r.programId)).slice(0,2);
           return rv.length?rv.map(r=>`<div class="rvmini">
             <div><b>${esc(r.author||"Parent")}</b>
-              <span class="num" style="color:var(--gold-ink)"> ${"★".repeat(r.rating)}</span></div>
+              <span class="num" style="color:var(--gold-ink)"> ${ICON.star.repeat(r.rating)}</span></div>
             <p>${esc((r.body||"").slice(0,110))}${(r.body||"").length>110?"…":""}</p>
             <button class="tlink" data-ctab="reviews">Reply →</button>
           </div>`).join("")
@@ -4682,7 +4701,7 @@ function modalHTML(){
     return wrap("Booking confirmed",`
       <div style="text-align:center;padding:10px 0 20px">
         <div style="width:62px;height:62px;border-radius:999px;background:var(--good-tint);color:var(--good);
-                    display:grid;place-items:center;margin:0 auto 16px"><span style="font-size:26px">✓</span></div>
+                    display:grid;place-items:center;margin:0 auto 16px"><span style="display:grid;place-items:center;transform:scale(2.4);color:#fff">${ICON.check}</span></div>
         <h2>You're booked</h2>
         <p style="color:var(--muted);margin-top:7px">${esc(b.program)}</p>
       </div>
@@ -5103,21 +5122,29 @@ function pageHTML(id){
   const open=isVerified()?`<button class="pg-textlink" data-nav="${meta.cta.indexOf('coachtab:')===0?'explore':meta.cta}">Open in app →</button>`:"";
   const cls=`pgroot pg-${id}`;
   if(id==="background-checks"){
-    /* Recipe α: S1 hero → S3 triad → S5 proof → S7 count-up → S8 close+cross.
-       Swimming. Athletic register: "first whistle", "show up" (2 terms). */
+    /* Recipe α, Swimming: S1 split hero → S3 rows → S5 proof → S7 stats → S8 close.
+       Athletic terms: "first whistle", "show up". No dark band. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">A check on the person, <em>before the first whistle.</em></h1>
-      <p class="pg-sub">Every coach clears their own background check. An approved business never vouches for an individual — the check belongs to the human who will stand on the deck with your kid.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:media-consent">How consent works →</button>`}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">The person is checked, <em>not the pool.</em></h1>
+        <p class="pg-sub">Every coach on Sporve clears their own background check before the first whistle — the person who stands on the pool deck, never the swim club that lists them.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:media-consent">How consent works →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Swimming · Miami, FL</span></div>
+        <div class="hc-name">Coral Reef Aquatics — Learn to Swim</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · per person · ages 6–12</div>
+        <div class="hc-foot"><span class="hc-price">$40<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Submitted","Identity in","The coach submits their legal identity. Nothing is bookable yet."],
-         ["02 · Cleared","Checked, not claimed","An independent check clears. Only Sporve sets the flag — the business cannot."],
-         ["03 · Bookable","Live in search","The listing appears in search, results, and the assistant. A pending check stays hidden."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    <section class="pgband white"><div class="shell" data-rev><div class="pg-rows">
+      ${[["01","One check per person","Every coach clears their <span class=\"hl\">own background check</span>. A swim club can never vouch for an individual in their place."],
+         ["02","Only Sporve sets the flag","The business submits identity; an independent check clears it. A club cannot mark itself checked — <span class=\"hl\">only Sporve</span> does."],
+         ["03","Pending stays hidden","A coach is bookable only after the check clears. A pending profile <span class=\"hl\">never appears</span> in search, results, or the assistant."]]
+        .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
     </div></div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
@@ -5126,7 +5153,7 @@ function pageHTML(id){
         <div><span class="k">coach</span>   Coral Reef Aquatics — swim</div>
         <div><span class="k">check</span>   <span class="hl">background-checked</span> · per person</div>
         <div><span class="k">cleared</span> 2026-05-14 · re-run on a schedule</div>
-        <div><span class="k">scope</span>   the individual, not the business</div>
+        <div><span class="k">scope</span>   the individual, not the swim club</div>
         <div><span class="k">status</span>  <span class="hl">bookable</span> — shown in search</div>
       </div>
     </div></section>
@@ -5139,7 +5166,7 @@ function pageHTML(id){
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:14ch">Ready when <em>they show up?</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Know the person before they <em>show up.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
@@ -5173,7 +5200,7 @@ function pageHTML(id){
       </div>
       <div class="pg-demo wide" aria-hidden="true">
         <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
-        <div class="dq">${PICON.search} soccer coach · U12 · within 10 mi of Miami</div>
+        <div class="dq">soccer coach · U12 · within 10 mi of Miami</div>
         <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
           <div><div class="dname">Coral Reef FC — U12 Development</div>
             <div class="dmeta"><span class="dchk">Background-checked</span> · Intermediate · ages 9–12</div></div>
@@ -5213,369 +5240,527 @@ function pageHTML(id){
     </div>`;
   }
   if(id==="examples"){
-    /* Recipe α, Lacrosse. Real listings/businesses on Sporve, browsing by business. */
+    /* Recipe γ, Lacrosse. Two-column hero (headline left, floating listing card
+       right) → full-bleed obsidian demo (headline + wide dark business-result
+       list, side by side) → numbered claim/proof rows → stats → close. Real
+       businesses already on Sporve, browsed by business. Accents wear Lacrosse. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Real coaches, real clubs, <em>already on Sporve.</em></h1>
-      <p class="pg-sub">These aren't stock names. Browse the actual businesses listing open slots — a lacrosse club, a swim school, a boxing gym — each one a real profile with background-checked coaches and slots you can book today.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Search by sport & age →</button>`}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">The clubs are real, <em>and already listed.</em></h1>
+        <p class="pg-sub">These aren't stock names. Browse the actual lacrosse clubs, boxing gyms, and swim schools listing open slots on Sporve — each one a real business whose coaches are background-checked, with slots you can book today.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Search by sport & age →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Lacrosse · Denver, CO</span></div>
+        <div class="hc-name">Riverside Lacrosse Club — U14 Attack</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 12–14</div>
+        <div class="hc-foot"><span class="hc-price">$50<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · A business, not a directory","One profile per club","Every listing is one real business — its coaches, its sports, its open slots. Tap in and you see who coaches, not a phone number to chase."],
-         ["02 · Verified people inside","Checked, not vouched","Each coach on a business profile clears their own background check before a slot is bookable. The club can never vouch for an individual in their place."],
-         ["03 · Open slots, live","Book what you see","A listing shows the openings that are actually free. Pick one and pay in the same flow — no callback, no enquiry form that vanishes."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:13ch">Browse the club, <em>not a phone number.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Every card is one real lacrosse business — its coaches, its sports, its open slots. Tap in and you see who's on staff, not a number to chase.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Riverside Lacrosse Club</div>
+            <div class="dmeta">4 coaches · <span class="dchk">all background-checked</span> · lacrosse</div></div>
+          <span class="dprice">3 slots</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Mile High Box Lacrosse</div>
+            <div class="dmeta">2 coaches · <span class="dchk">background-checked</span> · box lacrosse</div></div>
+          <span class="dprice">2 slots</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Front Range Youth LC</div>
+            <div class="dmeta">5 coaches · <span class="dchk">background-checked</span> · skills</div></div>
+          <span class="dprice">6 slots</span></div>
+      </div>
     </div></div></section>
 
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:17ch">What a real listing <em>actually shows.</em></h2>
-      <div class="pg-proof" style="margin-top:22px">
-        <div><span class="k">business</span> Riverside Lacrosse Club — lacrosse</div>
-        <div><span class="k">coaches</span>  4 · each <span class="hl">background-checked</span> per person</div>
-        <div><span class="k">sports</span>   lacrosse · box lacrosse · skills</div>
-        <div><span class="k">slots</span>    <span class="hl">open this week</span> · book and pay in one flow</div>
-        <div><span class="k">message</span>  the club before you commit — free</div>
+    <section class="pgband white"><div class="shell" data-rev>
+      <div class="pg-rows">
+        ${[["01","One profile per club","Each listing is a single real business — its coaches, its sports, its open slots. You tap a club, not a directory of numbers to call."],
+           ["02","Verified, not vouched","Every coach on a club clears their <span class=\"hl\">own background check</span> before a slot is bookable. The business can never vouch for an individual in their place."],
+           ["03","Open slots, live","A listing shows the openings that are actually free. Pick one and <span class=\"hl\">pay in the same flow</span> — no callback, no enquiry form that vanishes."]]
+          .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
-        ${[["9","sports live on Sporve today"],["100%","of bookable coaches, background-checked"],["$0","to browse and message a business"]]
+        ${[["20+","sports listed on Sporve today"],["100%","of bookable coaches, background-checked"],["$0","to browse and message a club"]]
           .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">See who's <em>really out there.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">See who's <em>actually on the roster.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
-  if(id==="search"){
-    /* Recipe α, Basketball. Filtered search by sport, age, level, price, distance; saved searches. */
+if(id==="search"){
+    /* Recipe β: S1 hero(split) → S2 ticker → S4 dark demo → S6 founder → S8 close+cross.
+       Basketball. Athletic register: "run", "tip-off", "shooting" (3 terms). */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Filter to the coach <em>your kid actually needs.</em></h1>
-      <p class="pg-sub">Set the sport, the age, the level, a price you'll pay, and how far you'll drive. Sporve narrows twenty sports to the handful that fit — and saves the search so next season is one tap, not ten.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:map-search">See what's near you →</button>`}</div>
-    </div></section>
-
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Five filters","Sport, age, level, price, distance","One bar, five filters. A U12 rec basketball coach under $40 within ten miles is a search, not an afternoon of phone calls."],
-         ["02 · Only the bookable","Verified results","Results show coaches who've cleared their own background check and have real openings. A pending check never surfaces in your list."],
-         ["03 · Saved searches","Set it once","Save a search and Sporve keeps it. New coach clears and fits the filters? It's waiting the next time you open the app."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
-    </div></div></section>
-
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:16ch">Twenty sports down to <em>the right five.</em></h2>
-      <div class="pg-proof" style="margin-top:22px">
-        <div><span class="k">sport</span>    basketball</div>
-        <div><span class="k">age</span>      U12 · rec level</div>
-        <div><span class="k">price</span>    under $40 / session</div>
-        <div><span class="k">distance</span> within 10 miles</div>
-        <div><span class="k">result</span>   <span class="hl">5 background-checked coaches</span> · <span class="hl">saved</span></div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">Every basketball coach, filtered to <em>your kid.</em></h1>
+        <p class="pg-sub">Search by sport, age, level, price, and distance. Every result is a background-checked basketball coach with a real open slot — and you can save a search to run again next season.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:map-search">See what's near you →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Basketball · Chicago, IL</span></div>
+        <div class="hc-name">West Loop Hoops — U12 Skills</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 9–12</div>
+        <div class="hc-foot"><span class="hc-price">$40<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
       </div>
     </div></section>
 
-    <section class="pgband slate"><div class="shell" data-rev>
-      <div class="pg-stats">
-        ${[["5","filters — sport, age, level, price, distance"],["20+","sports one search can cover"],["$0","to search, save, and message"]]
-          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+    <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow"><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span></div></div></section>
+
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:14ch">Your filters, real coaches <em>back.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Set the sport, age, and level; Sporve returns background-checked basketball coaches with open slots. Save the search and it runs again whenever a new coach lists near you.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">West Loop Hoops — U12 Skills</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · Intermediate · ages 9–12</div></div>
+          <span class="dprice">$40</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Lincoln Park Guards — Weeknight Shooting</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · All levels · ages 8–12</div></div>
+          <span class="dprice">$28</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Northside Fundamentals — Saturday Run</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · Beginner · ages 7–11</div></div>
+          <span class="dprice">$35</span></div>
+      </div>
+    </div></div></section>
+
+    <section class="pgband white"><div class="shell" style="max-width:760px" data-rev>
+      <div class="pg-founder">
+        <p class="pg-fnote">I built search first because it is where every parent starts, and the old way — ten tabs and no idea who had been checked — wasted the weeks before a season. On Sporve the filters only ever return background-checked basketball coaches with a slot you can actually book. Saved searches mean you set it once and hear back when the right coach lists near you.</p>
+        <p class="pg-serif pg-fpull"><em>Find the coach, not the phone tag.</em></p>
+        <div class="pg-fattr">— The Sporve founder</div>
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Start with <em>the right shortlist.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Filter your way to <em>tip-off.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
-  if(id==="map-search"){
-    /* Recipe α, Cycling. See what's actually near you on a map before filtering. */
+if(id==="map-search"){
+    /* Recipe β: S1 hero(split) → S2 ticker → S4 dark demo → S6 founder → S8 close+cross.
+       Cycling. Athletic register: "ride", "climb", "spin" (3 terms). */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">See who's near you, <em>before you filter a thing.</em></h1>
-      <p class="pg-sub">Open the map and every coach, club, and camp within your radius drops a pin. Distance stops being a guess — you see the ride to practice first, then narrow by sport, age, and price from there.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Filter by sport & age →</button>`}</div>
-    </div></section>
-
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Distance first","Pins, not a list","Every listing lands on the map as a pin. You see the ten-minute options and the forty-minute ones at a glance, before a single filter."],
-         ["02 · Real openings on the map","Only what's bookable","Pins are background-checked coaches with live slots. Tap one and its openings are right there — no dead listing, no coach you can't reach."],
-         ["03 · Then narrow","Map meets filters","Draw your radius, then layer sport, age, and price on top. The map and the filters are the same search from two angles."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
-    </div></div></section>
-
-    <section class="pgband slate"><div class="shell" data-rev>
-      <div class="pg-stats">
-        ${[["10mi","a radius you set, then tighten"],["100%","of pins, background-checked coaches"],["$0","to browse the map and message"]]
-          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">See every cycling coach <em>near you.</em></h1>
+        <p class="pg-sub">Open the map and the background-checked cycling coaches around you show up as pins before you filter a thing. Tap one to see the rides, the levels, and a real open slot — then book from the same screen.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Filter by sport & age →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Cycling · Boulder, CO</span></div>
+        <div class="hc-name">Flatirons Junior Cycling — Skills Ride</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 10–14</div>
+        <div class="hc-foot"><span class="hc-price">$32<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
       </div>
     </div></section>
 
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:16ch">The drive to practice, <em>on the map first.</em></h2>
-      <div class="pg-proof" style="margin-top:22px">
-        <div><span class="k">map</span>      cycling coaches near you</div>
-        <div><span class="k">radius</span>   within 10 miles · set by you</div>
-        <div><span class="k">pins</span>     <span class="hl">background-checked</span> · live open slots</div>
-        <div><span class="k">tap</span>      a pin to see openings and message</div>
-        <div><span class="k">then</span>     <span class="hl">narrow</span> by sport, age, and price</div>
+    <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow"><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span></div></div></section>
+
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:14ch">The map before the <em>filters.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Every pin is a background-checked cycling coach with a real open slot, sorted by how close the ride starts to you. See who is a short drive away before you narrow by age or level.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Flatirons Junior Cycling — Skills Ride</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · 1.2 mi · ages 10–14</div></div>
+          <span class="dprice">$32</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Front Range Youth Cycling — Saturday Climb</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · 2.4 mi · ages 9–13</div></div>
+          <span class="dprice">$26</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Boulder Creek Riders — Weeknight Spin</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · 3.8 mi · ages 8–12</div></div>
+          <span class="dprice">$30</span></div>
+      </div>
+    </div></div></section>
+
+    <section class="pgband white"><div class="shell" style="max-width:760px" data-rev>
+      <div class="pg-founder">
+        <p class="pg-fnote">A list of coaches does not tell you what a map does — which ride actually starts near your house. So the map came early: every pin is a background-checked cycling coach, placed where the session really is, sorted by the drive. You see what is close before you filter, not after.</p>
+        <p class="pg-serif pg-fpull"><em>Distance is the first filter that matters.</em></p>
+        <div class="pg-fattr">— The Sporve founder</div>
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Find the coach <em>down the road.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">See what is a short <em>ride away.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
   if(id==="instant-booking"){
-    /* Recipe α, Baseball. Pick a real open slot and pay in one flow, no callback. */
+    /* Recipe α, Baseball: S1 split hero → S3 rows → S5 proof → S7 stats → S8 close.
+       Athletic terms: "game day", "session". No dark band. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Pick a real open slot, <em>pay, and you're on the roster.</em></h1>
-      <p class="pg-sub">No enquiry form, no waiting for a callback. The times you see are the times that are free — choose one, pay in the same flow, and the session is booked before you close the app.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:bookings-receipts">See your bookings →</button>`}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">Pick a real slot, <em>pay right there.</em></h1>
+        <p class="pg-sub">See the openings a baseball coach actually has, choose one, and pay in the same flow. No enquiry form, no callback, no waiting to hear back before game day.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:bookings-receipts">See the receipt →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Baseball · Miami, FL</span></div>
+        <div class="hc-name">Grand Slam Baseball — Hitting Lab</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Sat 9:00 AM · ages 9–12</div>
+        <div class="hc-foot"><span class="hc-price">$45<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · A real opening","What you see is free","The slots on a coach's profile are the slots that are actually open. Nothing to request — Tuesday at 5 is Tuesday at 5, and it's yours to take."],
-         ["02 · One flow","Book and pay together","Choose the slot and pay in the same step, through Stripe in-app. No back-and-forth, no invoice by email, no coach chasing a payment."],
-         ["03 · Confirmed instantly","On the roster, not the waitlist","The moment payment clears the slot is held and the session is confirmed. You get the receipt; the coach gets you on the roster."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    <section class="pgband white"><div class="shell" data-rev><div class="pg-rows">
+      ${[["01","A slot, not a callback","Every listing shows the openings that are <span class=\"hl\">actually free</span>. Pick one and it holds while you pay — no enquiry form that vanishes into a voicemail."],
+         ["02","Card to confirmed, one flow","Choosing the slot and paying are <span class=\"hl\">the same step</span>. The batting session is booked the moment the card clears, not after a callback."],
+         ["03","The calendar is the truth","You can only book a time the coach has actually opened. A booked slot <span class=\"hl\">disappears instantly</span>, so two families never take the same mound."]]
+        .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
     </div></div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:17ch">One slot, one payment, <em>one confirmation.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">What clears the moment you <em>book.</em></h2>
       <div class="pg-proof" style="margin-top:22px">
-        <div><span class="k">coach</span>   background-checked · baseball</div>
-        <div><span class="k">slot</span>    Tue 5:00 PM · <span class="hl">open</span></div>
-        <div><span class="k">pay</span>     in-app · Stripe · one flow</div>
-        <div><span class="k">held</span>    the moment payment clears</div>
-        <div><span class="k">status</span>  <span class="hl">confirmed</span> — receipt in your bookings</div>
+        <div><span class="k">session</span> Grand Slam Baseball — hitting</div>
+        <div><span class="k">slot</span>    Sat May 16 · 9:00 AM · 60 min</div>
+        <div><span class="k">price</span>   <span class="hl">$45.00</span> · charged once, at booking</div>
+        <div><span class="k">fee</span>     $3.15 platform · $1.62 processing</div>
+        <div><span class="k">payout</span>  <span class="hl">$40.23</span> to the coach after the session</div>
       </div>
     </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
-        ${[["1","flow to book and pay"],["0","callbacks to wait on"],["100%","of coaches, background-checked"]]
+        ${[["1","flow — slot picked and paid, no callback"],["100%","of bookable coaches, background-checked"],["$0","to browse open slots before you book"]]
           .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Book the slot <em>before it's gone.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Take the open slot, <em>not a callback.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
-  if(id==="messaging"){
-    /* Recipe α, Volleyball. Message a coach free before booking; the thread stays with the booking. */
+if(id==="messaging"){
+    /* Recipe β: S1 hero(split) → S2 ticker → S4 dark demo → S6 founder → S8 close+cross.
+       Volleyball. Athletic register: "tryout", "first serve", "set" (3 terms). */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Ask before you commit, <em>then keep the thread.</em></h1>
-      <p class="pg-sub">Message any coach for free before you book — level, schedule, what a first session looks like. When you do book, the conversation stays attached to that booking, so nothing you agreed to lives in a lost text thread.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:bookings-receipts">How bookings keep a record →</button>`}</div>
-    </div></section>
-
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Ask first","A question, not a deposit","Message a coach before a single dollar moves. Fit, level, and the plan for a first session — settled in writing, before you commit."],
-         ["02 · One thread","Tied to the booking","The conversation attaches to the booking it belongs to. Reschedules, directions, what to bring — all in one place, not scattered across texts."],
-         ["03 · On the record","What you agreed, kept","Because the thread stays with the booking, what the coach said is still there next week. No he-said, no screenshot hunt."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
-    </div></div></section>
-
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The thread a parent can <em>go back to.</em></h2>
-      <div class="pg-proof" style="margin-top:22px">
-        ${[["you","“Is Saturday still open for a first session?”"],
-           ["coach","Sand Volleyball — club level, ages 10–14"],
-           ["cost",["<span class=\"hl\">$0</span> to message before you book",1]],
-           ["kept with","the booking — not a separate inbox"],
-           ["stays","reschedules, directions, and notes in one thread"]]
-          .map(([k,v,raw])=>`<div><span class="k">${esc(k)}</span> ${raw?v:esc(v)}</div>`).join("")}
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">Message a volleyball coach <em>before you book.</em></h1>
+        <p class="pg-sub">Ask about levels, timing, or a tryout for free — before any money moves. The moment you book, the whole thread attaches to the booking, so the conversation and the coach carry straight through.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:bookings-receipts">How bookings keep a record →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Volleyball · Austin, TX</span></div>
+        <div class="hc-name">Barton Springs Volleyball — U13 Setting</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 11–14</div>
+        <div class="hc-foot"><span class="hc-price">$34<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
       </div>
     </div></section>
 
-    <section class="pgband slate"><div class="shell" data-rev>
-      <div class="pg-stats">
-        ${[["$0","to message any coach before you book"],["100%","of bookable coaches, background-checked"],["20+","sports live on Sporve today"]]
-          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+    <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow"><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span></div></div></section>
+
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:14ch">Talk first, book <em>with proof.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Message any background-checked volleyball coach for free and the replies land here. Book, and this exact thread attaches to the booking — so nothing said before the first serve gets lost.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Barton Springs Volleyball</div>
+            <div class="dmeta"><span class="dchk">Coach reply</span> · U13 setting has room Tuesdays — want a tryout first?</div></div>
+          <span class="dprice">2m</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Lady Longhorns Juniors</div>
+            <div class="dmeta"><span class="dchk">Coach reply</span> · She can start at beginner and move up by the set.</div></div>
+          <span class="dprice">1h</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Austin Junior Volleyball</div>
+            <div class="dmeta"><span class="dchk">Coach reply</span> · Sending the fall schedule — booking holds her spot.</div></div>
+          <span class="dprice">3h</span></div>
+      </div>
+    </div></div></section>
+
+    <section class="pgband white"><div class="shell" style="max-width:760px" data-rev>
+      <div class="pg-founder">
+        <p class="pg-fnote">Parents kept telling me the scariest part was paying before they had ever talked to the coach. So messaging is free and comes first, and when you do book, the thread does not reset — it attaches to the booking so every promise about levels or timing is still there. The volleyball coach sees the same history you do.</p>
+        <p class="pg-serif pg-fpull"><em>The conversation is part of the booking, not a step before it.</em></p>
+        <div class="pg-fattr">— The Sporve founder</div>
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Start the <em>conversation.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Say hello before the <em>first serve.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
   if(id==="bookings-receipts"){
-    /* Recipe α, Football. Every session, payment, cancellation in one thread; receipt, refund trail, frozen policy. */
+    /* Recipe α, Football: S1 split hero → S3 rows → S5 proof → S7 stats → S8 close.
+       Athletic terms: "session", "drill". No dark band. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Every session and dollar, <em>in one thread.</em></h1>
-      <p class="pg-sub">One place holds the whole booking: the sessions, the payment, any cancellation. Each has a receipt, a refund trail if money came back, and the exact cancellation policy that applied the day you paid — not a version rewritten later.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:messaging">Where the conversation lives →</button>`}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">Every session, receipt, and refund, <em>one thread.</em></h1>
+        <p class="pg-sub">Each football session, the payment behind it, and any cancellation live on one timeline. The receipt, the refund trail, and the policy you agreed to sit in the same place — nothing to chase down after the fact.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:instant-booking">How booking works →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Football · Miami, FL</span></div>
+        <div class="hc-name">Gridiron Youth — QB Skills</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Paid · Sat 10:00 AM</div>
+        <div class="hc-foot"><span class="hc-price">$50<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> · paid</span></span><span class="hc-book">Receipt</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · A receipt","Every charge, itemized","Each payment leaves a receipt you can open later. What you paid, for which session, on what date — not a card-statement line you have to decode."],
-         ["02 · A refund trail","Money back, traceable","If a session is cancelled and money comes back, the refund is recorded against the same booking. You can see it moved, not just take someone's word."],
-         ["03 · The policy, frozen","As it read at purchase","The cancellation policy is captured the moment you pay. If the coach changes it next month, your booking still answers to the terms you agreed to."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    <section class="pgband white"><div class="shell" data-rev><div class="pg-rows">
+      ${[["01","One thread per session","The booking, the charge, and any message about it sit on <span class=\"hl\">one timeline</span>. You never dig through email to learn what a session cost."],
+         ["02","A receipt you can reopen","Every paid session keeps an <span class=\"hl\">itemized receipt</span> — price, fee, and payout — reopenable long after the drill is over."],
+         ["03","The policy is frozen at booking","The cancellation terms are <span class=\"hl\">locked to what you agreed</span> the day you booked. A coach changing them later never rewrites your refund."]]
+        .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
     </div></div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The record a booking <em>leaves behind.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The trail a refund <em>leaves behind.</em></h2>
       <div class="pg-proof" style="margin-top:22px">
-        ${[["booking","Gridiron QB Academy — football, 1-on-1"],
-           ["session","Sat 09:00 · field 3"],
-           ["receipt",["<span class=\"hl\">paid</span> · itemized, kept on the booking",1]],
-           ["policy",["<span class=\"hl\">as it read at purchase</span> — frozen",1]],
-           ["if cancelled","refund recorded against this booking"]]
-          .map(([k,v,raw])=>`<div><span class="k">${esc(k)}</span> ${raw?v:esc(v)}</div>`).join("")}
+        <div><span class="k">session</span>  Gridiron Youth — football</div>
+        <div><span class="k">booked</span>   Sat May 16 · 10:00 AM · 60 min</div>
+        <div><span class="k">receipt</span>  <span class="hl">$50.00</span> paid · fee $5.25 · payout $44.75</div>
+        <div><span class="k">policy</span>   frozen at booking — <span class="hl">full refund ≥ 24h</span></div>
+        <div><span class="k">refund</span>   $50.00 to card · cancelled 48h before the snap</div>
       </div>
     </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
-        ${[["1","thread per booking — sessions, payment, cancellation"],["100%","of paid sessions leave a receipt"],["$0","to browse, save, and message"]]
+        ${[["1","timeline for every session and its payment"],["100%","of paid sessions keep an itemized receipt"],["$0","to reopen a past receipt anytime"]]
           .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Book with a <em>paper trail.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Every session accounted for, <em>on the record.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
   if(id==="saved"){
-    /* Recipe α, Boxing. Keep a shortlist; guests get three saves before signing in. */
+    /* Recipe γ, Boxing. Two-column hero (headline left, floating listing card
+       right) → full-bleed obsidian demo (headline + wide dark saved-shortlist,
+       side by side) → numbered claim/proof rows → stats → close. Keep a
+       shortlist; guests get three saves before signing in. Accents wear Boxing. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Build the shortlist, <em>then decide.</em></h1>
-      <p class="pg-sub">Save the coaches worth a second look and compare them when you're ready, not in the moment. You can shortlist as a guest — three saves before you sign in — so you can start narrowing the field before you make an account.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Start from a search →</button>`}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">Keep your shortlist, <em>even as a guest.</em></h1>
+        <p class="pg-sub">Save a boxing coach you like and Sporve holds it for you. Guests get three saves before signing in — enough to line up a shortlist, compare gyms, and message the one you pick.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Find a coach to save →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Boxing · Chicago, IL</span></div>
+        <div class="hc-name">Southside Boxing — Youth Fundamentals</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Beginner · ages 10–14</div>
+        <div class="hc-foot"><span class="hc-price">$35<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Save","Keep the maybes","Tap save on a coach and they land on your shortlist. No commitment, no message sent — just a list of who's worth coming back to."],
-         ["02 · Three as a guest","Try before you sign in","Guests get three saves before an account is needed. Enough to start a real shortlist without a sign-up wall in your way."],
-         ["03 · Compare","Decide side by side","Line the shortlist up when you're ready — sport, level, price, distance — and pick, instead of re-searching from scratch each time."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:13ch">Your corner, <em>saved for later.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Every boxing coach you tap the heart on lands here. A guest shortlist holds three; sign in and it keeps as many as you save, ready to book or message.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Southside Boxing — Youth Fundamentals</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · Beginner · ages 10–14</div></div>
+          <span class="dprice">$35</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Windy City BC — Footwork & Conditioning</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · All levels · ages 9–14</div></div>
+          <span class="dprice">$28</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Halsted Boxing Gym — Ring Basics</div>
+            <div class="dmeta"><span class="dchk">3 of 3 saves used</span> · sign in to keep more</div></div>
+          <span class="dprice">$40</span></div>
+      </div>
     </div></div></section>
 
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:18ch">A shortlist you start <em>before you sign in.</em></h2>
+    <section class="pgband white"><div class="shell" data-rev>
+      <div class="pg-rows">
+        ${[["01","Three saves, no account","A guest can save three coaches before signing in — enough to build a shortlist and weigh two gyms side by side, no sign-up gate first."],
+           ["02","Sign in to keep more","Hit the third save and Sporve asks you to sign in. From there the shortlist has <span class=\"hl\">no cap</span> and rides with your account across every sport."],
+           ["03","Saved means still open","A saved coach is still a bookable coach. Open the shortlist to <span class=\"hl\">message or book</span> a real slot — the save is a bookmark, not a hold."]]
+          .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
+      </div>
     </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
-        ${[["3","guest saves before you sign in"],["$0","to save and shortlist"],["20+","sports to shortlist across"]]
+        ${[["3","saves before you sign in"],["$0","to save and message a coach"],["100%","of bookable coaches, background-checked"]]
           .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Save the ones <em>worth a call.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Line up your <em>next round.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
   if(id==="athlete-progress"){
-    /* Recipe α, Track & Field. Notes, goals, and a plan that follow the athlete, not a coach. */
+    /* Recipe γ, Track & Field. Two-column hero (headline left, floating listing
+       card right) → full-bleed obsidian demo (headline + wide dark progress
+       timeline, side by side) → numbered claim/proof rows → stats → close. Notes,
+       goals, and a plan that follow the athlete, not a coach. Accents wear Track. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">The plan follows the athlete, <em>not the coach.</em></h1>
-      <p class="pg-sub">Notes, goals, and the training plan live with the athlete. Change coaches, add a second sport, come back next season — the record of where they are and where they're headed comes with them, instead of leaving when a coach does.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:saved">Shortlist a coach first →</button>`}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">The plan follows <em>the athlete.</em></h1>
+        <p class="pg-sub">Notes, goals, and a training plan live with the young athlete — not with one coach's clipboard. Switch track clubs mid-season and every session and personal best comes along.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:saved">Save a coach first →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Track &amp; Field · Eugene, OR</span></div>
+        <div class="hc-name">Emerald Track Club — Sprint Development</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 11–15</div>
+        <div class="hc-foot"><span class="hc-price">$40<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Notes","What happened, kept","Session notes record what actually got worked on — not a vague “good practice.” They build up over time into a history you can read back."],
-         ["02 · Goals","Where they're headed","Goals sit alongside the notes, so progress is measured against something, not guessed at. A target this month, a bigger one this season."],
-         ["03 · Follows the athlete","Not the coach","All of it is attached to the athlete. Switch coaches or add a sport and the plan travels with them — you don't start from a blank page again."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:13ch">Every session, <em>on one timeline.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Goals, session notes, and personal bests stack up in order on the athlete's timeline. Any coach they train with reads the same track record — nothing resets when the coach changes.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Baseline 100m</div>
+            <div class="dmeta">Apr 18 · time trial logged</div></div>
+          <span class="dprice">14.4s</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Block starts</div>
+            <div class="dmeta">May 2 · session note · <span class="dchk">on plan</span></div></div>
+          <span class="dprice">drill</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">100m re-test</div>
+            <div class="dmeta">May 16 · <span class="dchk">personal best</span></div></div>
+          <span class="dprice">13.9s</span></div>
+      </div>
     </div></div></section>
 
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The history that <em>comes with them.</em></h2>
-      <div class="pg-proof" style="margin-top:22px">
-        ${[["athlete","the record belongs to the kid, not the coach"],
-           ["notes","session by session — what got worked on"],
-           ["goals",["<span class=\"hl\">a target this season</span>, measured against",1]],
-           ["plan",["<span class=\"hl\">follows the athlete</span> across coaches",1]],
-           ["new coach","picks up where the last one left off"]]
-          .map(([k,v,raw])=>`<div><span class="k">${esc(k)}</span> ${raw?v:esc(v)}</div>`).join("")}
+    <section class="pgband white"><div class="shell" data-rev>
+      <div class="pg-rows">
+        ${[["01","Notes that stay with the athlete","Session notes belong to the young athlete, not the coach who wrote them. The <span class=\"hl\">record moves with the kid</span> from one track club to the next."],
+           ["02","Goals you can see move","Set a goal — a 100m time, a distance — and each session marks progress against it. The <span class=\"hl\">personal best</span> is a line on the timeline, not a memory."],
+           ["03","Switch coaches, keep the plan","A new coach opens the same history the last one built. No re-explaining, no lost drills — the plan carries the athlete forward from where they were."]]
+          .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
-        ${[["1","record that follows the athlete"],["20+","sports it can span"],["$0","to browse, save, and message"]]
+        ${[["1","timeline per athlete, every sport"],["$0","to track goals and session notes"],["20+","sports the timeline covers"]]
           .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Keep the <em>whole picture.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Watch the athlete <em>find their stride.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
   if(id==="scheduling"){
-    /* Recipe α, Tennis. Coach-side. Set availability; families book real open slots against it. */
+    /* Recipe β, Tennis. Coach-side: set availability; families book real open slots.
+       S1 hero(split) → S2 ticker → S4 dark demo → S6 founder → S8 close. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Set the hours you coach, <em>let families book the rest.</em></h1>
-      <p class="pg-sub">You publish the times you're actually open. Families see only those slots and book against them — no back-and-forth over a calendar, no double-booked court. Change your availability and the open slots update the moment you save.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
-    </div></section>
-
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Publish","Your hours, your rules","Mark the windows you coach and the ones you don't. Only published time is ever bookable — nothing behind it is exposed."],
-         ["02 · Book","A real slot, not a request","A family picks an open slot and it's taken. The moment one books, it leaves the grid so no one lands on the same time twice."],
-         ["03 · Adjust","One place to change it","Move a window, block a week, close a day. Availability is the single source — search, booking, and payouts all read from it."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
-    </div></div></section>
-
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">What a family sees <em>when you open a slot.</em></h2>
-      <div class="pg-proof" style="margin-top:22px">
-        <div><span class="k">coach</span>  you — tennis</div>
-        <div><span class="k">open</span>   Tue 4:00pm · Thu 5:30pm · Sat 9:00am</div>
-        <div><span class="k">status</span> <span class="hl">bookable</span> — published availability only</div>
-        <div><span class="k">booked</span> a taken slot leaves the grid instantly</div>
-        <div><span class="k">edit</span>   change hours anytime · updates on save</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">Set the hours you coach, <em>let families book the rest.</em></h1>
+        <p class="pg-sub">You publish the times you're actually open on the court. Families see only those tennis slots and book against them — no back-and-forth over a calendar, no double-booked court. Change your availability and the open slots update the moment you save.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Tennis · Austin, TX</span></div>
+        <div class="hc-name">Your court — Tuesday 4:00pm</div>
+        <div class="hc-meta"><span class="hc-chk">Bookable</span> · Private lesson · 60 min</div>
+        <div class="hc-foot"><span class="hc-price">$60<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
       </div>
     </div></section>
 
-    <section class="pgband slate"><div class="shell" data-rev>
-      <div class="pg-stats">
-        ${[["1","calendar every booking reads from"],["$0","to publish your availability"],["24/7","families can book your open slots"]]
-          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+    <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow">${(()=>{const r=["Soccer","Basketball","Swimming","Tennis","Baseball","Volleyball","Football","Boxing","Golf","Hockey","Lacrosse","Cycling","Gymnastics","Track & Field","Martial Arts","Rowing","Fencing","Wrestling","Softball","Pickleball"].map(s=>`<span class="tk">${s}</span><span class="tksep"></span>`).join("");return r+r;})()}</div></div></section>
+
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:14ch">Publish the hours, <em>families take the court.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Only the tennis slots you open are ever bookable. The moment a family takes one it leaves the grid — no double-booked court, no callback to chase.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Tuesday · 4:00pm</div>
+            <div class="dmeta">Private tennis lesson · 60 min · <span class="dchk">Bookable</span></div></div>
+          <span class="dprice">$60</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Thursday · 5:30pm</div>
+            <div class="dmeta">Group clinic · 90 min · <span class="dchk">Bookable</span></div></div>
+          <span class="dprice">$40</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Saturday · 9:00am</div>
+            <div class="dmeta">Junior tennis · 45 min · <span class="dchk">Bookable</span></div></div>
+          <span class="dprice">$35</span></div>
+      </div>
+    </div></div></section>
+
+    <section class="pgband white"><div class="shell" style="max-width:760px" data-rev>
+      <div class="pg-founder">
+        <p class="pg-fnote">I built scheduling after watching tennis coaches lose their evenings to text threads about open times. A coach should set the court hours once and get back to the lesson. The calendar does the chasing, not you.</p>
+        <p class="pg-serif pg-fpull"><em>Set the hours once, coach the rest.</em></p>
+        <div class="pg-fattr">— The Sporve founder</div>
       </div>
     </div></section>
 
@@ -5587,238 +5772,345 @@ function pageHTML(id){
     </div>`;
   }
   if(id==="payments"){
-    /* Recipe α, Golf. Money page — sober. Platform fee is a flat 12%, stated once. */
+    /* Recipe α, Golf. S1 hero(split) → S3 pg-rows(white) → S5 pg-proof(slate)
+       → S7 pg-stats(slate) → S8 close(white). No dark band. Flat 12% fee only.
+       Athletic register: lesson, swing, round, tee. Accents wear Golf via --ps. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">You coach the session, <em>the money handles itself.</em></h1>
-      <p class="pg-sub">Families pay in the app when they book. Sporve takes a flat 12% platform fee and pays out the rest to you automatically — every booking leaves a receipt, and a refund reverses on the same record. No invoices to chase, no cash at the court.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">Book the lesson, <em>pay in one swing.</em></h1>
+        <p class="pg-sub">Every golf lesson checks out inside the app. The parent pays once, Sporve's flat 12% platform fee comes off the top, and the coach's payout lands automatically — with a receipt and a refund trail on every booking.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:bookings-receipts">Where the receipt lives →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Golf · Miami, FL</span></div>
+        <div class="hc-name">Doral Junior Golf — Short Game Clinic</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 10–14</div>
+        <div class="hc-foot"><span class="hc-price">$45<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Charged","Paid at booking","The family pays the moment they book the slot. You never handle the card and never invoice after the fact."],
-         ["02 · Paid out","Your share, automatically","Sporve deducts a flat 12% platform fee and pays the remainder out to you. One rate on every booking — no first-versus-recurring split, no add-ons."],
-         ["03 · On record","A receipt per booking","Every charge, payout, and refund is written to that booking. The trail is the same one the family sees — nothing off the books."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
-    </div></div></section>
+    <section class="pgband white"><div class="shell" data-rev>
+      <div class="pg-rows">
+        ${[["01","One flow to book and pay","Pick a golf slot and pay in the same tap. The card is charged when the booking confirms, not on some callback that never comes."],
+           ["02","A flat fee, shown up front","Sporve takes a <span class=\"hl\">flat 12% platform fee</span> on every booking — the same on a $30 clinic or a $90 private lesson. No tiers, no fine print."],
+           ["03","Payouts land on their own","Once the golf lesson is played, the coach's payout releases to their account automatically. Every booking keeps a receipt and a refund trail."]]
+          .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
+      </div>
+    </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The trail behind <em>one booking.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:16ch">What the golf receipt <em>actually shows.</em></h2>
       <div class="pg-proof" style="margin-top:22px">
-        <div><span class="k">booking</span>  golf lesson · one session</div>
-        <div><span class="k">charged</span>  family paid in-app at booking</div>
-        <div><span class="k">fee</span>      <span class="hl">12% flat</span> — every booking, no exceptions</div>
-        <div><span class="k">payout</span>   remainder paid out to you automatically</div>
-        <div><span class="k">refund</span>   reverses on the <span class="hl">same record</span></div>
+        <div><span class="k">booking</span> Doral Junior Golf — short game clinic</div>
+        <div><span class="k">session</span> $45.00 · paid in app</div>
+        <div><span class="k">fee</span>     $5.40 · Sporve flat 12% platform fee</div>
+        <div><span class="k">payout</span>  <span class="hl">$39.60</span> · to the coach, automatic</div>
+        <div><span class="k">refund</span>  full trail kept on every booking</div>
       </div>
     </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
-        ${[["12%","flat platform fee on every booking"],["$0","in extra or hidden fees"],["1","receipt trail per booking"]]
+        ${[["12%","flat platform fee on every booking"],["100%","of bookable coaches, background-checked"],["$0","to browse, save, and message"]]
           .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Get paid for <em>the work you already do.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Get paid when <em>the round ends.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
   if(id==="roster"){
-    /* Recipe α, Hockey. Coach-side. Client roster; import existing clients. */
+    /* Recipe β, Hockey. Coach-side: client roster; import existing clients; one record.
+       S1 hero(split) → S2 ticker → S4 dark demo → S6 founder → S8 close. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Every athlete you coach, <em>in one place.</em></h1>
-      <p class="pg-sub">Your roster is the list of the families you work with. Bring the clients you already coach across, and let new bookings add themselves — so booking, session notes, and payouts all point at the same person instead of a name in your phone.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">Every athlete you coach, <em>in one record.</em></h1>
+        <p class="pg-sub">Your roster is every hockey family you coach, in one list. Bring the clients you already train across, and let new bookings add themselves — so booking, session notes, and payouts all point at the same skater instead of a name in your phone.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Hockey · Minneapolis, MN</span></div>
+        <div class="hc-name">Devin Okafor — 11</div>
+        <div class="hc-meta"><span class="hc-chk">On your roster</span> · Tuesdays · imported</div>
+        <div class="hc-foot"><span class="hc-price">$45<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Open</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Import","Bring who you have","Add the clients you already coach so day one isn't an empty list. Your existing book of business starts on Sporve, not from scratch."],
-         ["02 · Grow","New bookings, added for you","When a new family books, they join the roster automatically. You don't re-type anyone who came through Sporve to reach you."],
-         ["03 · One record","The person, not the paperwork","Notes, bookings, and payouts attach to the same athlete. Open one client and the whole history is in front of you."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow">${(()=>{const r=["Soccer","Basketball","Swimming","Tennis","Baseball","Volleyball","Football","Boxing","Golf","Hockey","Lacrosse","Cycling","Gymnastics","Track & Field","Martial Arts","Rowing","Fencing","Wrestling","Softball","Pickleball"].map(s=>`<span class="tk">${s}</span><span class="tksep"></span>`).join("");return r+r;})()}</div></div></section>
+
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:14ch">Every skater you coach, <em>one record.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Import the hockey families you already train and let new bookings join on their own. Notes, sessions, and payouts all attach to the same athlete.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">The Okafor family — Devin, 11</div>
+            <div class="dmeta">Hockey · Tuesdays · <span class="dchk">Imported</span></div></div>
+          <span class="dprice">$45</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Riley Chen — 13</div>
+            <div class="dmeta">Hockey · added by booking · <span class="dchk">Active</span></div></div>
+          <span class="dprice">$45</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">The Nowak family — twins, 9</div>
+            <div class="dmeta">Hockey · Saturdays · <span class="dchk">Active</span></div></div>
+          <span class="dprice">$45</span></div>
+      </div>
     </div></div></section>
 
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:18ch">One list your whole practice <em>reads from.</em></h2>
-    </div></section>
-
-    <section class="pgband slate"><div class="shell" data-rev>
-      <div class="pg-stats">
-        ${[["1","roster every tool points at"],["$0","to import the clients you have"],["100%","of Sporve bookings added for you"]]
-          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+    <section class="pgband white"><div class="shell" style="max-width:760px" data-rev>
+      <div class="pg-founder">
+        <p class="pg-fnote">Most coaches already have a book of business — a notebook, a group text, a phone full of hockey families. Day one on Sporve should not be an empty list. Import who you have, and every new booking joins the roster on its own.</p>
+        <p class="pg-serif pg-fpull"><em>Your book of business, on day one.</em></p>
+        <div class="pg-fattr">— The Sporve founder</div>
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Keep your whole book <em>in one place.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Keep every skater <em>in one record.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
   if(id==="session-notes"){
-    /* Recipe α, Fencing. Coach-side. Per-session notes attached to athlete progress. */
+    /* Recipe α, Fencing. S1 hero(split) → S3 pg-rows(white) → S5 pg-proof(slate)
+       → S7 pg-stats(slate) → S8 close(white). No dark band.
+       Athletic register: bout, footwork, lunge, retreat. Accents wear Fencing via --ps. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Write it down once, <em>watch the progress build.</em></h1>
-      <p class="pg-sub">After a session you leave a note on it — what you worked on, what to carry into next time. Each note attaches to that athlete, so the notes stack into a record of how they've grown instead of scattering across a notebook you have to find.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">Every bout leaves <em>a note behind.</em></h1>
+        <p class="pg-sub">After each fencing session the coach writes a note — what the athlete drilled, the footwork to fix, what to sharpen next. It attaches to the athlete's progress, so the whole timeline reads as one thread instead of a stack of loose pads.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:athlete-progress">How progress builds up →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Fencing · Miami, FL</span></div>
+        <div class="hc-name">Biscayne Fencing Academy — Foil Basics</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Beginner · ages 9–13</div>
+        <div class="hc-foot"><span class="hc-price">$50<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Per session","A note where it happened","Each note lands on the session it came from. You're never guessing which lesson a comment belonged to."],
-         ["02 · Per athlete","Attached to the person","Notes collect on the athlete, not a loose page. Open a client and their sessions read in order, most recent first."],
-         ["03 · Into progress","The through-line, kept","Session by session, the notes become the record of how far an athlete has come — and what to work on next."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
-    </div></div></section>
+    <section class="pgband white"><div class="shell" data-rev>
+      <div class="pg-rows">
+        ${[["01","A note after every bout","The coach logs a note at the end of each fencing session — drills done, distance, footwork, what to sharpen before the next bout."],
+           ["02","Attached to the athlete","Each note <span class=\"hl\">binds to the athlete's timeline</span>, not a loose notebook. A parent reads the same progress the coach is building toward."],
+           ["03","The thread stays put","Notes persist across sessions and coaches. Nothing resets when the roster changes — the fencer's record travels with them."]]
+          .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
+      </div>
+    </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:18ch">A record that builds itself, <em>one session at a time.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:16ch">What a fencing note <em>actually holds.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">athlete</span> Maya R. — foil · age 11</div>
+        <div><span class="k">session</span> 2026-05-14 · Biscayne Fencing Academy</div>
+        <div><span class="k">focus</span>   footwork · distance control</div>
+        <div><span class="k">note</span>    <span class="hl">strong lunge; drill the retreat</span></div>
+        <div><span class="k">next</span>    parry-four before the next bout</div>
+      </div>
     </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
-        ${[["1","note per session, kept in order"],["$0","to keep notes on every athlete"],["100%","attached to the athlete's progress"]]
+        ${[["1","progress timeline per athlete"],["100%","of bookable coaches, background-checked"],["$0","to browse, save, and message"]]
           .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Remember every session <em>that mattered.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Read the notes <em>between the bouts.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
   if(id==="media-consent"){
-    /* Recipe α, Gymnastics. Consent/safety page — sober. Minor media gated behind explicit, recorded, revocable consent. */
+    /* Recipe α, Gymnastics. S1 hero(split) → S3 pg-rows(white) → S5 pg-proof(slate)
+       → S7 pg-stats(slate) → S8 close(white). No dark band. Sober tone: consent is
+       explicit, recorded, revocable. Accents wear Gymnastics via --ps. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">No photo of your child moves <em>without your consent.</em></h1>
-      <p class="pg-sub">A coach cannot capture, store, or share a minor's photo or video until a parent has said yes. The consent is recorded against the account, scoped to what was agreed, and can be withdrawn at any time.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">A gymnast's photo, <em>only with a yes.</em></h1>
+        <p class="pg-sub">A minor's photo or video is gated behind explicit parent consent. The consent is recorded, tied to the gymnast, and can be revoked at any time — until a parent agrees, nothing of the child is shared.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How verification works →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Gymnastics · Miami, FL</span></div>
+        <div class="hc-name">Biscayne Gymnastics — Level 3 Floor</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Level 3 · ages 7–11</div>
+        <div class="hc-foot"><span class="hc-price">$40<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Asked","Consent, not assumed","The parent grants consent before any media of the child can be captured. Silence is never permission — nothing is enabled until the yes is on record."],
-         ["02 · Recorded","Logged against the account","Each grant is stored with who agreed and when, and scoped to what it covers. The record is the source of truth, not the coach's memory."],
-         ["03 · Revocable","Withdrawn at any time","A parent can revoke consent whenever they choose. From that point the coach can no longer capture or share the child's media."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
-    </div></div></section>
+    <section class="pgband white"><div class="shell" data-rev>
+      <div class="pg-rows">
+        ${[["01","Nothing shared without a yes","A coach cannot post a photo or clip of a minor until a parent has given explicit consent. Before that, the gymnast's media stays private."],
+           ["02","The yes is recorded","Each consent is <span class=\"hl\">written down with a date</span> and tied to the specific child — not a blanket waiver buried in a signup form."],
+           ["03","And it can be withdrawn","A parent can revoke consent at any time. The moment they do, the gymnast's photos and video come down and stay down."]]
+          .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
+      </div>
+    </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The permission a parent can <em>read.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:16ch">What a gymnast's consent <em>record holds.</em></h2>
       <div class="pg-proof" style="margin-top:22px">
-        <div><span class="k">athlete</span> minor · gymnastics</div>
-        <div><span class="k">consent</span> <span class="hl">granted by parent</span> · on record</div>
-        <div><span class="k">scope</span>   photo &amp; video for coaching use</div>
-        <div><span class="k">granted</span> 2026-06-02 · by the account holder</div>
-        <div><span class="k">status</span>  <span class="hl">revocable</span> — withdraw anytime</div>
+        <div><span class="k">child</span>     Ava T. — gymnastics · age 9</div>
+        <div><span class="k">consent</span>   <span class="hl">granted</span> · by parent · 2026-05-14</div>
+        <div><span class="k">scope</span>     practice photos · no public sharing</div>
+        <div><span class="k">status</span>    revocable at any time</div>
+        <div><span class="k">on revoke</span> media removed · access closed</div>
       </div>
     </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
-        ${[["100%","of minor media gated behind parent consent"],["1","tap for a parent to revoke it"],["$0","to review and manage consent"]]
+        ${[["0","photos shared without consent"],["100%","of bookable coaches, background-checked"],["$0","to browse, save, and message"]]
           .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Consent your family <em>stays in control of.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">A yes the parent <em>can always undo.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
   if(id==="insights"){
-    /* Recipe α, Rowing. Coach-side business insights — bookings, earnings, retention over time. */
+    /* Recipe γ, Rowing. Two-column hero (headline left, floating listing card
+       right) → full-bleed obsidian demo (headline + wide dark insight rows, side
+       by side) → numbered claim/proof rows → stats → close. A coach's business
+       insights — bookings, earnings, retention over time. Accents wear Rowing. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">Your coaching business, <em>read at a glance.</em></h1>
-      <p class="pg-sub">Insights turns your bookings, earnings, and returning athletes into a picture you can act on. See what a month actually did — where sessions came from, what they paid out, and who came back.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:payments">How payouts work →</button>`}</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">See the season <em>your business is having.</em></h1>
+        <p class="pg-sub">Bookings, earnings, and who comes back — read the shape of your rowing practice over time. Insights turn a month of sessions into numbers you can coach your business by.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:payments">See how payouts work →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Rowing · Boston, MA</span></div>
+        <div class="hc-name">Charles River Rowing — Learn to Row</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Beginner · ages 12–16</div>
+        <div class="hc-foot"><span class="hc-price">$55<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
+      </div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Bookings","The demand, over time","Watch sessions rise and fall week by week. See which slots fill and which sit empty, so the next month's schedule follows the demand you already have."],
-         ["02 · Earnings","What the month paid out","Every completed session rolls up into what you actually earned. No spreadsheet — the payout total and its trend sit next to the bookings that produced it."],
-         ["03 · Retention","Who came back","A one-off is not a client. Insights separates the athletes who returned from the ones who tried you once, so you can see the base you are really building."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:13ch">Read the numbers <em>your season leaves behind.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Bookings, earnings after fees, and returning rowers — each one tracked over time from your real sessions. No spreadsheet to keep; the numbers add themselves up.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Bookings this month</div>
+            <div class="dmeta"><span class="dchk">up 18%</span> vs last month · rowing</div></div>
+          <span class="dprice">42</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Earnings</div>
+            <div class="dmeta">paid out after platform fees</div></div>
+          <span class="dprice">$1,840</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Returning athletes</div>
+            <div class="dmeta"><span class="dchk">rebooked</span> within 30 days</div></div>
+          <span class="dprice">11</span></div>
+      </div>
     </div></div></section>
 
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The month a coach can <em>actually see.</em></h2>
-      <div class="pg-proof" style="margin-top:22px">
-        <div><span class="k">period</span>   trailing 30 days · rowing</div>
-        <div><span class="k">bookings</span> <span class="hl">up on last month</span> · by slot</div>
-        <div><span class="k">earnings</span> completed sessions · net of fees</div>
-        <div><span class="k">returning</span> athletes who booked again</div>
-        <div><span class="k">trend</span>    <span class="hl">week over week</span> — not a snapshot</div>
+    <section class="pgband white"><div class="shell" data-rev>
+      <div class="pg-rows">
+        ${[["01","Bookings over time","Watch the booking count rise and fall week by week. A <span class=\"hl\">trend, not a single number</span> — you see whether a full season is building or a slow month is starting."],
+           ["02","Earnings after fees","Every payout lands in the total already net of platform fees. The earnings line is <span class=\"hl\">what actually reaches your account</span>, not a gross figure to discount later."],
+           ["03","Who comes back","Returning athletes are counted on their own. Retention tells you which rowers rebooked — the signal that the sessions are landing, session after session."]]
+          .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum"><span class="psdot"></span>${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
-        ${[["30d","of bookings, earnings, and retention at a glance"],["3","signals — demand, payout, return"],["$0","to see your own insights"]]
+        ${[["$0","extra — insights come with your account"],["100%","of your payouts, tracked after fees"],["20+","sports on Sporve today"]]
           .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Coach the sessions, <em>watch the business.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Coach the athletes, <em>watch the numbers follow.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
     </div>`;
   }
   if(id==="ai-coach"){
-    /* Recipe α, Martial Arts. Grounded AI that only surfaces background-checked coaches. */
+    /* Recipe β, Martial Arts. Grounded assistant that only suggests background-checked
+       coaches; it cannot surface an unverified one.
+       S1 hero(split) → S2 ticker → S4 dark demo → S6 founder → S8 close. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero"><div class="shell" data-rev>
-      ${pageEyebrow(meta)}
-      <h1 class="pg-serif pg-h1">An assistant that only sends you to <em>checked coaches.</em></h1>
-      <p class="pg-sub">Ask for a martial arts coach near you and the assistant answers from the same verified pool the search does. It cannot reach for a coach whose background check has not cleared — an unverified name simply is not on the shelf it draws from.</p>
-      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
-    </div></section>
-
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · Ask","Plain words, real results","Tell it the sport, the age, and where you are. It reads the ask and returns coaches you could book — not a page of links to go read yourself."],
-         ["02 · Verified only","It cannot surface the unchecked","The assistant draws from the same bookable pool as search, where every coach is background-checked. A pending or failed check is not in that pool, so it can never come back as a suggestion."],
-         ["03 · Yours to check","A recommendation, not a verdict","It points you at real people and hands you back to the listing. You read the record, message the coach, and decide — the assistant never books on your behalf."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
-    </div></div></section>
-
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:17ch">The one guarantee behind <em>every answer.</em></h2>
-      <div class="pg-proof" style="margin-top:22px">
-        <div><span class="k">ask</span>     "a martial arts coach for my 9-year-old"</div>
-        <div><span class="k">source</span>  the <span class="hl">bookable</span> pool · same as search</div>
-        <div><span class="k">every hit</span> <span class="hl">background-checked</span> · per person</div>
-        <div><span class="k">unchecked</span> not in the pool · never surfaced</div>
-        <div><span class="k">action</span>  handed back to you to book</div>
+    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+      <div class="pg-heroL">
+        ${pageEyebrow(meta)}
+        <h1 class="pg-serif pg-h1">An assistant that only sends you to <em>checked coaches.</em></h1>
+        <p class="pg-sub">Ask for a martial arts coach near you and the assistant answers from the same verified pool the search does. It cannot reach for a coach whose background check has not cleared — an unverified name simply is not on the shelf it draws from.</p>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
+      </div>
+      <div class="pg-herocard" aria-hidden="true">
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Martial Arts · Denver, CO</span></div>
+        <div class="hc-name">Sensei Marisol Vega — Karate</div>
+        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · ages 6–12 · beginner</div>
+        <div class="hc-foot"><span class="hc-price">$40<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
       </div>
     </div></section>
 
-    <section class="pgband slate"><div class="shell" data-rev>
-      <div class="pg-stats">
-        ${[["100%","of suggested coaches, background-checked"],["0","unverified coaches it can surface"],["$0","to ask the assistant"]]
-          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+    <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow">${(()=>{const r=["Soccer","Basketball","Swimming","Tennis","Baseball","Volleyball","Football","Boxing","Golf","Hockey","Lacrosse","Cycling","Gymnastics","Track & Field","Martial Arts","Rowing","Fencing","Wrestling","Softball","Pickleball"].map(s=>`<span class="tk">${s}</span><span class="tksep"></span>`).join("");return r+r;})()}</div></div></section>
+
+    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
+      <div>
+        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:14ch">Every name it returns, <em>already checked.</em></h2>
+        <p class="pg-sub" style="margin-top:14px">Ask for a martial arts coach and the assistant draws only from the background-checked pool. A pending check is not on the shelf, so it never comes back as a suggestion.</p>
+      </div>
+      <div class="pg-demo wide" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Sensei Marisol Vega — Karate</div>
+            <div class="dmeta">Martial Arts · ages 6–12 · <span class="dchk">Background-checked</span></div></div>
+          <span class="dprice">$40</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Ronin BJJ — Kids Program</div>
+            <div class="dmeta">Martial Arts · all levels · <span class="dchk">Background-checked</span></div></div>
+          <span class="dprice">$35</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Dragon Gate Taekwondo</div>
+            <div class="dmeta">Martial Arts · ages 5–10 · <span class="dchk">Background-checked</span></div></div>
+          <span class="dprice">$30</span></div>
+      </div>
+    </div></div></section>
+
+    <section class="pgband white"><div class="shell" style="max-width:760px" data-rev>
+      <div class="pg-founder">
+        <p class="pg-fnote">An assistant that points a parent at an unchecked martial arts coach is worse than no assistant at all. So it only ever reads from the same background-checked pool the search does. Nothing unverified is on the shelf it draws from.</p>
+        <p class="pg-serif pg-fpull"><em>It cannot hand you an unchecked coach.</em></p>
+        <div class="pg-fattr">— The Sporve founder</div>
       </div>
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Ask freely — the <em>floor stays verified.</em></h2>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Ask anything — every name <em>is already checked.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
     ${pageKX(id)}
