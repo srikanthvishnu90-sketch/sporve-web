@@ -1,0 +1,23 @@
+# Runs the repo's own smoke test on every pull request, so CodeRabbit's review
+# and a green build check sit side by side on the same PR. This is CI: the
+# check GitHub shows before a merge. It does not review code (CodeRabbit does);
+# it proves the build still boots, the dark-ground invariant holds, nothing
+# overflows, and every font size is on the scale.
+name: pr-checks
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: python3 src/build.py
+      - name: Smoke (build-only checks; browser checks skip in CI)
+        run: bash src/smoke.sh

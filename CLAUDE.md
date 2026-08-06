@@ -180,6 +180,28 @@ important case: surface it, do not just pick one.
 Exact URL, exact button label, full copy-paste-ready values. No "navigate to
 your project settings".
 
+## 11. Branch and PR — do not push to main
+
+CodeRabbit reviews **pull requests**, so a change pushed straight to `main`
+gets no review. Route every substantive change through a branch and a PR:
+
+```bash
+git checkout -b <kind>/<short-name>      # feat/ fix/ chore/ style/
+# ...edit, then:
+bash src/smoke.sh                        # must exit 0
+git commit -am "<message>"
+git push -u origin HEAD
+gh pr create --fill
+```
+
+CodeRabbit comments within a minute or two; the `pr-checks` workflow runs the
+smoke test on the same PR. Read both before merging. Merge with
+`gh pr merge --squash` once green. This also gives the Claude/Codex split a
+real review gate instead of two actors pushing to `main` in parallel.
+
+Trivial, non-code changes (a doc typo, a comment) may still go direct — the
+gate is for anything that touches behaviour, style tokens, or the build.
+
 ---
 
 ## Before you commit
