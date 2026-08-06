@@ -643,6 +643,30 @@ img{max-width:100%;display:block}
   grid-template-columns:repeat(auto-fill,minmax(258px,1fr));
   padding:30px 0 56px;
 }
+
+/* ── browse rails — the default home feed (Uber-Eats pattern). Three titled
+   rows, one per provider type, each a horizontally-scrolling track of the same
+   .card. Only the unfiltered browse view renders rails; an active search or
+   filter falls back to the flat .grid so MOD_SEARCH's node-level filtering
+   keeps working. The track scrolls internally (overflow-x on itself), never the
+   page body, so the no-horizontal-overflow invariant holds. */
+.rails{padding:24px 0 52px;display:flex;flex-direction:column;gap:38px}
+.rail-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:15px}
+.rail-head h2{font-size:var(--text-2xl);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.rail-head .rsub{color:var(--muted);font-size:var(--text-sm);margin-top:5px}
+.rail-arrows{display:flex;gap:8px;flex:0 0 auto}
+.rail-arrow{width:38px;height:38px;border-radius:999px;display:grid;place-items:center;
+  background:var(--raise);color:var(--ink);transition:background .15s,transform .15s;flex:0 0 auto}
+.rail-arrow:hover{background:var(--raise2);transform:translateY(-1px)}
+.rail-track{display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x proximity;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:4px 2px 8px;margin:0 -2px}
+.rail-track::-webkit-scrollbar{display:none}
+.rail-track>.card{flex:0 0 clamp(240px,78vw,280px);scroll-snap-align:start}
+@media(max-width:640px){
+  .rail-head h2{font-size:var(--text-xl)}
+  .rail-arrows{display:none}
+  .rail-track>.card{flex-basis:80vw}
+}
 .card{
   text-align:left;display:flex;flex-direction:column;gap:9px;position:relative;
   background:var(--paper);border-radius:var(--r-xl);overflow:hidden;
@@ -2150,6 +2174,27 @@ const BUSINESSES=[...new Set(PROGRAMS.map(p=>p.biz))].map(b=>{
     rating:(list.reduce((s,p)=>s+p.rating,0)/list.length).toFixed(1)};
 });
 
+/* Browse rails group the catalogue into three provider TYPES. The seed data has
+   no stored type — every listing belongs to one of six businesses — so the type
+   is DERIVED from each listing's format + title: a private single-session reads
+   as a solo trainer, a camp/clinic/class as a camp, an ongoing squad/league/
+   academy as an org. Labels are deliberately broad so each bucket stays roomy
+   (camps also holds classes; orgs also holds travel teams and academies). This
+   is a rearrange of existing listings, not new data — the demo has no standalone
+   individual coaches, so "solo" here means private-format sessions. */
+const PTYPE_ORDER=["solo","camp","org"];
+const PTYPE_LABEL={
+  solo:["Solo trainers & private coaching","One-on-one sessions and focused skill work"],
+  camp:["Camps, clinics & classes","Multi-week camps and drop-in clinics"],
+  org:["Clubs, academies & travel teams","Ongoing squads, leagues, and academies"],
+};
+function ptypeOf(p){
+  const t=(p.title+" "+p.skill).toLowerCase();
+  if(/\bcamp\b|clinic|class|intro|foundation|fundamental|learn-to|\bbasics\b/.test(t)) return "camp";
+  if(p.model==="monthly"||/squad|league|\bclub\b|academy|\bteam\b|dojo|institute/.test(t)) return "org";
+  return "solo";
+}
+
 /* The app's "now" — the same anchor mod-payments and mod-search already use.
    Every seeded slot is generated FORWARD from here. They used to be hardcoded
    to 2026-05-xx against this same clock, which quietly broke four things at
@@ -2426,6 +2471,27 @@ function featureCardHTML(p){
       <span class="featprice num">${money(p.price)} / ${esc(modelLabel(p.model).replace(/^per /,""))}</span>
     </div>
   </div>`;
+}
+
+/* One browse rail: a titled, horizontally-scrolling row of cards. Arrows scroll
+   the track by ~a card width (handler in wire()); native swipe / trackpad work
+   regardless. Empty buckets render nothing so a thin type never shows a bare
+   header. Cards are the ordinary cardHTML — a rail is a layout, not a new card. */
+const CHEV_L=`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>`;
+const CHEV_R=`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
+function railSectionHTML(type,list){
+  if(!list.length) return "";
+  const [title,sub]=PTYPE_LABEL[type];
+  return `<section class="rail-sec">
+    <div class="rail-head">
+      <div><h2>${esc(title)}</h2><div class="rsub">${esc(sub)} · ${list.length} listing${list.length===1?"":"s"}</div></div>
+      <div class="rail-arrows">
+        <button class="rail-arrow" data-railscroll="-1" aria-label="Scroll ${esc(title)} left">${CHEV_L}</button>
+        <button class="rail-arrow" data-railscroll="1" aria-label="Scroll ${esc(title)} right">${CHEV_R}</button>
+      </div>
+    </div>
+    <div class="rail-track">${list.map(cardHTML).join("")}</div>
+  </section>`;
 }
 
 /* The bar carries the brand, the four primary controls, and the account
@@ -3214,7 +3280,11 @@ function exploreHTML(){
       <span class="fcount num">${list.length} of ${PROGRAMS.length} programs</span>
     </div>
 
-    ${list.length?`<div class="grid">${list.map((p,i)=>i===heroIdx?featureCardHTML(p):cardHTML(p)).join("")}</div>`
+    ${!dirty
+      /* Default browse: the three provider-type rails, each scrolling sideways. */
+      ? `<div class="rails">${PTYPE_ORDER.map(t=>railSectionHTML(t,list.filter(p=>ptypeOf(p)===t))).join("")}</div>`
+      /* Active search/filter: a flat ranked grid, where MOD_SEARCH filters live. */
+      : list.length?`<div class="grid">${list.map((p,i)=>i===heroIdx?featureCardHTML(p):cardHTML(p)).join("")}</div>`
       :`<div class="empty"><div class="big">🔍</div><h3>No programs match those filters</h3>
         <p style="margin-top:6px">Try clearing a filter or picking a different sport.</p>
         <button class="btn ghost sm" data-filter="clear" style="margin-top:18px">Clear all filters</button></div>`}
@@ -5093,6 +5163,13 @@ function wire(){
     const v=b.dataset.nav;const c=v.indexOf(":");
     if(c>0) go(v.slice(0,c),v.slice(c+1)); else go(v);});
   $("[data-open]").forEach(b=>b.onclick=()=>go("detail",b.dataset.open));
+  /* Browse-rail arrows: scroll the sibling track by ~a card width, capped so a
+     wide viewport doesn't fling the whole row past the next card. */
+  $("[data-railscroll]").forEach(b=>b.onclick=()=>{
+    const sec=b.closest(".rail-sec"); if(!sec) return;
+    const track=sec.querySelector(".rail-track"); if(!track) return;
+    track.scrollBy({left:Number(b.dataset.railscroll)*Math.min(track.clientWidth*0.85,620),behavior:"smooth"});
+  });
   $("[data-fav]").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFav(b.dataset.fav);});
   /* Multi-select: each disc adds or removes its sport; "All" clears the set. */
   $("[data-sport]").forEach(b=>b.onclick=()=>{toggleSport(b.dataset.sport||"");render();});
