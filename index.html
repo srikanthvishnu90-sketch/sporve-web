@@ -3346,11 +3346,10 @@ function exploreHTML(){
       <span class="fcount num">${list.length} of ${PROGRAMS.length} programs</span>
     </div>
 
-    ${!dirty
-      /* Default browse: the three provider-type rails, each scrolling sideways. */
-      ? `<div class="rails">${PTYPE_ORDER.map(t=>railSectionHTML(t,list.filter(p=>ptypeOf(p)===t))).join("")}</div>`
-      /* Active search/filter: a flat ranked grid, where MOD_SEARCH filters live. */
-      : list.length?`<div class="grid">${list.map((p,i)=>i===heroIdx?featureCardHTML(p):cardHTML(p)).join("")}</div>`
+    ${/* §6.4: a single vertical results grid — the rails (lateral scroll) are
+         the editorial anti-pattern and are removed. Horizontal scroll survives
+         only on the landing showcase and the S2 ticker. */""}
+    ${list.length?`<div class="grid">${list.map((p,i)=>i===heroIdx?featureCardHTML(p):cardHTML(p)).join("")}</div>`
       :`<div class="empty"><div class="big">${ICON.search}</div><h3>No programs match those filters</h3>
         <p style="margin-top:6px">Try clearing a filter or picking a different sport.</p>
         <button class="btn ghost sm" data-filter="clear" style="margin-top:18px">Clear all filters</button></div>`}
