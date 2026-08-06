@@ -782,7 +782,11 @@ img{max-width:100%;display:block}
 .err{color:var(--danger);font-size:var(--text-sm);font-weight:600}
 .panel{border:1px solid var(--rule);border-radius:var(--r-l);padding:22px;background:var(--paper)}
 .empty{padding:72px 24px;text-align:center;color:var(--muted)}
-.empty .big{font-size:42px;margin-bottom:12px;filter:grayscale(1) opacity(.4)}
+.empty .big{margin-bottom:14px;line-height:0}
+/* Empty/auth states render a line-icon from ICON, not an emoji. Sized here and
+   tinted muted so the glyph reads as a quiet placeholder, matching the chrome. */
+.empty .big svg,.big svg{width:46px;height:46px;stroke:currentColor;stroke-width:1.5;
+  fill:none;color:var(--faint)}
 .sec-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:34px 0 16px}
 
 /* ── detail view ─────────────────────────────────────────────────── */
@@ -3257,7 +3261,7 @@ function exploreHTML(){
       ? `<div class="rails">${PTYPE_ORDER.map(t=>railSectionHTML(t,list.filter(p=>ptypeOf(p)===t))).join("")}</div>`
       /* Active search/filter: a flat ranked grid, where MOD_SEARCH filters live. */
       : list.length?`<div class="grid">${list.map((p,i)=>i===heroIdx?featureCardHTML(p):cardHTML(p)).join("")}</div>`
-      :`<div class="empty"><div class="big">🔍</div><h3>No programs match those filters</h3>
+      :`<div class="empty"><div class="big">${ICON.search}</div><h3>No programs match those filters</h3>
         <p style="margin-top:6px">Try clearing a filter or picking a different sport.</p>
         <button class="btn ghost sm" data-filter="clear" style="margin-top:18px">Clear all filters</button></div>`}
   </main>`;
@@ -3560,7 +3564,7 @@ function bookingsHTML(){
           <div class="num" style="font-size:var(--text-lg);font-weight:700;letter-spacing:-.03em">${money(b.price)}</div>
           <button class="btn ghost sm" data-open="${b.programId}" style="margin-top:9px">View program</button>
         </div></div>`}).join("")}</div>`
-    :`<div class="empty"><div class="big">📅</div><h3>No bookings yet</h3>
+    :`<div class="empty"><div class="big">${PICON.receipt}</div><h3>No bookings yet</h3>
       <button class="btn" data-nav="explore" style="margin-top:18px">Explore programs</button></div>`}
   </main>`;
 }
@@ -3592,7 +3596,7 @@ function savedHTML(){
 
 function profileHTML(){
   if(!isVerified()) return `${subnavHTML()}<main class="shell"><div class="empty">
-    <div class="big">👤</div><h2>Log in to Sporve</h2>
+    <div class="big">${PICON.users}</div><h2>Log in to Sporve</h2>
     <p style="margin-top:8px">Manage your athletes, bookings, and messages.</p>
     <button class="btn" data-signin="1" style="margin-top:20px">Log in or sign up</button></div></main>`;
   const u=S.auth.user;
@@ -3838,7 +3842,7 @@ function answerFor(q){
 /* ── schedule (family calendar of booked sessions) ────────────────── */
 function scheduleHTML(){
   if(!isVerified()) return `${subnavHTML()}<main class="shell"><div class="empty">
-    <div class="big">🗓</div><h2>Sign in to see your schedule</h2>
+    <div class="big">${PICON.calendar}</div><h2>Sign in to see your schedule</h2>
     <button class="btn" data-signin="1" style="margin-top:20px">Log in or sign up</button></div></main>`;
   const byDate={};
   S.bookings.forEach(b=>{(byDate[b.date]=byDate[b.date]||[]).push(b);});
@@ -3862,7 +3866,7 @@ function scheduleHTML(){
                 ${b.startTime} · ${esc(b.athlete)} · ${esc(b.tier)}</div></div></div>
           <span class="pill good">${esc(b.status)}</span></div>`}).join("")}
         </div></div>`).join("")}</div>`
-    :`<div class="empty"><div class="big">🗓</div><h3>Nothing scheduled yet</h3>
+    :`<div class="empty"><div class="big">${PICON.calendar}</div><h3>Nothing scheduled yet</h3>
       <button class="btn" data-nav="explore" style="margin-top:18px">Find a program</button></div>`}
   </main>`;
 }
@@ -4895,7 +4899,7 @@ function infoHTML(key){
 /* ── notification settings (host-owned) ──────────────────────────── */
 function notifSettingsHTML(){
   if(!isVerified()) return `${subnavHTML()}<main class="shell"><div class="empty">
-    <div class="big">🔔</div><h2>Sign in to manage notifications</h2>
+    <div class="big">${PICON.bell}</div><h2>Sign in to manage notifications</h2>
     <button class="btn" data-signin="1" style="margin-top:20px">Log in or sign up</button></div></main>`;
   const rows=[
     ["booking","Booking confirmations","When a session is confirmed, changed, or cancelled"],
