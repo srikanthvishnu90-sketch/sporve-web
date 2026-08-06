@@ -5100,6 +5100,618 @@ function pageHTML(id){
     ${pageKX(id)}
     </div>`;
   }
+  if(id==="examples"){
+    /* Recipe α, Lacrosse. Real listings/businesses on Sporve, browsing by business. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Real coaches, real clubs, <em>already on Sporve.</em></h1>
+      <p class="pg-sub">These aren't stock names. Browse the actual businesses listing open slots — a lacrosse club, a swim school, a boxing gym — each one a real profile with background-checked coaches and slots you can book today.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Search by sport & age →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · A business, not a directory","One profile per club","Every listing is one real business — its coaches, its sports, its open slots. Tap in and you see who coaches, not a phone number to chase."],
+         ["02 · Verified people inside","Checked, not vouched","Each coach on a business profile clears their own background check before a slot is bookable. The club can never vouch for an individual in their place."],
+         ["03 · Open slots, live","Book what you see","A listing shows the openings that are actually free. Pick one and pay in the same flow — no callback, no enquiry form that vanishes."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:17ch">What a real listing <em>actually shows.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">business</span> Riverside Lacrosse Club — lacrosse</div>
+        <div><span class="k">coaches</span>  4 · each <span class="hl">background-checked</span> per person</div>
+        <div><span class="k">sports</span>   lacrosse · box lacrosse · skills</div>
+        <div><span class="k">slots</span>    <span class="hl">open this week</span> · book and pay in one flow</div>
+        <div><span class="k">message</span>  the club before you commit — free</div>
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["9","sports live on Sporve today"],["100%","of bookable coaches, background-checked"],["$0","to browse and message a business"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">See who's <em>really out there.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="search"){
+    /* Recipe α, Basketball. Filtered search by sport, age, level, price, distance; saved searches. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Filter to the coach <em>your kid actually needs.</em></h1>
+      <p class="pg-sub">Set the sport, the age, the level, a price you'll pay, and how far you'll drive. Sporve narrows twenty sports to the handful that fit — and saves the search so next season is one tap, not ten.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:map-search">See what's near you →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Five filters","Sport, age, level, price, distance","One bar, five filters. A U12 rec basketball coach under $40 within ten miles is a search, not an afternoon of phone calls."],
+         ["02 · Only the bookable","Verified results","Results show coaches who've cleared their own background check and have real openings. A pending check never surfaces in your list."],
+         ["03 · Saved searches","Set it once","Save a search and Sporve keeps it. New coach clears and fits the filters? It's waiting the next time you open the app."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:16ch">Twenty sports down to <em>the right five.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">sport</span>    basketball</div>
+        <div><span class="k">age</span>      U12 · rec level</div>
+        <div><span class="k">price</span>    under $40 / session</div>
+        <div><span class="k">distance</span> within 10 miles</div>
+        <div><span class="k">result</span>   <span class="hl">5 background-checked coaches</span> · <span class="hl">saved</span></div>
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["5","filters — sport, age, level, price, distance"],["20+","sports one search can cover"],["$0","to search, save, and message"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Start with <em>the right shortlist.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="map-search"){
+    /* Recipe α, Cycling. See what's actually near you on a map before filtering. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">See who's near you, <em>before you filter a thing.</em></h1>
+      <p class="pg-sub">Open the map and every coach, club, and camp within your radius drops a pin. Distance stops being a guess — you see the ride to practice first, then narrow by sport, age, and price from there.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Filter by sport & age →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Distance first","Pins, not a list","Every listing lands on the map as a pin. You see the ten-minute options and the forty-minute ones at a glance, before a single filter."],
+         ["02 · Real openings on the map","Only what's bookable","Pins are background-checked coaches with live slots. Tap one and its openings are right there — no dead listing, no coach you can't reach."],
+         ["03 · Then narrow","Map meets filters","Draw your radius, then layer sport, age, and price on top. The map and the filters are the same search from two angles."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["10mi","a radius you set, then tighten"],["100%","of pins, background-checked coaches"],["$0","to browse the map and message"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:16ch">The drive to practice, <em>on the map first.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">map</span>      cycling coaches near you</div>
+        <div><span class="k">radius</span>   within 10 miles · set by you</div>
+        <div><span class="k">pins</span>     <span class="hl">background-checked</span> · live open slots</div>
+        <div><span class="k">tap</span>      a pin to see openings and message</div>
+        <div><span class="k">then</span>     <span class="hl">narrow</span> by sport, age, and price</div>
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Find the coach <em>down the road.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="instant-booking"){
+    /* Recipe α, Baseball. Pick a real open slot and pay in one flow, no callback. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Pick a real open slot, <em>pay, and you're on the roster.</em></h1>
+      <p class="pg-sub">No enquiry form, no waiting for a callback. The times you see are the times that are free — choose one, pay in the same flow, and the session is booked before you close the app.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:bookings-receipts">See your bookings →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · A real opening","What you see is free","The slots on a coach's profile are the slots that are actually open. Nothing to request — Tuesday at 5 is Tuesday at 5, and it's yours to take."],
+         ["02 · One flow","Book and pay together","Choose the slot and pay in the same step, through Stripe in-app. No back-and-forth, no invoice by email, no coach chasing a payment."],
+         ["03 · Confirmed instantly","On the roster, not the waitlist","The moment payment clears the slot is held and the session is confirmed. You get the receipt; the coach gets you on the roster."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:17ch">One slot, one payment, <em>one confirmation.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">coach</span>   background-checked · baseball</div>
+        <div><span class="k">slot</span>    Tue 5:00 PM · <span class="hl">open</span></div>
+        <div><span class="k">pay</span>     in-app · Stripe · one flow</div>
+        <div><span class="k">held</span>    the moment payment clears</div>
+        <div><span class="k">status</span>  <span class="hl">confirmed</span> — receipt in your bookings</div>
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["1","flow to book and pay"],["0","callbacks to wait on"],["100%","of coaches, background-checked"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Book the slot <em>before it's gone.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="messaging"){
+    /* Recipe α, Volleyball. Message a coach free before booking; the thread stays with the booking. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Ask before you commit, <em>then keep the thread.</em></h1>
+      <p class="pg-sub">Message any coach for free before you book — level, schedule, what a first session looks like. When you do book, the conversation stays attached to that booking, so nothing you agreed to lives in a lost text thread.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:bookings-receipts">How bookings keep a record →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Ask first","A question, not a deposit","Message a coach before a single dollar moves. Fit, level, and the plan for a first session — settled in writing, before you commit."],
+         ["02 · One thread","Tied to the booking","The conversation attaches to the booking it belongs to. Reschedules, directions, what to bring — all in one place, not scattered across texts."],
+         ["03 · On the record","What you agreed, kept","Because the thread stays with the booking, what the coach said is still there next week. No he-said, no screenshot hunt."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The thread a parent can <em>go back to.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        ${[["you","“Is Saturday still open for a first session?”"],
+           ["coach","Sand Volleyball — club level, ages 10–14"],
+           ["cost",["<span class=\"hl\">$0</span> to message before you book",1]],
+           ["kept with","the booking — not a separate inbox"],
+           ["stays","reschedules, directions, and notes in one thread"]]
+          .map(([k,v,raw])=>`<div><span class="k">${esc(k)}</span> ${raw?v:esc(v)}</div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["$0","to message any coach before you book"],["100%","of bookable coaches, background-checked"],["20+","sports live on Sporve today"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Start the <em>conversation.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="bookings-receipts"){
+    /* Recipe α, Football. Every session, payment, cancellation in one thread; receipt, refund trail, frozen policy. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Every session and dollar, <em>in one thread.</em></h1>
+      <p class="pg-sub">One place holds the whole booking: the sessions, the payment, any cancellation. Each has a receipt, a refund trail if money came back, and the exact cancellation policy that applied the day you paid — not a version rewritten later.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:messaging">Where the conversation lives →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · A receipt","Every charge, itemized","Each payment leaves a receipt you can open later. What you paid, for which session, on what date — not a card-statement line you have to decode."],
+         ["02 · A refund trail","Money back, traceable","If a session is cancelled and money comes back, the refund is recorded against the same booking. You can see it moved, not just take someone's word."],
+         ["03 · The policy, frozen","As it read at purchase","The cancellation policy is captured the moment you pay. If the coach changes it next month, your booking still answers to the terms you agreed to."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The record a booking <em>leaves behind.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        ${[["booking","Gridiron QB Academy — football, 1-on-1"],
+           ["session","Sat 09:00 · field 3"],
+           ["receipt",["<span class=\"hl\">paid</span> · itemized, kept on the booking",1]],
+           ["policy",["<span class=\"hl\">as it read at purchase</span> — frozen",1]],
+           ["if cancelled","refund recorded against this booking"]]
+          .map(([k,v,raw])=>`<div><span class="k">${esc(k)}</span> ${raw?v:esc(v)}</div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["1","thread per booking — sessions, payment, cancellation"],["100%","of paid sessions leave a receipt"],["$0","to browse, save, and message"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Book with a <em>paper trail.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="saved"){
+    /* Recipe α, Boxing. Keep a shortlist; guests get three saves before signing in. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Build the shortlist, <em>then decide.</em></h1>
+      <p class="pg-sub">Save the coaches worth a second look and compare them when you're ready, not in the moment. You can shortlist as a guest — three saves before you sign in — so you can start narrowing the field before you make an account.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Start from a search →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Save","Keep the maybes","Tap save on a coach and they land on your shortlist. No commitment, no message sent — just a list of who's worth coming back to."],
+         ["02 · Three as a guest","Try before you sign in","Guests get three saves before an account is needed. Enough to start a real shortlist without a sign-up wall in your way."],
+         ["03 · Compare","Decide side by side","Line the shortlist up when you're ready — sport, level, price, distance — and pick, instead of re-searching from scratch each time."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:18ch">A shortlist you start <em>before you sign in.</em></h2>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["3","guest saves before you sign in"],["$0","to save and shortlist"],["20+","sports to shortlist across"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Save the ones <em>worth a call.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="athlete-progress"){
+    /* Recipe α, Track & Field. Notes, goals, and a plan that follow the athlete, not a coach. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">The plan follows the athlete, <em>not the coach.</em></h1>
+      <p class="pg-sub">Notes, goals, and the training plan live with the athlete. Change coaches, add a second sport, come back next season — the record of where they are and where they're headed comes with them, instead of leaving when a coach does.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:saved">Shortlist a coach first →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Notes","What happened, kept","Session notes record what actually got worked on — not a vague “good practice.” They build up over time into a history you can read back."],
+         ["02 · Goals","Where they're headed","Goals sit alongside the notes, so progress is measured against something, not guessed at. A target this month, a bigger one this season."],
+         ["03 · Follows the athlete","Not the coach","All of it is attached to the athlete. Switch coaches or add a sport and the plan travels with them — you don't start from a blank page again."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The history that <em>comes with them.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        ${[["athlete","the record belongs to the kid, not the coach"],
+           ["notes","session by session — what got worked on"],
+           ["goals",["<span class=\"hl\">a target this season</span>, measured against",1]],
+           ["plan",["<span class=\"hl\">follows the athlete</span> across coaches",1]],
+           ["new coach","picks up where the last one left off"]]
+          .map(([k,v,raw])=>`<div><span class="k">${esc(k)}</span> ${raw?v:esc(v)}</div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["1","record that follows the athlete"],["20+","sports it can span"],["$0","to browse, save, and message"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Keep the <em>whole picture.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="scheduling"){
+    /* Recipe α, Tennis. Coach-side. Set availability; families book real open slots against it. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Set the hours you coach, <em>let families book the rest.</em></h1>
+      <p class="pg-sub">You publish the times you're actually open. Families see only those slots and book against them — no back-and-forth over a calendar, no double-booked court. Change your availability and the open slots update the moment you save.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Publish","Your hours, your rules","Mark the windows you coach and the ones you don't. Only published time is ever bookable — nothing behind it is exposed."],
+         ["02 · Book","A real slot, not a request","A family picks an open slot and it's taken. The moment one books, it leaves the grid so no one lands on the same time twice."],
+         ["03 · Adjust","One place to change it","Move a window, block a week, close a day. Availability is the single source — search, booking, and payouts all read from it."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">What a family sees <em>when you open a slot.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">coach</span>  you — tennis</div>
+        <div><span class="k">open</span>   Tue 4:00pm · Thu 5:30pm · Sat 9:00am</div>
+        <div><span class="k">status</span> <span class="hl">bookable</span> — published availability only</div>
+        <div><span class="k">booked</span> a taken slot leaves the grid instantly</div>
+        <div><span class="k">edit</span>   change hours anytime · updates on save</div>
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["1","calendar every booking reads from"],["$0","to publish your availability"],["24/7","families can book your open slots"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Open the hours <em>you want to coach.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="payments"){
+    /* Recipe α, Golf. Money page — sober. Platform fee is a flat 12%, stated once. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">You coach the session, <em>the money handles itself.</em></h1>
+      <p class="pg-sub">Families pay in the app when they book. Sporve takes a flat 12% platform fee and pays out the rest to you automatically — every booking leaves a receipt, and a refund reverses on the same record. No invoices to chase, no cash at the court.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Charged","Paid at booking","The family pays the moment they book the slot. You never handle the card and never invoice after the fact."],
+         ["02 · Paid out","Your share, automatically","Sporve deducts a flat 12% platform fee and pays the remainder out to you. One rate on every booking — no first-versus-recurring split, no add-ons."],
+         ["03 · On record","A receipt per booking","Every charge, payout, and refund is written to that booking. The trail is the same one the family sees — nothing off the books."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The trail behind <em>one booking.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">booking</span>  golf lesson · one session</div>
+        <div><span class="k">charged</span>  family paid in-app at booking</div>
+        <div><span class="k">fee</span>      <span class="hl">12% flat</span> — every booking, no exceptions</div>
+        <div><span class="k">payout</span>   remainder paid out to you automatically</div>
+        <div><span class="k">refund</span>   reverses on the <span class="hl">same record</span></div>
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["12%","flat platform fee on every booking"],["$0","in extra or hidden fees"],["1","receipt trail per booking"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Get paid for <em>the work you already do.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="roster"){
+    /* Recipe α, Hockey. Coach-side. Client roster; import existing clients. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Every athlete you coach, <em>in one place.</em></h1>
+      <p class="pg-sub">Your roster is the list of the families you work with. Bring the clients you already coach across, and let new bookings add themselves — so booking, session notes, and payouts all point at the same person instead of a name in your phone.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Import","Bring who you have","Add the clients you already coach so day one isn't an empty list. Your existing book of business starts on Sporve, not from scratch."],
+         ["02 · Grow","New bookings, added for you","When a new family books, they join the roster automatically. You don't re-type anyone who came through Sporve to reach you."],
+         ["03 · One record","The person, not the paperwork","Notes, bookings, and payouts attach to the same athlete. Open one client and the whole history is in front of you."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:18ch">One list your whole practice <em>reads from.</em></h2>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["1","roster every tool points at"],["$0","to import the clients you have"],["100%","of Sporve bookings added for you"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Keep your whole book <em>in one place.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="session-notes"){
+    /* Recipe α, Fencing. Coach-side. Per-session notes attached to athlete progress. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Write it down once, <em>watch the progress build.</em></h1>
+      <p class="pg-sub">After a session you leave a note on it — what you worked on, what to carry into next time. Each note attaches to that athlete, so the notes stack into a record of how they've grown instead of scattering across a notebook you have to find.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Per session","A note where it happened","Each note lands on the session it came from. You're never guessing which lesson a comment belonged to."],
+         ["02 · Per athlete","Attached to the person","Notes collect on the athlete, not a loose page. Open a client and their sessions read in order, most recent first."],
+         ["03 · Into progress","The through-line, kept","Session by session, the notes become the record of how far an athlete has come — and what to work on next."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:18ch">A record that builds itself, <em>one session at a time.</em></h2>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["1","note per session, kept in order"],["$0","to keep notes on every athlete"],["100%","attached to the athlete's progress"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Remember every session <em>that mattered.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="media-consent"){
+    /* Recipe α, Gymnastics. Consent/safety page — sober. Minor media gated behind explicit, recorded, revocable consent. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">No photo of your child moves <em>without your consent.</em></h1>
+      <p class="pg-sub">A coach cannot capture, store, or share a minor's photo or video until a parent has said yes. The consent is recorded against the account, scoped to what was agreed, and can be withdrawn at any time.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Asked","Consent, not assumed","The parent grants consent before any media of the child can be captured. Silence is never permission — nothing is enabled until the yes is on record."],
+         ["02 · Recorded","Logged against the account","Each grant is stored with who agreed and when, and scoped to what it covers. The record is the source of truth, not the coach's memory."],
+         ["03 · Revocable","Withdrawn at any time","A parent can revoke consent whenever they choose. From that point the coach can no longer capture or share the child's media."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The permission a parent can <em>read.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">athlete</span> minor · gymnastics</div>
+        <div><span class="k">consent</span> <span class="hl">granted by parent</span> · on record</div>
+        <div><span class="k">scope</span>   photo &amp; video for coaching use</div>
+        <div><span class="k">granted</span> 2026-06-02 · by the account holder</div>
+        <div><span class="k">status</span>  <span class="hl">revocable</span> — withdraw anytime</div>
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["100%","of minor media gated behind parent consent"],["1","tap for a parent to revoke it"],["$0","to review and manage consent"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Consent your family <em>stays in control of.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="insights"){
+    /* Recipe α, Rowing. Coach-side business insights — bookings, earnings, retention over time. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">Your coaching business, <em>read at a glance.</em></h1>
+      <p class="pg-sub">Insights turns your bookings, earnings, and returning athletes into a picture you can act on. See what a month actually did — where sessions came from, what they paid out, and who came back.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:payments">How payouts work →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Bookings","The demand, over time","Watch sessions rise and fall week by week. See which slots fill and which sit empty, so the next month's schedule follows the demand you already have."],
+         ["02 · Earnings","What the month paid out","Every completed session rolls up into what you actually earned. No spreadsheet — the payout total and its trend sit next to the bookings that produced it."],
+         ["03 · Retention","Who came back","A one-off is not a client. Insights separates the athletes who returned from the ones who tried you once, so you can see the base you are really building."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:16ch">The month a coach can <em>actually see.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">period</span>   trailing 30 days · rowing</div>
+        <div><span class="k">bookings</span> <span class="hl">up on last month</span> · by slot</div>
+        <div><span class="k">earnings</span> completed sessions · net of fees</div>
+        <div><span class="k">returning</span> athletes who booked again</div>
+        <div><span class="k">trend</span>    <span class="hl">week over week</span> — not a snapshot</div>
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["30d","of bookings, earnings, and retention at a glance"],["3","signals — demand, payout, return"],["$0","to see your own insights"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Coach the sessions, <em>watch the business.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
+  if(id==="ai-coach"){
+    /* Recipe α, Martial Arts. Grounded AI that only surfaces background-checked coaches. */
+    return `<div class="${cls}">
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
+      ${pageEyebrow(meta)}
+      <h1 class="pg-serif pg-h1">An assistant that only sends you to <em>checked coaches.</em></h1>
+      <p class="pg-sub">Ask for a martial arts coach near you and the assistant answers from the same verified pool the search does. It cannot reach for a coach whose background check has not cleared — an unverified name simply is not on the shelf it draws from.</p>
+      <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["01 · Ask","Plain words, real results","Tell it the sport, the age, and where you are. It reads the ask and returns coaches you could book — not a page of links to go read yourself."],
+         ["02 · Verified only","It cannot surface the unchecked","The assistant draws from the same bookable pool as search, where every coach is background-checked. A pending or failed check is not in that pool, so it can never come back as a suggestion."],
+         ["03 · Yours to check","A recommendation, not a verdict","It points you at real people and hands you back to the listing. You read the record, message the coach, and decide — the assistant never books on your behalf."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,42px);max-width:17ch">The one guarantee behind <em>every answer.</em></h2>
+      <div class="pg-proof" style="margin-top:22px">
+        <div><span class="k">ask</span>     "a martial arts coach for my 9-year-old"</div>
+        <div><span class="k">source</span>  the <span class="hl">bookable</span> pool · same as search</div>
+        <div><span class="k">every hit</span> <span class="hl">background-checked</span> · per person</div>
+        <div><span class="k">unchecked</span> not in the pool · never surfaced</div>
+        <div><span class="k">action</span>  handed back to you to book</div>
+      </div>
+    </div></section>
+
+    <section class="pgband slate"><div class="shell" data-rev>
+      <div class="pg-stats">
+        ${[["100%","of suggested coaches, background-checked"],["0","unverified coaches it can surface"],["$0","to ask the assistant"]]
+          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
+      </div>
+    </div></section>
+
+    <section class="pgband white"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Ask freely — the <em>floor stays verified.</em></h2>
+      <div class="pg-ctarow">${pageCTA(meta)}</div>
+    </div></section>
+    ${pageKX(id)}
+    </div>`;
+  }
   /* Scaffold for pages still fanning out: real hero + cross-links so the route
      resolves and the link graph has no orphan. */
   return `<div class="${cls}">
