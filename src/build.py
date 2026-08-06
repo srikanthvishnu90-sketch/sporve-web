@@ -56,6 +56,7 @@ FAMILY_BY_PREFIX = {
     "jakarta": "Plus Jakarta Sans",
     "bricolage": "Bricolage Grotesque",
     "hanken": "Hanken Grotesk",
+    "instrument": "Instrument Serif",   # editorial serif, mini-page heroes only
     "sentinel": "Sentinel",
 }
 # Google serves ONE variable woff2 per family — every weight URL in a css2
@@ -98,6 +99,84 @@ else:
     print("       fallback stacks and the contract is NOT met.")
     print("       Drop Syne-Variable.woff2 and Jakarta-Variable.woff2 into")
     print("       assets/fonts/ and rebuild. Both are OFL, from Google Fonts.")
+
+# ── Per-page sport-colour tokens ──────────────────────────────────────────
+# Each mini-page wears ONE sport as its identity (the Stripe model: rigid
+# neutral system, per-product accent). From the raw hue this derives two text-
+# safe variants and emits them as page-scoped CSS vars, so no hand-tuned hex is
+# ever scattered in a view. The raw hues come from the host's SPORT_COLOR map;
+# they are duplicated here only as the page->hue assignment, and a mismatch
+# would be caught by the sport-thread grep in smoke.
+#
+#   --ps        raw hue        marks: eyebrow dot, chip fill, underline, accent line
+#   --ps-ink    darkened       text on light: hero accent, links, CTA fill, numerals
+#   --ps-bright lightened      text on the #09090B dark interstitials
+#
+# WCAG is enforced at build time: --ps-ink must clear 4.5:1 on #F1F5F9 (the
+# binding light ground; white is easier) AND carry white text at 4.5:1;
+# --ps-bright must clear 4.5:1 on #09090B. A miss FAILS THE BUILD rather than
+# shipping unreadable text.
+PAGE_SPORT = {
+    "what-is": "#2EA136", "background-checks": "#009AA0", "examples": "#009F77",
+    "search": "#DA5A05", "map-search": "#748C00", "instant-booking": "#2384FB",
+    "messaging": "#D54F8A", "bookings-receipts": "#C27000", "saved": "#DA4E77",
+    "athlete-progress": "#9A68E0", "scheduling": "#878500", "payments": "#00A15E",
+    "roster": "#0092CA", "session-notes": "#886AF4", "media-consent": "#AB61D3",
+    "insights": "#537BFD", "ai-coach": "#7172FA",
+}
+
+def _rgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+def _hex(rgb):
+    return "#%02X%02X%02X" % tuple(max(0, min(255, round(c))) for c in rgb)
+
+def _lum(rgb):
+    def ch(c):
+        c /= 255.0
+        return c/12.92 if c <= 0.03928 else ((c+0.055)/1.055)**2.4
+    r, g, b = (ch(c) for c in rgb)
+    return 0.2126*r + 0.7152*g + 0.0722*b
+
+def _cr(a, b):
+    la, lb = _lum(a), _lum(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi+0.05)/(lo+0.05)
+
+def _scale(rgb, f):
+    return tuple(c*f for c in rgb)
+
+def _sport_vars(hexval):
+    base = _rgb(hexval)
+    slate_bg, dark_bg = _rgb("#F1F5F9"), _rgb("#09090B")
+    # darken toward black until the ink clears 4.5:1 on the slate ground AND
+    # carries white text (symmetric, so the slate check is the binding one).
+    ink = base
+    for _ in range(60):
+        if _cr(ink, slate_bg) >= 4.5 and _cr((255, 255, 255), ink) >= 4.5:
+            break
+        ink = _scale(ink, 0.94)
+    # lighten toward white until it clears 4.5:1 on the dark interstitial.
+    bright = base
+    for _ in range(60):
+        if _cr(bright, dark_bg) >= 4.5:
+            break
+        bright = tuple(c + (255-c)*0.10 for c in bright)
+    return _hex(ink), _hex(bright)
+
+_sport_css, _sport_fail = [], []
+for pid, hx in PAGE_SPORT.items():
+    ink, bright = _sport_vars(hx)
+    if _cr(_rgb(ink), _rgb("#F1F5F9")) < 4.5 or _cr((255, 255, 255), _rgb(ink)) < 4.5:
+        _sport_fail.append("%s ink %s fails AA" % (pid, ink))
+    if _cr(_rgb(bright), _rgb("#09090B")) < 4.5:
+        _sport_fail.append("%s bright %s fails AA on dark" % (pid, bright))
+    _sport_css.append(".pg-%s{--ps:%s;--ps-ink:%s;--ps-bright:%s}" % (pid, hx, ink, bright))
+if _sport_fail:
+    sys.exit("FATAL: sport-colour AA failures:\n  " + "\n  ".join(_sport_fail))
+built = built.replace("/*__SPORTVARS__*/", "\n".join(_sport_css))
+print("sport colours: %d pages, all AA-verified" % len(PAGE_SPORT))
 
 # The hero photographs are inlined as data URIs rather than linked, for the same
 # single-file/CSP reason as the fonts. Every assets/hero-*.{jpg,jpeg,png,webp} is
