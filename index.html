@@ -1961,11 +1961,36 @@ h2.ctr{margin-bottom:10px}
   letter-spacing:-.01em;line-height:1.02;font-style:normal}
 .pg-serif em{font-style:italic;color:var(--ps-ink)}
 .pgband{padding:72px 0;border-bottom:1px solid var(--rule)}
-.pgband.slate{background:var(--raise)}
+.pgband.slate{background:#F1F5F9}
+.pgband.slate.alt{background:#F8FAFC}
 .pgband.white{background:var(--paper)}
 .pgband.dark{background:#09090B;border-bottom-color:#1C222B}
 .pgband.dark h2,.pgband.dark .pg-serif{color:#fff}
 .pgband.dark p{color:#94A3B8}
+/* On the obsidian band the italic accent must brighten — --ps-ink resolves
+   dark and would vanish on #09090B (colour law). Use the AA-on-dark ramp. */
+.pgband.dark .pg-serif em{color:var(--ps-bright)}
+.pgband.dark .pg-eyebrow,.pgband.dark .pg-eyebrow a{color:#94A3B8}
+.pgband.dark .pg-sub{color:#94A3B8}
+/* The dark section carries a real product demo, rendered dark, behind a
+   Demo-data pill — not recoloured prose. */
+.pg-demo{margin-top:28px;max-width:540px;background:#111318;border:1px solid #1C222B;
+  border-radius:var(--r-xl);padding:18px 18px 8px}
+.pg-demo .dpill{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-xs);
+  font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#94A3B8;
+  background:#1A212B;border:1px solid #263041;border-radius:999px;padding:4px 11px}
+.pg-demo .dq{display:flex;align-items:center;gap:9px;margin:14px 0 4px;color:#E8EDF3;
+  font-size:var(--text-sm);background:#0B0C0E;border:1px solid #1C222B;
+  border-radius:var(--r-ctl);padding:11px 13px}
+.pg-demo .drow{display:flex;align-items:center;gap:12px;padding:13px 2px;border-top:1px solid #1C222B}
+.pg-demo .ddot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.pg-demo .dname{font-weight:700;color:#fff;font-size:var(--text-sm);line-height:1.25}
+.pg-demo .dmeta{color:#94A3B8;font-size:var(--text-xs);margin-top:2px}
+.pg-demo .dmeta .dchk{color:var(--ps-bright);font-weight:700}
+.pg-demo .dprice{margin-left:auto;color:#E8EDF3;font-weight:700;font-size:var(--text-sm);flex:0 0 auto}
+/* Frameless feature rows: the list marker is the page's sport dot. */
+.pg-triad .pg-tnum .psdot{display:inline-block;width:8px;height:8px;border-radius:var(--r-pill);
+  background:var(--ps);margin-right:7px;vertical-align:middle}
 /* S1 hero */
 .pg-hero .shell{max-width:960px}
 .pg-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;background:var(--paper);
@@ -5085,9 +5110,10 @@ function pageHTML(id){
     </div>`;
   }
   if(id==="what-is"){
-    /* Recipe α, Soccer. Expressive register — the flagship explainer, warm and
-       athletic. Grounds slate→white→slate→slate→white (a slate chapter in the
-       middle), every accent wearing Soccer via --ps. */
+    /* Recipe γ, Soccer. Vertical arc, top to bottom: hero (slate #F1F5F9) →
+       obsidian demo (#09090B, a real dark search demo behind a Demo-data pill) →
+       frameless triad with sport dots → stats → close. The dark band is the
+       tempo drop; every accent wears Soccer via --ps / --ps-bright. */
     return `<div class="${cls}">
     <section class="pgband slate pg-hero"><div class="shell" data-rev>
       ${pageEyebrow(meta)}
@@ -5096,23 +5122,29 @@ function pageHTML(id){
       <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
     </div></section>
 
-    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
-      ${[["01 · One search","Twenty sports, one bar","Soccer this season, swim the next. One account and one search covers every sport your family plays — no ten apps, no ten logins."],
-         ["02 · Real people","Verified, not vouched","Every coach clears their own background check before a single slot is bookable. A business can never vouch for an individual in their place."],
-         ["03 · Booked in minutes","A slot, not a callback","Pick a real opening and pay in the same flow. No enquiry form that vanishes into a voicemail, no waiting to hear back."]]
-        .map(([n,b,p])=>`<div><div class="pg-tnum">${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
-    </div></div></section>
-
-    <section class="pgband slate"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4vw,44px);max-width:18ch">The shortlist a parent can <em>actually trust.</em></h2>
-      <div class="pg-proof" style="margin-top:22px">
-        <div><span class="k">search</span>  by sport, age, level, price, and distance</div>
-        <div><span class="k">every coach</span> <span class="hl">background-checked</span> · per person, before bookable</div>
-        <div><span class="k">message</span> a coach before you commit — free</div>
-        <div><span class="k">book</span>    a real open slot · pay in one flow</div>
-        <div><span class="k">cost</span>    <span class="hl">$0</span> to browse, save, and message</div>
+    <section class="pgband dark"><div class="shell" data-rev>
+      <h2 class="pg-serif" style="font-size:clamp(28px,3.6vw,40px);max-width:15ch">One search, <em>real coaches back.</em></h2>
+      <p class="pg-sub" style="max-width:52ch;margin-top:12px">Type what you need. Every result is a background-checked coach with a real open slot — the same catalogue the search, the map, and the assistant all read from.</p>
+      <div class="pg-demo" aria-hidden="true">
+        <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
+        <div class="dq">${PICON.search} soccer coach · U12 · within 10 mi of Miami</div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Coral Reef FC — U12 Development</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · Intermediate · ages 9–12</div></div>
+          <span class="dprice">$45</span></div>
+        <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
+          <div><div class="dname">Miami United — Saturday Skills</div>
+            <div class="dmeta"><span class="dchk">Background-checked</span> · All levels · ages 8–12</div></div>
+          <span class="dprice">$30</span></div>
       </div>
     </div></section>
+
+    <section class="pgband white"><div class="shell"><div class="pg-triad" data-rev>
+      ${[["One search","Twenty sports, one bar","Soccer this season, swim the next. One account and one search covers every sport your family plays — no ten apps, no ten logins."],
+         ["Real people","Verified, not vouched","Every coach clears their own background check before a single slot is bookable. A business can never vouch for an individual in their place."],
+         ["Booked in minutes","A slot, not a callback","Pick a real opening and pay in the same flow. No enquiry form that vanishes into a voicemail, no waiting to hear back."]]
+        .map(([n,b,p])=>`<div><div class="pg-tnum"><span class="psdot"></span>${esc(n)}</div><b>${esc(b)}</b><p>${esc(p)}</p></div>`).join("")}
+    </div></div></section>
 
     <section class="pgband slate"><div class="shell" data-rev>
       <div class="pg-stats">
