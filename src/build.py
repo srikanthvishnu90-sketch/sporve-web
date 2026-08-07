@@ -212,18 +212,43 @@ else:
 # or served by a plain static server does not — without an explicit charset the
 # browser falls back to latin-1 and every emoji/en-dash renders as mojibake.
 # Local copies therefore get a complete standalone document.
+# A finished <head> (100-point #88): real title, description, Open Graph +
+# Twitter cards, theme-color, and a self-contained SVG favicon (no external
+# host, so the CSP + single-file constraints still hold).
+_OG = "https://the-sporve-web.vercel.app/og.svg"
+_FAVICON = ("data:image/svg+xml,"
+    "%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E"
+    "%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E"
+    "%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E")
+# Built by f-string (NOT %-formatting) because the favicon data-URI is full of
+# literal % escapes that would break a later "% built" substitution. The body
+# is spliced with a token replace for the same reason.
 STANDALONE = (
     '<!doctype html>\n<html lang="en">\n<head>\n'
     '<meta charset="utf-8">\n'
     '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
-    '<meta name="description" content="Sporve for Web - every sport, one app.">\n'
-    "</head>\n<body>\n%s\n</body>\n</html>\n"
+    '<title>Sporve — Every sport. One app.</title>\n'
+    '<meta name="description" content="Book a background-checked coach for your kid. '
+    'Search 20+ sports by age and distance, message a coach, and book a real open slot in minutes.">\n'
+    '<meta name="theme-color" content="#09090B">\n'
+    '<meta property="og:type" content="website">\n'
+    '<meta property="og:site_name" content="Sporve">\n'
+    '<meta property="og:title" content="Sporve — Every sport. One app.">\n'
+    '<meta property="og:description" content="Book a background-checked coach for your kid across 20+ sports.">\n'
+    '<meta property="og:url" content="https://the-sporve-web.vercel.app/">\n'
+    f'<meta property="og:image" content="{_OG}">\n'
+    '<meta name="twitter:card" content="summary_large_image">\n'
+    '<meta name="twitter:title" content="Sporve — Every sport. One app.">\n'
+    '<meta name="twitter:description" content="Book a background-checked coach for your kid across 20+ sports.">\n'
+    f'<meta name="twitter:image" content="{_OG}">\n'
+    f'<link rel="icon" href="{_FAVICON}">\n'
+    "</head>\n<body>\n__SPORVE_BODY__\n</body>\n</html>\n"
 )
 
 for t in TARGETS:
     os.makedirs(os.path.dirname(t), exist_ok=True)
     with open(t, "w", encoding="utf-8") as f:
-        f.write(STANDALONE % built)
+        f.write(STANDALONE.replace("__SPORVE_BODY__", built))
 
 print("inlined %d module(s):" % len(names))
 print("\n".join(report) if report else "  (none yet)")

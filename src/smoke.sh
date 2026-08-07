@@ -129,6 +129,16 @@ case "$(printf '%s' "${sm//\"/}")" in
   *) fail "§5 signatures: $sm";;
 esac
 
+# 100-point #88 — the <head> is finished (title in head, OG image, favicon).
+head=$(awk 'BEGIN{p=1} /<\/head>/{print; exit} p' index.html)
+{ printf '%s' "$head" | grep -q '<title>Sporve' && printf '%s' "$head" | grep -q 'og:image' && printf '%s' "$head" | grep -q 'rel="icon"'; } \
+  && pass "#88 head finished (title · og:image · favicon)" || fail "#88 head incomplete"
+# 100-point #58 — zero exclamation marks in rendered copy across routes + pages.
+ex=$($B js "
+(()=>{let n=0;'$ROUTES'.split(' ').forEach(r=>{S.auth={status:'guest'};S.route={name:r,arg:null};render();n+=(document.querySelector('#app').innerText.match(/!/g)||[]).length});
+'$PAGES'.split(' ').forEach(id=>{S.route={name:'page',arg:id};render();n+=(document.querySelector('#app').innerText.match(/!/g)||[]).length});return n})()" 2>/dev/null | tr -d '[:space:]"')
+[ "${ex:-x}" = "0" ] && pass "#58 zero exclamation marks in rendered copy" || fail "#58 exclamation marks in copy: $ex"
+
 # §2 — darker slate present, the near-white grey retired.
 grep -q "E9EEF4" index.html && pass "slate #E9EEF4 present" || fail "slate #E9EEF4 missing"
 r=$(grep -oc "247, *248, *250\|247,248,250" index.html 2>/dev/null); r=${r:-0}
