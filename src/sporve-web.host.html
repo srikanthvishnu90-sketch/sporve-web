@@ -1971,8 +1971,15 @@ h2.ctr{margin-bottom:10px}
 /* ── Asymmetric editorial layout (page: views). Two-column hero with a floating
    result card, a full-bleed dark demo, and numbered claim/proof rows — the
    composition breaks the single-column stack. Everything stacks on narrow. */
+/* minmax(0,…) so a wide signature can't expand its track and squeeze the
+   headline below 55% — the text column keeps the flexible space, the signature
+   is capped at 420px. */
 .pg-hero.split .shell{display:grid;grid-template-columns:1.72fr .9fr;gap:48px;align-items:center}
+/* min-width:0 on the children keeps a wide signature's content from expanding
+   its fr track and squeezing the headline; the ratio itself is unchanged. */
+.pg-hero.split .shell>*{min-width:0}
 .pg-hero.split .pg-heroL{min-width:0}
+.pg-hero.split .shell>*:last-child{max-width:420px;margin-left:auto;width:100%}
 .pg-herocard{background:var(--paper);border-radius:var(--r-xl);padding:20px;max-width:400px;margin-left:auto;
   box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
 .pg-herocard .hc-top{display:flex;align-items:center;gap:9px}
@@ -2023,6 +2030,460 @@ h2.ctr{margin-bottom:10px}
 .pg-founder .pg-fpull{font-size:clamp(24px,3vw,34px);line-height:1.2;margin-top:20px;color:var(--ink)}
 .pg-founder .pg-fpull em{font-style:italic;color:var(--ps-ink)}
 .pg-founder .pg-fattr{margin-top:16px;font-size:var(--text-sm);font-weight:700;letter-spacing:.02em;color:var(--muted)}
+/* ===== §4 signature components ===== */
+/* sig-background-checks */
+/* Vertical verification timeline — Swimming (--ps). Frameless: no card box,
+   just a rail of dots joined by a --ps line. Steps Submitted → Cleared are
+   done (filled dot); Bookable is the current step, highlighted with a --ps
+   halo ring and a --ps-ink "Now" tag. Light slate ground: sport-as-text uses
+   --ps-ink (AA), dots/line use --ps. */
+.sig-background-checks{max-width:400px;margin-left:auto;font-family:var(--sans)}
+.sig-background-checks .sbc-top{display:flex;align-items:center;gap:9px}
+.sig-background-checks .sbc-dot{width:11px;height:11px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-background-checks .sbc-sport{font-size:var(--text-sm);font-weight:700;letter-spacing:-.01em;color:var(--muted)}
+.sig-background-checks .sbc-pill{margin-left:auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-background-checks .sbc-name{font-weight:800;font-size:var(--text-lg);letter-spacing:-.02em;margin:12px 0 3px;line-height:1.15}
+.sig-background-checks .sbc-sub{color:var(--muted);font-size:var(--text-sm);margin-bottom:20px}
+.sig-background-checks .sbc-rail{list-style:none;margin:0;padding:0}
+.sig-background-checks .sbc-step{position:relative;padding:0 0 22px 30px}
+.sig-background-checks .sbc-step:last-child{padding-bottom:0}
+/* the connecting line runs from each dot down to the next */
+.sig-background-checks .sbc-step:not(:last-child)::before{content:"";position:absolute;left:6px;top:15px;bottom:-1px;width:2px;background:var(--ps);opacity:.32}
+.sig-background-checks .sbc-mark{position:absolute;left:0;top:2px;width:14px;height:14px;border-radius:50%;background:var(--paper);border:2px solid var(--ps);box-sizing:border-box}
+.sig-background-checks .sbc-step.is-done .sbc-mark{background:var(--ps);border-color:var(--ps)}
+/* current step: filled --ps dot with a paper gap then a --ps halo ring */
+.sig-background-checks .sbc-step.is-now .sbc-mark{background:var(--ps);border-color:var(--ps);box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ps)}
+.sig-background-checks .sbc-label{font-weight:800;font-size:var(--text-base);letter-spacing:-.01em;line-height:1.2;display:flex;align-items:center;gap:8px}
+.sig-background-checks .sbc-step.is-now .sbc-label{color:var(--ps-ink)}
+.sig-background-checks .sbc-now{font-size:var(--text-xs);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ps-ink);border:1px solid var(--ps-ink);border-radius:999px;padding:2px 7px}
+.sig-background-checks .sbc-meta{color:var(--muted);font-size:var(--text-sm);margin-top:3px;line-height:1.4}
+@media(max-width:860px){.sig-background-checks{margin-left:0;max-width:none}}
+/* sig-examples */
+/* SANCTIONED horizontal scroller — the one new overflow-x exception. Spans the full
+   hero width, so the integrator must make the `examples` hero full-width (drop
+   `.split`, render this in place of the L/R grid). Native drag/scroll; bar hidden. */
+.sig-examples{width:100%}
+.sig-examples .ex-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.sig-examples .ex-dot{width:11px;height:11px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-examples .ex-title{font-size:var(--text-sm);font-weight:700;letter-spacing:-.01em;color:var(--muted)}
+.sig-examples .ex-pill{margin-left:auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--faint);background:var(--raise2);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-examples .ex-scroller{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 2px 6px}
+.sig-examples .ex-scroller::-webkit-scrollbar{display:none}
+.sig-examples .ex-frame{scroll-snap-align:start;flex:0 0 262px;box-sizing:border-box;background:var(--paper);
+  border:1px solid var(--rule);border-radius:var(--r-xl);padding:16px;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 24px 46px -30px rgba(11,12,14,.30)}
+.sig-examples .ex-frame::before{content:"";display:block;height:3px;width:34px;border-radius:999px;background:var(--ps);margin-bottom:12px}
+.sig-examples .ex-club{display:flex;align-items:center;gap:8px}
+.sig-examples .ex-cdot{width:9px;height:9px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-examples .ex-name{font-size:var(--text-sm);font-weight:800;letter-spacing:-.01em;color:var(--ink);line-height:1.2}
+.sig-examples .ex-city{font-size:var(--text-xs);color:var(--faint);margin-top:3px}
+.sig-examples .ex-stats{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+.sig-examples .ex-stat{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  font-size:var(--text-xs);color:var(--muted);border-top:1px solid var(--rule);padding-top:7px}
+.sig-examples .ex-stat:first-child{border-top:0;padding-top:0}
+.sig-examples .ex-stat b{font-size:var(--text-sm);font-weight:800;color:var(--ink);letter-spacing:-.01em}
+.sig-examples .ex-stat .hl{color:var(--ps-ink);font-weight:800}
+@media(max-width:480px){.sig-examples .ex-frame{flex-basis:230px}}
+/* sig-search */
+/* Live filter demo — Basketball (--ps). Three chips are hidden checkboxes with
+   styled labels; each checked chip adds a rule that hides rows lacking the
+   matching class, so filters AND together in pure CSS. Toggling a chip off
+   restores its rows. Checkbox is visually-hidden (not display:none) so it keeps
+   keyboard focus + tab order. Sport-as-text uses --ps-ink; dots use --ps. */
+.sig-search{max-width:400px;margin-left:auto;font-family:var(--sans)}
+.sig-search .ss-top{display:flex;align-items:center;gap:9px}
+.sig-search .ss-dot{width:11px;height:11px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-search .ss-sport{font-size:var(--text-sm);font-weight:700;letter-spacing:-.01em;color:var(--muted)}
+.sig-search .ss-pill{margin-left:auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-search .ss-hint{font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin:14px 0 9px}
+.sig-search .ss-cb{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;opacity:0;clip:rect(0 0 0 0);overflow:hidden}
+.sig-search .ss-chip{display:inline-flex;align-items:center;gap:6px;margin:0 8px 8px 0;padding:7px 13px;border:1px solid var(--rule);border-radius:999px;font-size:var(--text-sm);font-weight:700;color:var(--ink);cursor:pointer;user-select:none;background:var(--paper);transition:background .12s,border-color .12s,color .12s}
+.sig-search .ss-chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ps);flex:0 0 auto}
+.sig-search .ss-cb:checked + .ss-chip{background:var(--ps-ink);border-color:var(--ps-ink);color:#fff}
+.sig-search .ss-cb:checked + .ss-chip::before{background:#fff}
+.sig-search .ss-cb:focus-visible + .ss-chip{outline:2px solid var(--ps-ink);outline-offset:2px}
+.sig-search .ss-rows{margin-top:4px;border-top:1px solid var(--rule)}
+.sig-search .ss-row{display:flex;align-items:center;gap:11px;padding:12px 2px;border-bottom:1px solid var(--rule)}
+.sig-search .ss-rdot{width:10px;height:10px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-search .ss-rname{font-weight:700;font-size:var(--text-sm);line-height:1.25}
+.sig-search .ss-rmeta{color:var(--muted);font-size:var(--text-xs);margin-top:2px;line-height:1.35}
+.sig-search .ss-rchk{color:var(--ps-ink);font-weight:700}
+.sig-search .ss-rprice{margin-left:auto;font-weight:800;font-size:var(--text-sm);flex:0 0 auto}
+/* filter logic: a checked chip hides every row that does not carry its class */
+.sig-search #ssf-u12:checked ~ .ss-rows .ss-row:not(.is-u12){display:none}
+.sig-search #ssf-cheap:checked ~ .ss-rows .ss-row:not(.is-cheap){display:none}
+.sig-search #ssf-wknd:checked ~ .ss-rows .ss-row:not(.is-wknd){display:none}
+@media(max-width:860px){.sig-search{margin-left:0;max-width:none}}
+/* sig-map-search */
+/* Pin-map canvas — Cycling (--ps). A bordered panel with a CSS gradient grid
+   (two repeating-linear-gradients for the ruling + a diagonal "road"), no
+   image. Four teardrop pins are absolutely positioned by inline left/top; the
+   highlighted pin (--ps-ink) reveals a coach card above it on :hover / :focus.
+   The pin wrapper is un-rotated so the card stays upright; only the .sms-tear
+   glyph is rotated. Distance/price are neutral ink; the dot is --ps. */
+.sig-map-search{max-width:400px;margin-left:auto;font-family:var(--sans)}
+.sig-map-search .sms-top{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+.sig-map-search .sms-dot{width:11px;height:11px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-map-search .sms-sport{font-size:var(--text-sm);font-weight:700;letter-spacing:-.01em;color:var(--muted)}
+.sig-map-search .sms-pill{margin-left:auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-map-search .sms-map{position:relative;height:280px;border:1px solid var(--rule);border-radius:var(--r-xl);overflow:hidden;
+  background:repeating-linear-gradient(0deg,transparent 0 27px,rgba(60,71,83,.06) 27px 28px),
+             repeating-linear-gradient(90deg,transparent 0 27px,rgba(60,71,83,.06) 27px 28px),
+             linear-gradient(160deg,#F5F7FB,#E9EEF4)}
+/* a pale diagonal road for depth */
+.sig-map-search .sms-map::before{content:"";position:absolute;left:-12%;top:58%;width:124%;height:16px;background:var(--paper);opacity:.75;transform:rotate(-9deg)}
+.sig-map-search .sms-pin{position:absolute;transform:translate(-50%,-100%)}
+.sig-map-search .sms-tear{display:block;width:15px;height:15px;border-radius:50% 50% 50% 0;background:var(--ps);transform:rotate(45deg);box-shadow:0 2px 5px rgba(11,12,14,.28)}
+.sig-map-search .sms-pin--live{z-index:2}
+.sig-map-search .sms-pin--live .sms-tear{width:19px;height:19px;background:var(--ps-ink);box-shadow:0 0 0 4px var(--paper),0 2px 7px rgba(11,12,14,.32)}
+.sig-map-search .sms-card{position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%) translateY(4px);width:214px;background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:11px 12px;box-shadow:0 1px 2px rgba(11,12,14,.05),0 18px 34px -20px rgba(11,12,14,.4);opacity:0;visibility:hidden;transition:opacity .13s,transform .13s;pointer-events:none}
+.sig-map-search .sms-card::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--paper)}
+.sig-map-search .sms-pin--live:hover .sms-card,
+.sig-map-search .sms-pin--live:focus .sms-card,
+.sig-map-search .sms-pin--live:focus-within .sms-card{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+.sig-map-search .sms-pin--live:focus{outline:none}
+.sig-map-search .sms-pin--live:focus-visible .sms-tear{outline:2px solid var(--ps-ink);outline-offset:3px}
+.sig-map-search .sms-cname{font-weight:800;font-size:var(--text-sm);letter-spacing:-.01em;line-height:1.2}
+.sig-map-search .sms-cmeta{color:var(--muted);font-size:var(--text-xs);margin-top:3px;line-height:1.35}
+.sig-map-search .sms-chk{color:var(--ps-ink);font-weight:700}
+.sig-map-search .sms-cfoot{display:flex;align-items:center;justify-content:space-between;margin-top:9px;padding-top:8px;border-top:1px solid var(--rule)}
+.sig-map-search .sms-dist{font-size:var(--text-xs);font-weight:700;color:var(--faint)}
+.sig-map-search .sms-price{font-weight:800;font-size:var(--text-sm)}
+.sig-map-search .sms-hint{font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin-top:10px}
+@media(max-width:860px){.sig-map-search{margin-left:0;max-width:none}}
+/* sig-instant-booking */
+/* Two-step slot picker → receipt — Baseball (--ps). Three time slots are hidden
+   radios (one name, so exactly one wins) with styled labels; picking one reveals
+   its matching receipt block via #id:checked ~ .sib-receipt selectors and hides
+   the "pick a slot" prompt. The receipt ends in a Confirmed chip whose check
+   mark is a rotated CSS border (no svg/emoji). Radios are visually-hidden, not
+   display:none, so they stay keyboard-focusable. Sport-as-text uses --ps-ink. */
+.sig-instant-booking{max-width:400px;margin-left:auto;font-family:var(--sans)}
+.sig-instant-booking .sib-top{display:flex;align-items:center;gap:9px}
+.sig-instant-booking .sib-dot{width:11px;height:11px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-instant-booking .sib-sport{font-size:var(--text-sm);font-weight:700;letter-spacing:-.01em;color:var(--muted)}
+.sig-instant-booking .sib-pill{margin-left:auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-instant-booking .sib-name{font-weight:800;font-size:var(--text-lg);letter-spacing:-.02em;margin:12px 0 2px;line-height:1.15}
+.sig-instant-booking .sib-sub{color:var(--muted);font-size:var(--text-sm);margin-bottom:14px}
+.sig-instant-booking .sib-r{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;opacity:0;clip:rect(0 0 0 0);overflow:hidden}
+.sig-instant-booking .sib-slot{display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--rule);border-radius:var(--r-ctl);margin-bottom:8px;cursor:pointer;background:var(--paper);transition:border-color .12s,box-shadow .12s}
+.sig-instant-booking .sib-slot::before{content:"";width:13px;height:13px;border-radius:50%;border:2px solid var(--rule);box-sizing:border-box;flex:0 0 auto}
+.sig-instant-booking .sib-day{font-weight:800;font-size:var(--text-sm);letter-spacing:-.01em;color:var(--ink)}
+.sig-instant-booking .sib-time{margin-left:auto;font-weight:700;font-size:var(--text-sm);color:var(--ink)}
+.sig-instant-booking .sib-dur{font-size:var(--text-xs);font-weight:700;color:var(--faint);flex:0 0 auto}
+.sig-instant-booking .sib-r:checked + .sib-slot{border-color:var(--ps-ink);box-shadow:inset 0 0 0 1px var(--ps-ink)}
+.sig-instant-booking .sib-r:checked + .sib-slot::before{border-color:var(--ps-ink);background:var(--ps-ink);box-shadow:inset 0 0 0 2px var(--paper)}
+.sig-instant-booking .sib-r:focus-visible + .sib-slot{outline:2px solid var(--ps-ink);outline-offset:2px}
+.sig-instant-booking .sib-receipt{margin-top:6px;border-top:1px solid var(--rule);padding-top:14px}
+.sig-instant-booking .sib-prompt{color:var(--faint);font-size:var(--text-sm);font-weight:600}
+.sig-instant-booking .sib-rc{display:none}
+.sig-instant-booking .sib-line{display:flex;gap:12px;padding:5px 0;font-size:var(--text-sm)}
+.sig-instant-booking .rk{width:52px;flex:0 0 auto;color:var(--faint);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:var(--text-xs);padding-top:2px}
+.sig-instant-booking .rv{font-weight:700;color:var(--ink);line-height:1.35}
+.sig-instant-booking .rv.rp{font-weight:800;font-size:var(--text-base)}
+.sig-instant-booking .sib-conf{display:flex;align-items:center;gap:9px;margin-top:12px;padding:10px 12px;border-radius:var(--r-ctl);background:var(--paper);border:1px solid var(--ps-ink);color:var(--ps-ink);font-weight:800;font-size:var(--text-sm)}
+.sig-instant-booking .sib-check{width:16px;height:16px;border-radius:50%;background:var(--ps-ink);position:relative;flex:0 0 auto}
+.sig-instant-booking .sib-check::after{content:"";position:absolute;left:5px;top:2.5px;width:4px;height:8px;border:2px solid #fff;border-top:0;border-left:0;transform:rotate(45deg)}
+/* reveal the picked slot's receipt, hide the prompt */
+.sig-instant-booking #sib-1:checked ~ .sib-receipt .sib-prompt,
+.sig-instant-booking #sib-2:checked ~ .sib-receipt .sib-prompt,
+.sig-instant-booking #sib-3:checked ~ .sib-receipt .sib-prompt{display:none}
+.sig-instant-booking #sib-1:checked ~ .sib-receipt .sib-rc[data-slot="1"],
+.sig-instant-booking #sib-2:checked ~ .sib-receipt .sib-rc[data-slot="2"],
+.sig-instant-booking #sib-3:checked ~ .sib-receipt .sib-rc[data-slot="3"]{display:block}
+@media(max-width:860px){.sig-instant-booking{margin-left:0;max-width:none}}
+/* sig-messaging */
+.sig-messaging{background:var(--paper);border-radius:var(--r-xl);padding:16px;max-width:400px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36);display:flex;flex-direction:column;gap:12px}
+.sig-messaging .sm-hd{display:flex;align-items:center;gap:8px}
+.sig-messaging .sm-dot{width:10px;height:10px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-messaging .sm-who{font-weight:700;font-size:var(--text-sm);letter-spacing:-.01em;color:var(--ink);
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sig-messaging .sm-pill{margin-left:auto;flex:0 0 auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--muted);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-messaging .sm-thread{display:flex;flex-direction:column;gap:8px;max-height:232px;overflow-y:auto;padding:2px}
+.sig-messaging .sm-b{max-width:82%;padding:9px 12px;font-size:var(--text-sm);line-height:1.35;border-radius:14px}
+.sig-messaging .sm-them{align-self:flex-start;background:#EEF2F7;color:var(--ink);border-bottom-left-radius:5px}
+.sig-messaging .sm-you{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:5px}
+.sig-messaging .sm-cmp{display:flex;gap:8px;align-items:center;border-top:1px solid var(--rule);padding-top:12px}
+.sig-messaging .sm-in{flex:1 1 auto;min-width:0;border:1px solid var(--rule);border-radius:var(--r-ctl);
+  padding:9px 12px;font:inherit;font-size:var(--text-sm);color:var(--ink);background:#fff}
+.sig-messaging .sm-in:focus{outline:none;border-color:var(--ps)}
+.sig-messaging .sm-send{flex:0 0 auto;border:0;cursor:pointer;background:var(--ps-ink);color:#fff;
+  font-weight:600;font-size:var(--text-sm);padding:9px 16px;border-radius:var(--r-ctl)}
+@media(max-width:860px){.sig-messaging{margin-left:0;max-width:none}}
+/* sig-bookings-receipts */
+.sig-bookings-receipts{background:var(--paper);border-radius:var(--r-xl);border-left:3px solid var(--ps);
+  padding:18px;max-width:400px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
+.sig-bookings-receipts .sr-hd{display:flex;align-items:center;gap:8px}
+.sig-bookings-receipts .sr-dot{width:10px;height:10px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-bookings-receipts .sr-title{font-weight:800;font-size:var(--text-base);letter-spacing:-.02em;color:var(--ink);min-width:0}
+.sig-bookings-receipts .sr-pill{margin-left:auto;flex:0 0 auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--muted);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-bookings-receipts .sr-sub{color:var(--muted);font-size:var(--text-xs);margin:6px 0 14px}
+.sig-bookings-receipts .sr-lines{display:flex;flex-direction:column}
+.sig-bookings-receipts .sr-line{display:flex;justify-content:space-between;gap:12px;font-size:var(--text-sm);
+  color:var(--muted);padding:9px 0;border-top:1px solid var(--rule)}
+.sig-bookings-receipts .sr-line:first-child{border-top:0}
+.sig-bookings-receipts .sr-amt{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.sig-bookings-receipts .sr-total span{color:var(--ink);font-weight:800}
+.sig-bookings-receipts .sr-pol{border-top:1px solid var(--rule);margin-top:2px}
+.sig-bookings-receipts .sr-sum{list-style:none;cursor:pointer;display:flex;justify-content:space-between;
+  align-items:center;padding:12px 0 2px;font-size:var(--text-sm);font-weight:700;color:var(--ink)}
+.sig-bookings-receipts .sr-sum::-webkit-details-marker{display:none}
+.sig-bookings-receipts .sr-cue{font-weight:700;font-size:var(--text-xs);letter-spacing:.03em;
+  text-transform:uppercase;color:var(--ps-ink)}
+.sig-bookings-receipts .sr-cue::after{content:"Show"}
+.sig-bookings-receipts details[open] .sr-cue::after{content:"Hide"}
+.sig-bookings-receipts .sr-ladder{display:flex;flex-direction:column;gap:8px;padding:6px 0 2px}
+.sig-bookings-receipts .sr-rung{display:flex;justify-content:space-between;gap:12px;font-size:var(--text-sm);
+  color:var(--muted);background:#F4F6FA;border-radius:10px;padding:10px 12px}
+.sig-bookings-receipts .sr-back{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+@media(max-width:860px){.sig-bookings-receipts{margin-left:0;max-width:none}}
+/* sig-saved */
+/* Heart is a pure-CSS shape (rotated square + two circles), no <svg>.
+   The label wraps a visually-hidden checkbox; :checked repaints --hc to --ps. */
+.sig-saved{background:var(--paper);border-radius:var(--r-xl);padding:16px;max-width:400px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
+.sig-saved .sv-hd{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.sig-saved .sv-dot{width:10px;height:10px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-saved .sv-who{font-weight:700;font-size:var(--text-sm);letter-spacing:-.01em;color:var(--ink)}
+.sig-saved .sv-pill{margin-left:auto;flex:0 0 auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--muted);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-saved .sv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sig-saved .sv-card{position:relative;cursor:pointer;display:flex;flex-direction:column;gap:2px;
+  background:#fff;border:1px solid var(--rule);border-radius:14px;padding:14px 12px 12px;min-width:0}
+.sig-saved .sv-card:hover{border-color:var(--ps)}
+.sig-saved .sv-cx{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.sig-saved .sv-name{font-weight:700;font-size:var(--text-sm);color:var(--ink);padding-right:26px;line-height:1.2}
+.sig-saved .sv-meta{font-size:var(--text-xs);color:var(--muted)}
+.sig-saved .sv-price{font-weight:800;font-size:var(--text-sm);color:var(--ink);margin-top:6px}
+.sig-saved .sv-slot{position:absolute;top:12px;right:10px;width:20px;height:20px}
+.sig-saved .sv-heart{position:absolute;top:5px;left:2px;width:14px;height:14px;transform:rotate(-45deg);
+  background:var(--hc,#CBD3DE);border-radius:2px}
+.sig-saved .sv-heart::before,.sig-saved .sv-heart::after{content:"";position:absolute;width:14px;height:14px;
+  border-radius:50%;background:var(--hc,#CBD3DE)}
+.sig-saved .sv-heart::before{top:-7px;left:0}
+.sig-saved .sv-heart::after{top:0;left:7px}
+.sig-saved .sv-cx:checked ~ .sv-slot .sv-heart{--hc:var(--ps)}
+.sig-saved .sv-cx:focus-visible ~ .sv-slot{outline:2px solid var(--ps);outline-offset:3px;border-radius:6px}
+@media(max-width:860px){.sig-saved{margin-left:0;max-width:none}}
+/* sig-athlete-progress */
+/* Vertical --ps rail behind native <details> rows; each summary is a dated node,
+   opening reveals a one-line note. Node fills solid --ps while open. */
+.sig-athlete-progress{background:var(--paper);border-radius:var(--r-xl);padding:18px;max-width:400px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
+.sig-athlete-progress .tl-hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sig-athlete-progress .tl-dot{width:10px;height:10px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-athlete-progress .tl-who{font-weight:700;font-size:var(--text-sm);letter-spacing:-.01em;color:var(--ink)}
+.sig-athlete-progress .tl-pill{margin-left:auto;flex:0 0 auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--muted);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-athlete-progress .tl-rail{position:relative;padding-left:22px}
+.sig-athlete-progress .tl-rail::before{content:"";position:absolute;left:5px;top:12px;bottom:12px;width:2px;
+  background:var(--ps);opacity:.55}
+.sig-athlete-progress .tl-item{border-top:1px solid var(--rule)}
+.sig-athlete-progress .tl-item:first-child{border-top:0}
+.sig-athlete-progress .tl-sum{list-style:none;cursor:pointer;position:relative;display:flex;align-items:baseline;
+  gap:10px;padding:12px 0}
+.sig-athlete-progress .tl-sum::-webkit-details-marker{display:none}
+.sig-athlete-progress .tl-node{position:absolute;left:-22px;top:15px;width:12px;height:12px;border-radius:50%;
+  background:var(--paper);border:2px solid var(--ps);box-sizing:border-box}
+.sig-athlete-progress details[open] .tl-node{background:var(--ps)}
+.sig-athlete-progress .tl-date{font-size:var(--text-xs);font-weight:700;color:var(--muted);flex:0 0 auto;width:44px}
+.sig-athlete-progress .tl-name{font-size:var(--text-sm);font-weight:700;color:var(--ink);min-width:0}
+.sig-athlete-progress .tl-val{margin-left:auto;font-size:var(--text-sm);font-weight:800;color:var(--ink);
+  font-variant-numeric:tabular-nums;flex:0 0 auto}
+.sig-athlete-progress .tl-chip{margin-left:auto;font-size:var(--text-xs);font-weight:700;color:var(--ps-ink);flex:0 0 auto}
+.sig-athlete-progress .tl-note{font-size:var(--text-sm);color:var(--muted);line-height:1.5;padding:0 0 12px 2px}
+@media(max-width:860px){.sig-athlete-progress{margin-left:0;max-width:none}}
+/* sig-scheduling */
+.sig-scheduling{background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-xl);
+  padding:16px;max-width:400px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
+.sig-scheduling .sc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.sig-scheduling .sc-title{font-weight:800;font-size:var(--text-sm);letter-spacing:-.01em;color:var(--ink)}
+.sig-scheduling .sc-pill{font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);background:#F1F5F9;border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-scheduling .sc-grid{display:grid;grid-template-columns:26px repeat(7,1fr);gap:4px}
+.sig-scheduling .sc-day{font-size:var(--text-xs);font-weight:700;color:var(--muted);text-align:center;padding-bottom:2px}
+.sig-scheduling .sc-time{font-size:10px;font-weight:600;color:var(--muted);align-self:center;text-align:right;padding-right:4px}
+.sig-scheduling .sc-cell{height:30px;border:1px solid var(--rule);border-radius:6px;background:transparent}
+.sig-scheduling .sc-open{position:relative;overflow:hidden;cursor:grab}
+.sig-scheduling .sc-open::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--ps)}
+.sig-scheduling .sc-open span{display:block;font-size:9px;font-weight:700;color:var(--ps-ink);text-align:center;margin-top:8px}
+.sig-scheduling .sc-open:hover{border-color:var(--ps-ink)}
+.sig-scheduling .sc-open:hover::after{content:"Drag to move";position:absolute;left:50%;bottom:calc(100% + 4px);
+  transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:600;color:var(--paper);
+  background:var(--ink);border-radius:5px;padding:3px 7px;z-index:2;pointer-events:none}
+.sig-scheduling.dragging .sc-open{cursor:grabbing}
+.sig-scheduling .sc-legend{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:var(--text-xs);color:var(--muted)}
+.sig-scheduling .sc-key{width:11px;height:11px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+@media(max-width:860px){.sig-scheduling{margin-left:0;max-width:none}}
+/* sig-payments */
+.sig-payments{background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-xl);padding:18px;
+  max-width:400px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
+.sig-payments .py-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:18px}
+.sig-payments .py-title{font-weight:800;font-size:var(--text-sm);color:var(--ink);letter-spacing:-.01em}
+.sig-payments .py-pill{font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);background:#F1F5F9;border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-payments .py-steps{position:relative;display:flex;justify-content:space-between;margin:0 5px}
+.sig-payments .py-steps::before{content:"";position:absolute;left:7px;right:7px;top:6px;height:2px;background:var(--rule)}
+.sig-payments .py-steps::after{content:"";position:absolute;left:7px;top:6px;height:2px;background:var(--ps);width:0;transition:width .3s ease}
+.sig-payments[data-step="2"] .py-steps::after{width:50%}
+.sig-payments[data-step="3"] .py-steps::after{width:calc(100% - 14px)}
+.sig-payments .py-step{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
+.sig-payments .py-node{width:14px;height:14px;border-radius:50%;background:var(--paper);border:2px solid var(--rule);transition:.25s}
+.sig-payments .py-lbl{font-size:10px;font-weight:600;color:var(--muted);white-space:nowrap;transition:.25s}
+.sig-payments[data-step="1"] .py-step:nth-child(-n+1) .py-node,
+.sig-payments[data-step="2"] .py-step:nth-child(-n+2) .py-node,
+.sig-payments[data-step="3"] .py-step:nth-child(-n+3) .py-node{background:var(--ps);border-color:var(--ps)}
+.sig-payments[data-step="1"] .py-step:nth-child(-n+1) .py-lbl,
+.sig-payments[data-step="2"] .py-step:nth-child(-n+2) .py-lbl,
+.sig-payments[data-step="3"] .py-step:nth-child(-n+3) .py-lbl{color:var(--ps-ink);font-weight:700}
+.sig-payments .py-status{font-size:var(--text-xs);font-weight:700;color:var(--ps-ink);margin-top:12px;text-align:center}
+.sig-payments .py-lines{margin-top:14px;border-top:1px solid var(--rule);padding-top:8px}
+.sig-payments .py-line{display:flex;align-items:center;justify-content:space-between;padding:7px 0;font-size:var(--text-sm)}
+.sig-payments .py-lab{color:var(--muted);display:flex;align-items:center;gap:6px}
+.sig-payments .py-fee{font-size:var(--text-xs);font-weight:700;color:var(--ps-ink);border:1px solid var(--rule);border-radius:4px;padding:1px 5px}
+.sig-payments .py-amt{font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.sig-payments .py-total{border-top:1px solid var(--rule);margin-top:4px;padding-top:12px}
+.sig-payments .py-total .py-lab{color:var(--ink);font-weight:800}
+.sig-payments .py-total .py-amt{font-size:var(--text-lg);font-weight:800}
+.sig-payments .py-adv{margin-top:14px;width:100%;background:var(--ps-ink);color:#fff;border:0;border-radius:var(--r-ctl);
+  padding:9px;font-weight:600;font-size:var(--text-sm);cursor:pointer}
+@media(max-width:860px){.sig-payments{margin-left:0;max-width:none}}
+/* sig-roster */
+.sig-roster{max-width:400px;margin-left:auto;padding:4px 2px}
+.sig-roster .ro-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;padding:0 4px}
+.sig-roster .ro-title{font-weight:800;font-size:var(--text-sm);color:var(--ink);letter-spacing:-.01em}
+.sig-roster .ro-pill{font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);background:#F1F5F9;border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-roster table{width:100%;border-collapse:collapse}
+.sig-roster th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--muted);padding:8px 4px;border-bottom:1px solid var(--rule);cursor:pointer;user-select:none;white-space:nowrap}
+.sig-roster th.num{text-align:right}
+.sig-roster th:hover{color:var(--ink)}
+.sig-roster th .ro-car{color:var(--ps-ink);font-size:9px;margin-left:3px}
+.sig-roster th.on{color:var(--ink)}
+.sig-roster td{font-size:var(--text-sm);color:var(--ink);padding:12px 4px;border-bottom:1px solid var(--rule)}
+.sig-roster td.nm{font-weight:700}
+.sig-roster td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+.sig-roster tbody tr:last-child td{border-bottom:0}
+@media(max-width:860px){.sig-roster{margin-left:0;max-width:none}}
+/* sig-session-notes */
+.sig-session-notes{background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-xl);padding:16px;
+  max-width:420px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
+.sig-session-notes .sn-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.sig-session-notes .sn-title{font-weight:800;font-size:var(--text-sm);color:var(--ink);letter-spacing:-.01em}
+.sig-session-notes .sn-pill{font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);background:#F1F5F9;border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-session-notes .sn-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sig-session-notes .sn-col{display:flex;flex-direction:column;min-width:0}
+.sig-session-notes .sn-lbl{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.sig-session-notes .sn-ta{width:100%;box-sizing:border-box;resize:none;border:1px solid var(--rule);border-radius:10px;
+  padding:9px;font:inherit;font-size:var(--text-xs);line-height:1.45;color:var(--ink);background:#FBFCFD;min-height:104px}
+.sig-session-notes .sn-ta:focus{outline:2px solid var(--ps-ink);outline-offset:-1px;border-color:transparent}
+.sig-session-notes .sn-share{margin-top:8px;background:var(--ps-ink);color:#fff;border:0;border-radius:var(--r-ctl);
+  padding:8px;font-weight:600;font-size:var(--text-xs);cursor:pointer}
+.sig-session-notes .sn-thread{border-left:3px solid var(--ps);padding-left:10px;display:flex;flex-direction:column;gap:6px}
+.sig-session-notes .sn-bubble{background:#F1F5F9;border-radius:10px;padding:9px;font-size:var(--text-xs);line-height:1.45;color:var(--ink)}
+.sig-session-notes .sn-from{font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.sig-session-notes .sn-status{font-size:9px;font-weight:700;color:var(--ps-ink);display:flex;align-items:center;gap:5px}
+.sig-session-notes .sn-status::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ps);flex:0 0 auto}
+@media(max-width:520px){.sig-session-notes .sn-cols{grid-template-columns:1fr}}
+@media(max-width:860px){.sig-session-notes{margin-left:0;max-width:none}}
+/* sig-media-consent */
+.sig-media-consent{background:var(--paper);border-radius:var(--r-xl);padding:18px;width:100%;max-width:400px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
+.sig-media-consent .mc-head{display:flex;align-items:center;gap:8px}
+.sig-media-consent .mc-dot{width:11px;height:11px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-media-consent .mc-sport{font-size:var(--text-sm);font-weight:700;letter-spacing:-.01em;color:var(--muted)}
+.sig-media-consent .mc-pill{margin-left:auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--faint);background:var(--raise2);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-media-consent .mc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.sig-media-consent .mc-tile{position:relative;aspect-ratio:1/1;border-radius:12px;overflow:hidden;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--ps) 12%,var(--raise)),var(--raise2));
+  border:1px solid var(--rule);display:flex;align-items:flex-end;padding:9px}
+.sig-media-consent .mc-tile:nth-child(2){background:linear-gradient(135deg,var(--raise2),color-mix(in srgb,var(--ps) 8%,var(--raise)))}
+.sig-media-consent .mc-tile:nth-child(3){background:linear-gradient(200deg,color-mix(in srgb,var(--ps) 10%,var(--raise2)),var(--raise))}
+.sig-media-consent .mc-cap{position:relative;z-index:2;font-size:var(--text-xs);font-weight:700;color:var(--ps-ink);
+  background:color-mix(in srgb,var(--paper) 82%,transparent);border-radius:6px;padding:2px 6px}
+/* Consent-blocked tile: frosted scrim + CSS padlock; the reason is hidden until hover/focus. */
+.sig-media-consent .mc-locked{filter:grayscale(.9);cursor:not-allowed;align-items:center;justify-content:center;flex-direction:column;gap:9px}
+.sig-media-consent .mc-scrim{position:absolute;inset:0;z-index:1;
+  background:color-mix(in srgb,var(--ink) 46%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.sig-media-consent .mc-lock{position:relative;z-index:2;width:22px;height:17px;border-radius:3px;background:#F5F7F9}
+.sig-media-consent .mc-lock::before{content:"";position:absolute;left:50%;top:-9px;transform:translateX(-50%);
+  width:12px;height:11px;border:2.5px solid #F5F7F9;border-bottom:none;border-radius:7px 7px 0 0}
+.sig-media-consent .mc-why{position:relative;z-index:2;font-size:var(--text-xs);font-weight:700;line-height:1.3;text-align:center;
+  color:#F5F7F9;max-width:90%;opacity:0;transform:translateY(4px);transition:opacity .18s,transform .18s}
+.sig-media-consent .mc-locked:hover .mc-why,.sig-media-consent .mc-locked:focus .mc-why{opacity:1;transform:translateY(0)}
+.sig-media-consent .mc-foot{display:flex;gap:8px;align-items:center;margin-top:13px;padding-top:12px;border-top:1px solid var(--rule);
+  font-size:var(--text-sm);color:var(--muted)}
+.sig-media-consent .mc-chk{color:var(--ps-ink);font-weight:700}
+@media(max-width:480px){.sig-media-consent{max-width:none;margin-left:0}}
+/* sig-insights */
+.sig-insights{background:var(--paper);border-radius:var(--r-xl);padding:18px;width:100%;max-width:400px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
+.sig-insights .si-head{display:flex;align-items:center;gap:8px}
+.sig-insights .si-dot{width:11px;height:11px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-insights .si-sport{font-size:var(--text-sm);font-weight:700;letter-spacing:-.01em;color:var(--muted)}
+/* CSS-only toggle: a checkbox styled as a track+knob; :has() on the root swaps every tile. */
+.sig-insights .si-toggle{margin-left:auto;display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
+.sig-insights .si-toggle input{position:absolute;opacity:0;width:0;height:0}
+.sig-insights .si-track{width:34px;height:19px;border-radius:999px;background:var(--raise2);border:1px solid var(--rule);
+  position:relative;transition:background .16s}
+.sig-insights .si-knob{position:absolute;top:1px;left:1px;width:15px;height:15px;border-radius:50%;background:var(--paper);
+  box-shadow:0 1px 2px rgba(11,12,14,.35);transition:transform .16s}
+.sig-insights .si-toggle input:checked + .si-track{background:var(--ps)}
+.sig-insights .si-toggle input:checked + .si-track .si-knob{transform:translateX(15px)}
+.sig-insights .si-tlabel{font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+.sig-insights .si-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.sig-insights .si-tile{position:relative;border:1px solid var(--rule);border-radius:12px;padding:12px 12px 13px;background:var(--raise)}
+.sig-insights .si-k{font-size:var(--text-xs);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
+.sig-insights .si-v{font-size:var(--text-xl);font-weight:800;letter-spacing:-.02em;color:var(--ink);margin-top:6px;line-height:1}
+.sig-insights .si-up{font-style:normal;color:var(--ps-ink);font-size:var(--text-sm);font-weight:800}
+.sig-insights .si-real{display:none}
+.sig-insights:has(.si-toggle input:checked) .si-zero{display:none}
+.sig-insights:has(.si-toggle input:checked) .si-real{display:inline}
+/* The dedicated demo tile carries the pill and always shows its seeded value. */
+.sig-insights .si-demo{background:color-mix(in srgb,var(--ps) 8%,var(--raise));border-color:color-mix(in srgb,var(--ps) 28%,var(--rule))}
+.sig-insights .si-badge{position:absolute;top:9px;right:9px;font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--faint);background:var(--paper);border:1px solid var(--rule);border-radius:999px;padding:2px 7px}
+@media(max-width:480px){.sig-insights{max-width:none;margin-left:0}}
+/* sig-ai-coach */
+.sig-ai-coach{background:var(--paper);border-radius:var(--r-xl);padding:18px;width:100%;max-width:400px;margin-left:auto;
+  box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
+.sig-ai-coach .ac-head{display:flex;align-items:center;gap:8px}
+.sig-ai-coach .ac-dot{width:11px;height:11px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-ai-coach .ac-title{font-size:var(--text-sm);font-weight:700;letter-spacing:-.01em;color:var(--muted)}
+.sig-ai-coach .ac-pill{margin-left:auto;font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--faint);background:var(--raise2);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.sig-ai-coach .ac-bar{display:flex;align-items:center;gap:8px;margin-top:13px;background:var(--raise);border:1px solid var(--rule);
+  border-radius:var(--r-ctl);padding:8px 8px 8px 12px}
+.sig-ai-coach .ac-input{flex:1 1 auto;min-width:0;border:0;background:transparent;color:var(--ink);
+  font-size:var(--text-sm);font-family:inherit;line-height:1.3}
+.sig-ai-coach .ac-input:focus{outline:none}
+.sig-ai-coach .ac-go{flex:0 0 auto;border:0;background:var(--ps-ink);color:#fff;font-weight:600;font-size:var(--text-sm);
+  font-family:inherit;padding:7px 14px;border-radius:8px;cursor:pointer}
+/* The "parse": chips derived from the query, then two verified picks. */
+.sig-ai-coach .ac-chiprow{display:flex;flex-wrap:wrap;gap:6px;margin-top:13px}
+.sig-ai-coach .ac-chip{font-size:var(--text-xs);font-weight:700;color:var(--ps-ink);
+  background:color-mix(in srgb,var(--ps) 12%,var(--paper));border:1px solid color-mix(in srgb,var(--ps) 26%,var(--rule));
+  border-radius:999px;padding:3px 9px}
+.sig-ai-coach .ac-row{display:flex;align-items:center;gap:11px;margin-top:11px;padding-top:11px;border-top:1px solid var(--rule)}
+.sig-ai-coach .ac-rdot{width:9px;height:9px;border-radius:3px;background:var(--ps);flex:0 0 auto}
+.sig-ai-coach .ac-rmain{min-width:0}
+.sig-ai-coach .ac-rname{font-size:var(--text-sm);font-weight:700;color:var(--ink);line-height:1.25}
+.sig-ai-coach .ac-rmeta{font-size:var(--text-xs);color:var(--muted);margin-top:2px}
+.sig-ai-coach .ac-rmeta .ac-chk{color:var(--ps-ink);font-weight:700}
+.sig-ai-coach .ac-rprice{margin-left:auto;flex:0 0 auto;font-size:var(--text-sm);font-weight:700;color:var(--ink)}
+@media(max-width:480px){.sig-ai-coach{max-width:none;margin-left:0}}
 /* S1 hero */
 .pg-hero .shell{max-width:960px}
 .pg-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;background:var(--paper);
@@ -5112,6 +5573,250 @@ function pageKX(id){
         <b>${esc(m.t)}</b><span>${esc(m.sport)} · built into Sporve</span></button>`;}).join("")}
     </div></div></section>`;
 }
+function sig_background_checks(){ return `<div class="sig-background-checks" role="img" aria-label="Verification timeline for a swim coach: submitted and cleared, now bookable">
+  <div class="sbc-top"><span class="sbc-dot"></span><span class="sbc-sport">Swimming · Miami, FL</span><span class="sbc-pill">Demo data</span></div>
+  <div class="sbc-name">Coral Reef Aquatics — Learn to Swim</div>
+  <div class="sbc-sub">Deion Carter · lead swim coach</div>
+  <ol class="sbc-rail">
+    <li class="sbc-step is-done"><span class="sbc-mark"></span><div class="sbc-label">Submitted</div><div class="sbc-meta">Identity sent for review · May 11, 2026</div></li>
+    <li class="sbc-step is-done"><span class="sbc-mark"></span><div class="sbc-label">Cleared</div><div class="sbc-meta">Independent check passed · May 14, 2026</div></li>
+    <li class="sbc-step is-now"><span class="sbc-mark"></span><div class="sbc-label">Bookable <span class="sbc-now">Now</span></div><div class="sbc-meta">Shown in search — a parent can book</div></li>
+  </ol>
+</div>`; }
+function sig_examples(){
+  const clubs=[
+    ["Riverside Lacrosse Club","Denver, CO",[["Open slots","12"],["U14 Attack","$50"],["Rating","4.9"]]],
+    ["Cherry Creek LC","Denver, CO",[["Open slots","8"],["U12 Youth","$45"],["Reviews","64"]]],
+    ["Front Range Lax","Boulder, CO",[["Open slots","15"],["U16 Midfield","$55"],["Rating","4.8"]]],
+    ["Mile High Girls Lacrosse","Aurora, CO",[["Open slots","6"],["U14 Girls","$48"],["Reviews","41"]]],
+    ["Summit Youth Lacrosse","Littleton, CO",[["Open slots","10"],["U10 Intro","$40"],["Rating","4.9"]]],
+    ["Platte Valley Lax","Golden, CO",[["Open slots","9"],["U16 Defense","$52"],["Reviews","58"]]]
+  ];
+  const frames=clubs.map(c=>`<div class="ex-frame">
+      <div class="ex-club"><span class="ex-cdot"></span><span class="ex-name">${c[0]}</span></div>
+      <div class="ex-city">Lacrosse · ${c[1]}</div>
+      <div class="ex-stats">${c[2].map(s=>`<div class="ex-stat"><span>${s[0]}</span><b class="${s[0]==='Open slots'?'hl':''}">${s[1]}</b></div>`).join("")}</div>
+    </div>`).join("");
+  return `<div class="sig-examples" aria-label="Real lacrosse clubs">
+    <div class="ex-head"><span class="ex-dot"></span><span class="ex-title">Lacrosse clubs listing now · Colorado</span><span class="ex-pill">Demo data</span></div>
+    <div class="ex-scroller" role="list">${frames}</div>
+  </div>`;
+}
+function sig_search(){ return `<div class="sig-search">
+  <div class="ss-top"><span class="ss-dot"></span><span class="ss-sport">Basketball · Chicago, IL</span><span class="ss-pill">Demo data</span></div>
+  <div class="ss-hint">Tap to filter</div>
+  <input type="checkbox" class="ss-cb" id="ssf-u12"><label class="ss-chip" for="ssf-u12">U12</label>
+  <input type="checkbox" class="ss-cb" id="ssf-cheap"><label class="ss-chip" for="ssf-cheap">Under $40</label>
+  <input type="checkbox" class="ss-cb" id="ssf-wknd"><label class="ss-chip" for="ssf-wknd">Weekends</label>
+  <div class="ss-rows">
+    <div class="ss-row is-u12 is-cheap is-wknd"><span class="ss-rdot"></span><div><div class="ss-rname">West Loop Hoops — U12 Skills</div><div class="ss-rmeta"><span class="ss-rchk">Background-checked</span> · Sat 9:00 AM · ages 9–12</div></div><span class="ss-rprice">$38</span></div>
+    <div class="ss-row is-u12 is-cheap"><span class="ss-rdot"></span><div><div class="ss-rname">Lincoln Park Guards — Weeknight Shooting</div><div class="ss-rmeta"><span class="ss-rchk">Background-checked</span> · Tue/Thu 6:00 PM · ages 8–12</div></div><span class="ss-rprice">$28</span></div>
+    <div class="ss-row is-wknd"><span class="ss-rdot"></span><div><div class="ss-rname">Northside Fundamentals — Saturday Run</div><div class="ss-rmeta"><span class="ss-rchk">Background-checked</span> · Sat 11:00 AM · ages 10–14</div></div><span class="ss-rprice">$45</span></div>
+  </div>
+</div>`; }
+function sig_map_search(){ return `<div class="sig-map-search">
+  <div class="sms-top"><span class="sms-dot"></span><span class="sms-sport">Cycling · Boulder, CO</span><span class="sms-pill">Demo data</span></div>
+  <div class="sms-map" role="img" aria-label="Map with four cycling-coach pins near Boulder">
+    <div class="sms-pin" style="left:23%;top:31%"><span class="sms-tear"></span></div>
+    <div class="sms-pin" style="left:63%;top:24%"><span class="sms-tear"></span></div>
+    <div class="sms-pin sms-pin--live" style="left:45%;top:68%" tabindex="0" aria-label="Flatirons Junior Cycling, 1.2 miles away, 32 dollars">
+      <span class="sms-tear"></span>
+      <div class="sms-card">
+        <div class="sms-cname">Flatirons Junior Cycling</div>
+        <div class="sms-cmeta"><span class="sms-chk">Background-checked</span> · Skills Ride · ages 10–14</div>
+        <div class="sms-cfoot"><span class="sms-dist">1.2 mi away</span><span class="sms-price">$32</span></div>
+      </div>
+    </div>
+    <div class="sms-pin" style="left:78%;top:62%"><span class="sms-tear"></span></div>
+  </div>
+  <div class="sms-hint">Hover the highlighted pin</div>
+</div>`; }
+function sig_instant_booking(){ return `<div class="sig-instant-booking">
+  <div class="sib-top"><span class="sib-dot"></span><span class="sib-sport">Baseball · Miami, FL</span><span class="sib-pill">Demo data</span></div>
+  <div class="sib-name">Grand Slam Baseball — Hitting Lab</div>
+  <div class="sib-sub">Pick an open slot · pay in the same flow</div>
+  <input type="radio" name="sibslot" class="sib-r" id="sib-1"><label class="sib-slot" for="sib-1"><span class="sib-day">Sat May 16</span><span class="sib-time">9:00 AM</span><span class="sib-dur">60 min</span></label>
+  <input type="radio" name="sibslot" class="sib-r" id="sib-2"><label class="sib-slot" for="sib-2"><span class="sib-day">Sat May 16</span><span class="sib-time">10:30 AM</span><span class="sib-dur">60 min</span></label>
+  <input type="radio" name="sibslot" class="sib-r" id="sib-3"><label class="sib-slot" for="sib-3"><span class="sib-day">Sun May 17</span><span class="sib-time">8:00 AM</span><span class="sib-dur">60 min</span></label>
+  <div class="sib-receipt">
+    <div class="sib-prompt">Choose a time to see the receipt.</div>
+    <div class="sib-rc" data-slot="1"><div class="sib-line"><span class="rk">Slot</span><span class="rv">Sat May 16 · 9:00 AM · 60 min</span></div><div class="sib-line"><span class="rk">Price</span><span class="rv rp">$45.00</span></div><div class="sib-conf"><span class="sib-check"></span>Confirmed — held while you pay</div></div>
+    <div class="sib-rc" data-slot="2"><div class="sib-line"><span class="rk">Slot</span><span class="rv">Sat May 16 · 10:30 AM · 60 min</span></div><div class="sib-line"><span class="rk">Price</span><span class="rv rp">$45.00</span></div><div class="sib-conf"><span class="sib-check"></span>Confirmed — held while you pay</div></div>
+    <div class="sib-rc" data-slot="3"><div class="sib-line"><span class="rk">Slot</span><span class="rv">Sun May 17 · 8:00 AM · 60 min</span></div><div class="sib-line"><span class="rk">Price</span><span class="rv rp">$45.00</span></div><div class="sib-conf"><span class="sib-check"></span>Confirmed — held while you pay</div></div>
+  </div>
+</div>`; }
+function sig_messaging(){ return `<div class="sig-messaging">
+  <div class="sm-hd"><span class="sm-dot"></span><span class="sm-who">Barton Springs Volleyball &middot; U13 Setting</span><span class="sm-pill">Demo data</span></div>
+  <div class="sm-thread" data-sig-thread>
+    <div class="sm-b sm-them">Hi! Does U13 setting have room on Tuesdays?</div>
+    <div class="sm-b sm-you">Yes &mdash; is a tryout needed first?</div>
+    <div class="sm-b sm-them">No tryout. Come by Tuesday 6pm for a first serve.</div>
+  </div>
+  <div class="sm-cmp">
+    <input class="sm-in" data-sig-input type="text" placeholder="Message the coach&hellip;" aria-label="Message the coach">
+    <button class="sm-send" data-sig-send type="button">Send</button>
+  </div>
+</div>`; }
+function sig_bookings_receipts(){ return `<div class="sig-bookings-receipts">
+  <div class="sr-hd"><span class="sr-dot"></span><span class="sr-title">Gridiron Youth &mdash; QB Skills</span><span class="sr-pill">Demo data</span></div>
+  <div class="sr-sub">Football &middot; Miami, FL &middot; Sat May 16 &middot; 10:00 AM</div>
+  <div class="sr-lines">
+    <div class="sr-line"><span>Session &middot; 60 min</span><span class="sr-amt">$44.75</span></div>
+    <div class="sr-line"><span>Service fee</span><span class="sr-amt">$5.25</span></div>
+    <div class="sr-line sr-total"><span>Total paid</span><span class="sr-amt">$50.00</span></div>
+  </div>
+  <details class="sr-pol">
+    <summary class="sr-sum"><span>Refund policy</span><span class="sr-cue"></span></summary>
+    <div class="sr-ladder">
+      <div class="sr-rung"><span>Cancel &ge; 24h before</span><span class="sr-back">100% &middot; $50.00</span></div>
+      <div class="sr-rung"><span>Cancel &lt; 24h before</span><span class="sr-back">50% &middot; $25.00</span></div>
+    </div>
+  </details>
+</div>`; }
+function sig_saved(){
+  var cards=[
+    ["Southside Boxing","Youth Fundamentals","$35",true],
+    ["Windy City BC","Footwork &amp; Conditioning","$28",true],
+    ["Halsted Boxing","Ring Basics","$40",false],
+    ["Ringside Chicago","Sparring Prep","$45",false]
+  ].map(function(c){ return `<label class="sv-card">
+    <input type="checkbox" class="sv-cx"${c[3]?" checked":""} aria-label="Save ${c[0]}">
+    <span class="sv-slot"><span class="sv-heart" aria-hidden="true"></span></span>
+    <span class="sv-name">${c[0]}</span>
+    <span class="sv-meta">${c[1]}</span>
+    <span class="sv-price">${c[2]}</span>
+  </label>`; }).join("");
+  return `<div class="sig-saved">
+  <div class="sv-hd"><span class="sv-dot"></span><span class="sv-who">Saved boxing coaches</span><span class="sv-pill">Demo data</span></div>
+  <div class="sv-grid">${cards}</div>
+</div>`;
+}
+function sig_athlete_progress(){
+  var rows=[
+    ["Apr 18","Baseline 100m",`<span class="tl-val">14.4s</span>`,"First timed 100m &mdash; a clean baseline before the block work starts."],
+    ["May 2","Block starts",`<span class="tl-chip">on plan</span>`,"Drove out low for 30m; reaction and the first three steps are sharper."],
+    ["May 16","150m rep",`<span class="tl-val">21.0s</span>`,"Held form through the turn &mdash; splits stayed even across the rep."],
+    ["May 30","100m PB",`<span class="tl-val">13.9s</span>`,"New personal best &mdash; half a second off the baseline in six weeks."]
+  ].map(function(r){ return `<details class="tl-item">
+    <summary class="tl-sum"><span class="tl-node"></span><span class="tl-date">${r[0]}</span><span class="tl-name">${r[1]}</span>${r[2]}</summary>
+    <div class="tl-note">${r[3]}</div>
+  </details>`; }).join("");
+  return `<div class="sig-athlete-progress">
+  <div class="tl-hd"><span class="tl-dot"></span><span class="tl-who">Sprint Development &middot; timeline</span><span class="tl-pill">Demo data</span></div>
+  <div class="tl-rail">${rows}</div>
+</div>`;
+}
+function sig_scheduling(){ return `<div class="sig-scheduling">
+  <div class="sc-head"><div class="sc-title">This week · availability</div><span class="sc-pill">Demo data</span></div>
+  <div class="sc-grid">
+    <div></div>
+    <div class="sc-day">M</div><div class="sc-day">T</div><div class="sc-day">W</div><div class="sc-day">T</div><div class="sc-day">F</div><div class="sc-day">S</div><div class="sc-day">S</div>
+    <div class="sc-time">3p</div>
+    <div class="sc-cell"></div><div class="sc-cell"></div><div class="sc-cell"></div><div class="sc-cell sc-open"><span>Open</span></div><div class="sc-cell"></div><div class="sc-cell"></div><div class="sc-cell"></div>
+    <div class="sc-time">4p</div>
+    <div class="sc-cell"></div><div class="sc-cell sc-open"><span>Open</span></div><div class="sc-cell"></div><div class="sc-cell"></div><div class="sc-cell"></div><div class="sc-cell"></div><div class="sc-cell"></div>
+    <div class="sc-time">5p</div>
+    <div class="sc-cell"></div><div class="sc-cell"></div><div class="sc-cell"></div><div class="sc-cell"></div><div class="sc-cell"></div><div class="sc-cell sc-open"><span>Open</span></div><div class="sc-cell"></div>
+  </div>
+  <div class="sc-legend"><span class="sc-key"></span>Open lesson slot · tap to book</div>
+</div>`; }
+function sig_payments(){ return `<div class="sig-payments" data-step="2">
+  <div class="py-head"><div class="py-title">Payout · Golf lesson</div><span class="py-pill">Demo data</span></div>
+  <div class="py-steps">
+    <div class="py-step"><span class="py-node"></span><span class="py-lbl">Pending</span></div>
+    <div class="py-step"><span class="py-node"></span><span class="py-lbl">In transit</span></div>
+    <div class="py-step"><span class="py-node"></span><span class="py-lbl">Paid</span></div>
+  </div>
+  <div class="py-status">In transit · arrives Tue</div>
+  <div class="py-lines">
+    <div class="py-line"><span class="py-lab">Session</span><span class="py-amt">$45.00</span></div>
+    <div class="py-line"><span class="py-lab">Platform fee <span class="py-fee">12%</span></span><span class="py-amt">&minus;$5.40</span></div>
+    <div class="py-line py-total"><span class="py-lab">Your payout</span><span class="py-amt">$39.60</span></div>
+  </div>
+  <button class="py-adv" type="button">Advance state</button>
+</div>`; }
+function sig_roster(){ return `<div class="sig-roster">
+  <div class="ro-head"><div class="ro-title">Client roster · Hockey</div><span class="ro-pill">Demo data</span></div>
+  <table>
+    <thead><tr>
+      <th data-key="name">Athlete<span class="ro-car"></span></th>
+      <th class="num" data-key="sessions">Sessions<span class="ro-car"></span></th>
+      <th class="num" data-key="seen">Last seen<span class="ro-car"></span></th>
+    </tr></thead>
+    <tbody>
+      <tr><td class="nm">Cole Sundqvist</td><td class="num" data-v="31">31</td><td class="num" data-v="1">Yesterday</td></tr>
+      <tr><td class="nm">Mason Beaudry</td><td class="num" data-v="24">24</td><td class="num" data-v="2">2d ago</td></tr>
+      <tr><td class="nm">Ella Tremblay</td><td class="num" data-v="12">12</td><td class="num" data-v="5">5d ago</td></tr>
+      <tr><td class="nm">Ava Lindholm</td><td class="num" data-v="8">8</td><td class="num" data-v="7">1w ago</td></tr>
+    </tbody>
+  </table>
+</div>`; }
+function sig_session_notes(){ return `<div class="sig-session-notes">
+  <div class="sn-head"><div class="sn-title">Session note · Fencing</div><span class="sn-pill">Demo data</span></div>
+  <div class="sn-cols">
+    <div class="sn-col">
+      <div class="sn-lbl">Your note · Nora L.</div>
+      <textarea class="sn-ta" readonly aria-label="Session note">Épée footwork looked sharp today. Nora's distance control is improving — keep drilling the retreat-lunge at home before Saturday.</textarea>
+      <button class="sn-share" type="button">Share with parent</button>
+    </div>
+    <div class="sn-col">
+      <div class="sn-lbl">Parent sees</div>
+      <div class="sn-thread">
+        <div class="sn-bubble">
+          <div class="sn-from">Coach Rivera</div>
+          Épée footwork looked sharp today. Nora's distance control is improving — keep drilling the retreat-lunge at home before Saturday.
+        </div>
+        <div class="sn-status">Delivered · 4:12 PM</div>
+      </div>
+    </div>
+  </div>
+</div>`; }
+function sig_media_consent(){ return `<div class="sig-media-consent" aria-label="Media consent demo">
+  <div class="mc-head"><span class="mc-dot"></span><span class="mc-sport">Gymnastics · Miami, FL</span><span class="mc-pill">Demo data</span></div>
+  <div class="mc-grid">
+    <div class="mc-tile"><span class="mc-cap">Level 3 floor</span></div>
+    <div class="mc-tile"><span class="mc-cap">Beam practice</span></div>
+    <div class="mc-tile"><span class="mc-cap">Team, Miami</span></div>
+    <div class="mc-tile mc-locked" tabindex="0" role="img" aria-label="Blocked — parent consent not on file">
+      <div class="mc-scrim"></div>
+      <span class="mc-lock" aria-hidden="true"></span>
+      <span class="mc-why">Parent consent not on file</span>
+    </div>
+  </div>
+  <div class="mc-foot"><span class="mc-chk">3 photos cleared</span> · 1 awaiting consent</div>
+</div>`; }
+function sig_insights(){ return `<div class="sig-insights" aria-label="Business insights demo">
+  <div class="si-head"><span class="si-dot"></span><span class="si-sport">Rowing · Boston, MA</span>
+    <label class="si-toggle"><input type="checkbox" checked aria-label="Show demo data"><span class="si-track"><span class="si-knob"></span></span><span class="si-tlabel">Demo</span></label>
+  </div>
+  <div class="si-grid">
+    <div class="si-tile"><div class="si-k">Bookings</div><div class="si-v"><span class="si-zero">—</span><span class="si-real">38 <i class="si-up">↑</i></span></div></div>
+    <div class="si-tile"><div class="si-k">Earnings</div><div class="si-v"><span class="si-zero">—</span><span class="si-real">$2,090</span></div></div>
+    <div class="si-tile"><div class="si-k">Return rate</div><div class="si-v"><span class="si-zero">—</span><span class="si-real">74%</span></div></div>
+    <div class="si-tile si-demo"><span class="si-badge">Demo data</span><div class="si-k">New this month</div><div class="si-v">9 <i class="si-up">↑</i></div></div>
+  </div>
+</div>`; }
+function sig_ai_coach(){ return `<div class="sig-ai-coach" aria-label="AI Coach demo">
+  <div class="ac-head"><span class="ac-dot"></span><span class="ac-title">AI Coach · Denver, CO</span><span class="ac-pill">Demo data</span></div>
+  <form class="ac-bar" onsubmit="return false">
+    <input class="ac-input" type="text" value="a martial arts coach for my 9-year-old" aria-label="Ask the AI Coach">
+    <button class="ac-go" type="submit">Ask</button>
+  </form>
+  <div class="ac-chiprow" data-acchips>
+    <span class="ac-chip">Martial Arts</span><span class="ac-chip">Age 9</span><span class="ac-chip">Verified only</span>
+  </div>
+  <div class="ac-row">
+    <span class="ac-rdot"></span>
+    <div class="ac-rmain"><div class="ac-rname">Sensei Marisol Vega — Karate</div><div class="ac-rmeta"><span class="ac-chk">Background-checked</span> · ages 6–12</div></div>
+    <span class="ac-rprice">$40</span>
+  </div>
+  <div class="ac-row">
+    <span class="ac-rdot"></span>
+    <div class="ac-rmain"><div class="ac-rname">Mile High Judo — Youth Beginners</div><div class="ac-rmeta"><span class="ac-chk">Background-checked</span> · ages 7–11</div></div>
+    <span class="ac-rprice">$38</span>
+  </div>
+</div>`; }
+function sigHTML(id){var m={"background-checks":sig_background_checks,"examples":sig_examples,"search":sig_search,"map-search":sig_map_search,"instant-booking":sig_instant_booking,"messaging":sig_messaging,"bookings-receipts":sig_bookings_receipts,"saved":sig_saved,"athlete-progress":sig_athlete_progress,"scheduling":sig_scheduling,"payments":sig_payments,"roster":sig_roster,"session-notes":sig_session_notes,"media-consent":sig_media_consent,"insights":sig_insights,"ai-coach":sig_ai_coach};return (m[id]?m[id]():'');}
 function pageHTML(id){
   const meta=PAGE_META[id];
   if(!meta) return notFoundHTML("page:"+id);
@@ -5128,12 +5833,7 @@ function pageHTML(id){
         <p class="pg-sub">Every coach on Sporve clears their own background check before the first whistle — the person who stands on the pool deck, never the swim club that lists them.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:media-consent">How consent works →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Swimming · Miami, FL</span></div>
-        <div class="hc-name">Coral Reef Aquatics — Learn to Swim</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · per person · ages 6–12</div>
-        <div class="hc-foot"><span class="hc-price">$40<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev><div class="pg-rows">
@@ -5181,7 +5881,7 @@ function pageHTML(id){
         <p class="pg-sub">Background-checked coaches, camps, and clubs across 20+ sports — search, message, and book a real open slot in minutes. One account for every sport your family plays.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
+      <div class="pg-herocard sig-what-is" aria-hidden="true">
         <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Soccer · Miami, FL</span></div>
         <div class="hc-name">Coral Reef FC — U12 Development</div>
         <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 9–12</div>
@@ -5241,19 +5941,14 @@ function pageHTML(id){
        list, side by side) → numbered claim/proof rows → stats → close. Real
        businesses already on Sporve, browsed by business. Accents wear Lacrosse. */
     return `<div class="${cls}">
-    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
+    <section class="pgband slate pg-hero"><div class="shell" data-rev>
       <div class="pg-heroL">
         ${pageEyebrow(meta)}
         <h1 class="pg-serif pg-h1">The clubs are real, <em>and already listed.</em></h1>
         <p class="pg-sub">These aren't stock names. Browse the actual lacrosse clubs, boxing gyms, and swim schools listing open slots on Sporve — each one a real business whose coaches are background-checked, with slots you can book today.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Search by sport & age →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Lacrosse · Denver, CO</span></div>
-        <div class="hc-name">Riverside Lacrosse Club — U14 Attack</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 12–14</div>
-        <div class="hc-foot"><span class="hc-price">$50<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
@@ -5312,12 +6007,7 @@ if(id==="search"){
         <p class="pg-sub">Search by sport, age, level, price, and distance. Every result is a background-checked basketball coach with a real open slot — and you can save a search to run again next season.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:map-search">See what's near you →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Basketball · Chicago, IL</span></div>
-        <div class="hc-name">West Loop Hoops — U12 Skills</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 9–12</div>
-        <div class="hc-foot"><span class="hc-price">$40<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow"><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span></div></div></section>
@@ -5370,12 +6060,7 @@ if(id==="map-search"){
         <p class="pg-sub">Open the map and the background-checked cycling coaches around you show up as pins before you filter a thing. Tap one to see the rides, the levels, and a real open slot — then book from the same screen.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Filter by sport & age →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Cycling · Boulder, CO</span></div>
-        <div class="hc-name">Flatirons Junior Cycling — Skills Ride</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 10–14</div>
-        <div class="hc-foot"><span class="hc-price">$32<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow"><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span></div></div></section>
@@ -5428,12 +6113,7 @@ if(id==="map-search"){
         <p class="pg-sub">See the openings a baseball coach actually has, choose one, and pay in the same flow. No enquiry form, no callback, no waiting to hear back before game day.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:bookings-receipts">See the receipt →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Baseball · Miami, FL</span></div>
-        <div class="hc-name">Grand Slam Baseball — Hitting Lab</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Sat 9:00 AM · ages 9–12</div>
-        <div class="hc-foot"><span class="hc-price">$45<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev><div class="pg-rows">
@@ -5479,12 +6159,7 @@ if(id==="messaging"){
         <p class="pg-sub">Ask about levels, timing, or a tryout for free — before any money moves. The moment you book, the whole thread attaches to the booking, so the conversation and the coach carry straight through.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:bookings-receipts">How bookings keep a record →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Volleyball · Austin, TX</span></div>
-        <div class="hc-name">Barton Springs Volleyball — U13 Setting</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 11–14</div>
-        <div class="hc-foot"><span class="hc-price">$34<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow"><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span><span class="tk">Soccer</span><span class="tksep"></span><span class="tk">Basketball</span><span class="tksep"></span><span class="tk">Swimming</span><span class="tksep"></span><span class="tk">Tennis</span><span class="tksep"></span><span class="tk">Baseball</span><span class="tksep"></span><span class="tk">Volleyball</span><span class="tksep"></span><span class="tk">Football</span><span class="tksep"></span><span class="tk">Boxing</span><span class="tksep"></span><span class="tk">Golf</span><span class="tksep"></span><span class="tk">Hockey</span><span class="tksep"></span><span class="tk">Lacrosse</span><span class="tksep"></span><span class="tk">Cycling</span><span class="tksep"></span><span class="tk">Gymnastics</span><span class="tksep"></span><span class="tk">Track &amp; Field</span><span class="tksep"></span><span class="tk">Martial Arts</span><span class="tksep"></span><span class="tk">Rowing</span><span class="tksep"></span><span class="tk">Fencing</span><span class="tksep"></span><span class="tk">Wrestling</span><span class="tksep"></span><span class="tk">Softball</span><span class="tksep"></span><span class="tk">Pickleball</span><span class="tksep"></span></div></div></section>
@@ -5537,12 +6212,7 @@ if(id==="messaging"){
         <p class="pg-sub">Each football session, the payment behind it, and any cancellation live on one timeline. The receipt, the refund trail, and the policy you agreed to sit in the same place — nothing to chase down after the fact.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:instant-booking">How booking works →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Football · Miami, FL</span></div>
-        <div class="hc-name">Gridiron Youth — QB Skills</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Paid · Sat 10:00 AM</div>
-        <div class="hc-foot"><span class="hc-price">$50<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> · paid</span></span><span class="hc-book">Receipt</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev><div class="pg-rows">
@@ -5590,12 +6260,7 @@ if(id==="messaging"){
         <p class="pg-sub">Save a boxing coach you like and Sporve holds it for you. Guests get three saves before signing in — enough to line up a shortlist, compare gyms, and message the one you pick.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Find a coach to save →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Boxing · Chicago, IL</span></div>
-        <div class="hc-name">Southside Boxing — Youth Fundamentals</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Beginner · ages 10–14</div>
-        <div class="hc-foot"><span class="hc-price">$35<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
@@ -5656,12 +6321,7 @@ if(id==="messaging"){
         <p class="pg-sub">Notes, goals, and a training plan live with the young athlete — not with one coach's clipboard. Switch track clubs mid-season and every session and personal best comes along.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:saved">Save a coach first →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Track &amp; Field · Eugene, OR</span></div>
-        <div class="hc-name">Emerald Track Club — Sprint Development</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 11–15</div>
-        <div class="hc-foot"><span class="hc-price">$40<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
@@ -5720,12 +6380,7 @@ if(id==="messaging"){
         <p class="pg-sub">You publish the times you're actually open on the court. Families see only those tennis slots and book against them — no back-and-forth over a calendar, no double-booked court. Change your availability and the open slots update the moment you save.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Tennis · Austin, TX</span></div>
-        <div class="hc-name">Your court — Tuesday 4:00pm</div>
-        <div class="hc-meta"><span class="hc-chk">Bookable</span> · Private lesson · 60 min</div>
-        <div class="hc-foot"><span class="hc-price">$60<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow">${(()=>{const r=["Soccer","Basketball","Swimming","Tennis","Baseball","Volleyball","Football","Boxing","Golf","Hockey","Lacrosse","Cycling","Gymnastics","Track & Field","Martial Arts","Rowing","Fencing","Wrestling","Softball","Pickleball"].map(s=>`<span class="tk">${s}</span><span class="tksep"></span>`).join("");return r+r;})()}</div></div></section>
@@ -5779,12 +6434,7 @@ if(id==="messaging"){
         <p class="pg-sub">Every golf lesson checks out inside the app. The parent pays once, Sporve's flat 12% platform fee comes off the top, and the coach's payout lands automatically — with a receipt and a refund trail on every booking.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:bookings-receipts">Where the receipt lives →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Golf · Miami, FL</span></div>
-        <div class="hc-name">Doral Junior Golf — Short Game Clinic</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 10–14</div>
-        <div class="hc-foot"><span class="hc-price">$45<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
@@ -5832,12 +6482,7 @@ if(id==="messaging"){
         <p class="pg-sub">Your roster is every hockey family you coach, in one list. Bring the clients you already train across, and let new bookings add themselves — so booking, session notes, and payouts all point at the same skater instead of a name in your phone.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Hockey · Minneapolis, MN</span></div>
-        <div class="hc-name">Devin Okafor — 11</div>
-        <div class="hc-meta"><span class="hc-chk">On your roster</span> · Tuesdays · imported</div>
-        <div class="hc-foot"><span class="hc-price">$45<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Open</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow">${(()=>{const r=["Soccer","Basketball","Swimming","Tennis","Baseball","Volleyball","Football","Boxing","Golf","Hockey","Lacrosse","Cycling","Gymnastics","Track & Field","Martial Arts","Rowing","Fencing","Wrestling","Softball","Pickleball"].map(s=>`<span class="tk">${s}</span><span class="tksep"></span>`).join("");return r+r;})()}</div></div></section>
@@ -5891,12 +6536,7 @@ if(id==="messaging"){
         <p class="pg-sub">After each fencing session the coach writes a note — what the athlete drilled, the footwork to fix, what to sharpen next. It attaches to the athlete's progress, so the whole timeline reads as one thread instead of a stack of loose pads.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:athlete-progress">How progress builds up →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Fencing · Miami, FL</span></div>
-        <div class="hc-name">Biscayne Fencing Academy — Foil Basics</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Beginner · ages 9–13</div>
-        <div class="hc-foot"><span class="hc-price">$50<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
@@ -5945,12 +6585,7 @@ if(id==="messaging"){
         <p class="pg-sub">A minor's photo or video is gated behind explicit parent consent. The consent is recorded, tied to the gymnast, and can be revoked at any time — until a parent agrees, nothing of the child is shared.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How verification works →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Gymnastics · Miami, FL</span></div>
-        <div class="hc-name">Biscayne Gymnastics — Level 3 Floor</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Level 3 · ages 7–11</div>
-        <div class="hc-foot"><span class="hc-price">$40<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="shell" data-rev>
@@ -6000,12 +6635,7 @@ if(id==="messaging"){
         <p class="pg-sub">Bookings, earnings, and who comes back — read the shape of your rowing practice over time. Insights turn a month of sessions into numbers you can coach your business by.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:payments">See how payouts work →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Rowing · Boston, MA</span></div>
-        <div class="hc-name">Charles River Rowing — Learn to Row</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Beginner · ages 12–16</div>
-        <div class="hc-foot"><span class="hc-price">$55<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
@@ -6065,12 +6695,7 @@ if(id==="messaging"){
         <p class="pg-sub">Ask for a martial arts coach near you and the assistant answers from the same verified pool the search does. It cannot reach for a coach whose background check has not cleared — an unverified name simply is not on the shelf it draws from.</p>
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
       </div>
-      <div class="pg-herocard" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Martial Arts · Denver, CO</span></div>
-        <div class="hc-name">Sensei Marisol Vega — Karate</div>
-        <div class="hc-meta"><span class="hc-chk">Background-checked</span> · ages 6–12 · beginner</div>
-        <div class="hc-foot"><span class="hc-price">$40<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
-      </div>
+      ${sigHTML(id)}
     </div></section>
 
     <section class="pgband white"><div class="pg-ticker" aria-hidden="true"><div class="pg-tickrow">${(()=>{const r=["Soccer","Basketball","Swimming","Tennis","Baseball","Volleyball","Football","Boxing","Golf","Hockey","Lacrosse","Cycling","Gymnastics","Track & Field","Martial Arts","Rowing","Fencing","Wrestling","Softball","Pickleball"].map(s=>`<span class="tk">${s}</span><span class="tksep"></span>`).join("");return r+r;})()}</div></div></section>
@@ -6202,6 +6827,122 @@ function wire(){
     const track=sec.querySelector(".rail-track"); if(!track) return;
     track.scrollBy({left:Number(b.dataset.railscroll)*Math.min(track.clientWidth*0.85,620),behavior:"smooth"});
   });
+  /* §4 signature interactivity */
+try{
+// None — CSS-only. The current step is fixed markup (.is-now); no interaction.
+}catch(_e){}
+try{
+// None — native overflow-x scroll + scroll-snap; scrollbar hidden by CSS. Drag/trackpad/touch all work.
+}catch(_e){}
+try{
+// None — CSS-only. Chips are checkboxes; the :checked ~ .ss-rows rules do the
+// filtering. Fully local, resets on toggle-off, survives re-render (no JS state).
+}catch(_e){}
+try{
+// None — CSS-only. The card shows on :hover and :focus / :focus-within of the
+// live pin (tabindex=0 makes it keyboard-reachable). No JS.
+}catch(_e){}
+try{
+// None — CSS-only. Radios share name="sibslot" so one wins; #id:checked ~
+// .sib-receipt reveals that slot's block and hides the prompt. Local, no JS.
+}catch(_e){}
+try{
+// Self-contained; idempotent. Call after the page renders (or pass a scoped root).
+// Appends a locally-composed "you" bubble; textContent keeps it XSS-safe.
+function wireSigMessaging(root){
+  var box=(root||document).querySelector(".sig-messaging");
+  if(!box||box.dataset.sigWired)return; box.dataset.sigWired="1";
+  var input=box.querySelector("[data-sig-input]"),
+      thread=box.querySelector("[data-sig-thread]"),
+      send=box.querySelector("[data-sig-send]");
+  function add(){
+    var v=(input.value||"").trim(); if(!v)return;
+    var b=document.createElement("div"); b.className="sm-b sm-you"; b.textContent=v;
+    thread.appendChild(b); input.value=""; thread.scrollTop=thread.scrollHeight; input.focus();
+  }
+  send.addEventListener("click",add);
+  input.addEventListener("keydown",function(e){ if(e.key==="Enter"){e.preventDefault();add();} });
+}
+}catch(_e){}
+try{
+// None — native <details>/<summary> handles the refund-ladder expand with zero JS.
+}catch(_e){}
+try{
+// None — CSS checkbox/label toggle fills and unfills each heart with zero JS.
+}catch(_e){}
+try{
+// None — native <details> rows expand each session note with zero JS.
+}catch(_e){}
+try{
+// Optional: real drag-to-move. CSS hover already communicates "Drag to move".
+(function(){var root=document.querySelector('.sig-scheduling');if(!root)return;
+  var dragEl=null;
+  root.querySelectorAll('.sc-open').forEach(function(c){
+    c.addEventListener('pointerdown',function(e){dragEl=c;root.classList.add('dragging');
+      try{c.setPointerCapture(e.pointerId);}catch(_){}});
+  });
+  root.addEventListener('pointerup',function(e){
+    if(!dragEl){return;}
+    root.classList.remove('dragging');
+    var t=document.elementFromPoint(e.clientX,e.clientY);
+    var cell=(t&&t.closest)?t.closest('.sc-cell'):null;
+    if(cell&&cell!==dragEl&&!cell.classList.contains('sc-open')){
+      cell.className='sc-cell sc-open';cell.innerHTML='<span>Open</span>';
+      dragEl.className='sc-cell';dragEl.innerHTML='';
+    }
+    dragEl=null;
+  });
+})();
+}catch(_e){}
+try{
+(function(){var r=document.querySelector('.sig-payments');if(!r)return;
+  var states=['Pending · not yet released','In transit · arrives Tue','Paid · $39.60 deposited'];
+  var st=r.querySelector('.py-status');var b=r.querySelector('.py-adv');
+  function apply(){st.textContent=states[(parseInt(r.dataset.step,10)||1)-1];}
+  b.addEventListener('click',function(){r.dataset.step=(parseInt(r.dataset.step,10)%3)+1;apply();});
+  apply();
+})();
+}catch(_e){}
+try{
+(function(){var r=document.querySelector('.sig-roster');if(!r)return;
+  var tb=r.querySelector('tbody');var ths=r.querySelectorAll('th');
+  var cur=-1,asc=false;
+  function val(tr,i){var td=tr.children[i];
+    return (td.dataset.v!==undefined)?parseFloat(td.dataset.v):td.textContent.trim().toLowerCase();}
+  function sort(i){
+    if(i===cur){asc=!asc;}else{cur=i;asc=(i===0);}
+    var rows=Array.prototype.slice.call(tb.querySelectorAll('tr'));
+    rows.sort(function(a,b){var x=val(a,i),y=val(b,i);return (x<y?-1:(x>y?1:0))*(asc?1:-1);});
+    rows.forEach(function(tr){tb.appendChild(tr);});
+    ths.forEach(function(t,j){t.classList.toggle('on',j===i);
+      var c=t.querySelector('.ro-car');if(c){c.textContent=(j===i)?(asc?' ▲':' ▼'):'';}});
+  }
+  ths.forEach(function(t,i){t.addEventListener('click',function(){sort(i);});});
+  sort(1); // initial: Sessions, descending
+})();
+}catch(_e){}
+try{
+// None required — static side-by-side preview. Interactivity is CSS-only (:focus on textarea).
+}catch(_e){}
+try{
+// None — reveal is pure CSS :hover / :focus.
+}catch(_e){}
+try{
+// None — the toggle is a native checkbox and :has() drives every tile. No JS.
+}catch(_e){}
+try{
+// Optional: re-parse the age chip when the query is edited + Enter/Ask pressed. Pure DOM, self-contained.
+// Call from wire(): document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
+function sigAiCoachWire(root){
+  const inp=root.querySelector('.ac-input'), chips=root.querySelector('[data-acchips]');
+  if(!inp||!chips) return;
+  const run=()=>{ const m=inp.value.match(/\b(\d{1,2})\b/); const age=m?('Age '+m[1]):'Any age';
+    chips.innerHTML='<span class="ac-chip">Martial Arts</span><span class="ac-chip">'+age+'</span><span class="ac-chip">Verified only</span>'; };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); }});
+  root.querySelector('.ac-bar').addEventListener('submit',e=>{ e.preventDefault(); run(); });
+}
+}catch(_e){}
+
   $("[data-fav]").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFav(b.dataset.fav);});
   /* Multi-select: each disc adds or removes its sport; "All" clears the set. */
   $("[data-sport]").forEach(b=>b.onclick=()=>{toggleSport(b.dataset.sport||"");render();});
