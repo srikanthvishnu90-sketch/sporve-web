@@ -4914,18 +4914,53 @@ function coachBody(t){
       </div>
     </div>`;
   }
-  if(t==="listings") return `<div class="sec-head" style="margin-top:18px"><h1>Listings</h1>
-      <button class="btn" data-newlisting="1">+ New listing</button></div>
-    <div class="tblwrap panel" style="padding:18px"><table class="tbl">
-      <thead><tr><th>Program</th><th>Sport</th><th>Price</th><th>Enrolled</th><th>Rating</th><th>Status</th></tr></thead>
-      <tbody>${mine.map(p=>`<tr>
-        <td><b>${esc(p.title)}</b><div class="num" style="color:var(--muted);font-size:var(--text-sm)">Ages ${p.minAge}–${p.maxAge}</div></td>
+  if(t==="listings"){
+    const nextOf=p=>slotsFor(p.id).filter(s=>s.date>=TODAY)
+      .sort((a,b)=>a.date.localeCompare(b.date)||minsOf(a.startTime)-minsOf(b.startTime))[0]||null;
+    const rows=mine.map(p=>({p,next:nextOf(p),left:Math.max(0,p.cap-p.enrolled)}));
+    const open=rows.filter(r=>r.left>0);
+    const full=rows.filter(r=>r.left<=0);
+    const live=rows.filter(r=>r.next).length;
+    const seats=open.reduce((n,r)=>n+r.left,0);
+    const table=(list,mode)=>`<div class="tblwrap"><table class="tbl">
+      <thead><tr><th>Program</th><th>Sport</th><th>Price</th><th>Next session</th>
+        <th>${mode==="open"?"Spots left":"Enrolled"}</th><th>Rating</th><th></th></tr></thead>
+      <tbody>${list.map(({p,next,left})=>`<tr>
+        <td><b>${esc(p.title)}</b>
+          <div class="num" style="color:var(--muted);font-size:var(--text-sm)">Ages ${p.minAge}–${p.maxAge}</div></td>
         <td><span class="pill" style="background:${sportColor(p.sport)}1A;color:${sportColor(p.sport)}">${esc(p.sport)}</span></td>
-        <td class="num">${money(p.price)}<div style="color:var(--muted);font-size:var(--text-sm)">${modelLabel(p.model)}</div></td>
-        <td class="num">${p.enrolled}/${p.cap}</td>
+        <td class="num">${money(p.price)}
+          <div style="color:var(--muted);font-size:var(--text-sm)">${modelLabel(p.model)}</div></td>
+        <td class="num">${next
+          ? `${esc(fmtDate(next.date))}<div style="color:var(--muted);font-size:var(--text-sm)">${esc(next.startTime)}</div>`
+          : `<span style="color:var(--faint)">No upcoming</span>`}</td>
+        <td class="num">${mode==="open"
+          ? `<b>${left}</b> <span style="color:var(--muted)">of ${p.cap}</span>`
+          : `${p.enrolled}/${p.cap}`}</td>
         <td class="num">${ICON.star} ${p.rating}</td>
-        <td><span class="pill good">Published</span></td></tr>`).join("")}
-      </tbody></table></div>`;
+        <td><button class="btn ghost sm" data-open="${esc(p.id)}">View</button></td>
+      </tr>`).join("")}</tbody></table></div>`;
+    return `<div class="sec-head" style="margin-top:18px"><h1>Listings</h1>
+        <button class="btn" data-newlisting="1">+ New listing</button></div>
+      <p style="color:var(--muted);font-size:var(--t-small);margin:-6px 0 18px">
+        ${rows.length} listing${rows.length===1?"":"s"} · ${live} with an upcoming session</p>
+      <div class="panel" style="padding:18px">
+        <h3>Open for booking</h3>
+        <p style="color:var(--muted);font-size:var(--t-small);margin-top:3px">
+          ${open.length} listing${open.length===1?"":"s"}${seats?` · ${seats} spot${seats===1?"":"s"} left`:""}</p>
+        ${open.length?`<div style="margin-top:14px">${table(open,"open")}</div>`
+          :`<div class="empty" style="margin-top:14px"><h3>Everything is full</h3>
+             <p style="margin-top:6px">Every live listing is at capacity. Add a session or raise a cap to take more.</p></div>`}
+      </div>
+      <div class="panel" style="padding:18px;margin-top:16px">
+        <h3>Fully booked</h3>
+        <p style="color:var(--muted);font-size:var(--t-small);margin-top:3px">
+          ${full.length} listing${full.length===1?"":"s"} at capacity</p>
+        ${full.length?`<div style="margin-top:14px">${table(full,"full")}</div>`
+          :`<div class="empty" style="margin-top:14px"><h3>Nothing fully booked yet</h3>
+             <p style="margin-top:6px">When a listing reaches its cap it moves here, so the ones you can still sell stay on top.</p></div>`}
+      </div>`;
+  }
   /* A month grid, the way every calendar app draws one: weeks as rows, the
      month's own days in full contrast and the spill from either side muted,
      today ringed. Events are colored by sport — the same accent the rest of the
