@@ -871,6 +871,59 @@ img{max-width:100%;display:block}
 .msg-compose{display:flex;gap:10px;padding:15px;border-top:1px solid var(--rule);background:var(--paper)}
 .msg-compose input{flex:1;padding:12px 15px;border:1px solid var(--rule-strong);border-radius:999px;font:inherit;background:var(--paper);color:var(--ink)}
 .msg-compose input:focus{outline:none;border-color:var(--slate)}
+.msg-sub{color:var(--muted);font-size:var(--t-small);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg-from{font-size:var(--t-small);font-weight:700;color:var(--muted);margin:0 0 -5px 3px}
+
+/* ── people picker (group messaging) ─────────────────────────────── */
+.pick-list{max-height:260px;overflow-y:auto;border:1px solid var(--rule);border-radius:var(--r-m);padding:4px}
+.pick-row{display:flex;gap:11px;align-items:center;padding:10px 11px;border-radius:var(--r-s);cursor:pointer}
+.pick-row:hover{background:var(--raise2)}
+.pick-row input{width:17px;height:17px;accent-color:var(--slate);flex:none}
+.pick-row b{display:block;font-size:var(--text-base)}
+.pick-row span{color:var(--muted);font-size:var(--t-small)}
+
+/* ── provider month calendar ─────────────────────────────────────── */
+.cal-head{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+.cal-title{font-size:var(--t-h3);font-weight:800;letter-spacing:-.018em;margin-right:auto}
+.cal-nav{display:flex;align-items:center;gap:3px}
+.cal-nav button{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;color:var(--muted)}
+.cal-nav button:hover{background:var(--raise2);color:var(--ink)}
+.cal{border:1px solid var(--rule);border-radius:var(--r-l);overflow:hidden;background:var(--paper);margin-bottom:56px}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);background:var(--raise);border-bottom:1px solid var(--rule)}
+.cal-dow span{padding:9px 10px;font-size:var(--t-small);font-weight:700;color:var(--muted);
+  text-align:center;text-transform:uppercase;letter-spacing:.05em}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-cell{min-height:118px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  padding:7px 8px;display:flex;flex-direction:column;gap:4px;text-align:left;width:100%;
+  background:var(--paper);transition:background .13s}
+.cal-cell:nth-child(7n){border-right:0}
+.cal-grid>.cal-cell:nth-last-child(-n+7){border-bottom:0}
+.cal-cell.out{background:var(--raise)}
+.cal-cell.out .cal-num{color:var(--faint)}
+/* only a day with something on it is actionable — an empty cell that highlights
+   on hover promises a sheet that would open empty */
+.cal-cell.has{cursor:pointer}
+.cal-cell.has:hover{background:var(--raise2)}
+.cal-cell.has:focus-visible{outline:2px solid var(--slate);outline-offset:-2px}
+.cal-num{width:26px;height:26px;border-radius:999px;display:grid;place-items:center;
+  font-size:var(--t-small);font-weight:700;color:var(--ink);flex:none}
+.cal-num.today{background:var(--slate);color:#fff}
+.cal-ev{display:flex;align-items:center;gap:6px;padding:3px 7px;border-radius:var(--r-s);
+  font-size:var(--t-small);font-weight:650;line-height:1.35;min-width:0}
+.cal-ev b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.cal-dot{width:7px;height:7px;border-radius:999px;flex:none}
+.cal-more{font-size:var(--t-small);color:var(--muted);font-weight:700;padding-left:8px;margin-top:1px}
+/* the day sheet */
+.day-ev{display:flex;gap:13px;padding:15px 0;border-bottom:1px solid var(--rule)}
+.day-ev:last-child{border-bottom:0}
+.day-time{min-width:92px;flex:none;font-size:var(--t-small);font-weight:700;color:var(--muted);line-height:1.5}
+.day-bar{width:3px;border-radius:2px;flex:none}
+.day-meta{color:var(--muted);font-size:var(--t-small);margin-top:3px}
+@media(max-width:860px){
+  .cal-cell{min-height:86px;padding:5px 5px}
+  .cal-ev{font-size:10px;padding:2px 5px;gap:4px}
+  .cal-num{width:22px;height:22px}
+}
 
 /* ── provider dashboard ──────────────────────────────────────────── */
 .dash{display:grid;grid-template-columns:216px 1fr;gap:38px;padding:26px 0 72px;align-items:start}
@@ -2886,6 +2939,8 @@ const S={
   trainers:JSON.parse(JSON.stringify(SEED.trainers)),
   listings:PROGRAMS.filter(p=>p.biz==="Apex Performance Club").map(p=>p.id),
   activeConv:"conv_1",
+  inboxTab:"direct",               // provider inbox: direct | group
+  calMonth:TODAY.slice(0,7),       // provider schedule: month in view, "YYYY-MM"
   coachTab:"dashboard",
   modal:null,
   toast:null,
@@ -2937,6 +2992,39 @@ const fmtDate=d=>{const[y,m,dd]=d.split("-").map(Number);
   return new Date(y,m-1,dd).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});};
 const ageOf=dob=>{const b=new Date(dob),n=new Date(2026,7,3);let a=n.getFullYear()-b.getFullYear();
   const m=n.getMonth()-b.getMonth();if(m<0||(m===0&&n.getDate()<b.getDate()))a--;return a;};
+
+/* provider month calendar — date maths. Dates are plain "YYYY-MM-DD" strings
+   everywhere in this app, so the grid is built with local Date maths and
+   converted straight back to that form. Never via toISOString(), which would
+   shift a local date across the UTC boundary. */
+const pad2=n=>String(n).padStart(2,"0");
+const isoOf=dt=>`${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}`;
+const monthOf=d=>String(d).slice(0,7);
+const shiftMonth=(key,delta)=>{const[y,m]=key.split("-").map(Number);
+  const d=new Date(y,m-1+delta,1);return `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;};
+const monthLabel=key=>{const[y,m]=key.split("-").map(Number);
+  return new Date(y,m-1,1).toLocaleDateString("en-US",{month:"long",year:"numeric"});};
+const fmtDayLong=d=>{const[y,m,dd]=d.split("-").map(Number);
+  return new Date(y,m-1,dd).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});};
+/* "05:00 PM" → minutes past midnight, so sessions sort by clock not by string */
+function minsOf(t){
+  const m=/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(t||"").trim());
+  if(!m) return 0;
+  let h=Number(m[1])%12; if(/pm/i.test(m[3])) h+=12;
+  return h*60+Number(m[2]);
+}
+/* Every session across the coach's own listings, in clock order. Shared by the
+   month grid and the day sheet so the two can never disagree. */
+function providerSessions(){
+  return PROGRAMS.filter(p=>S.listings.includes(p.id))
+    .flatMap(p=>slotsFor(p.id).map(s=>({...s,p})))
+    .sort((a,b)=>a.date.localeCompare(b.date)||minsOf(a.startTime)-minsOf(b.startTime));
+}
+function sessionsByDate(){
+  const by={};
+  providerSessions().forEach(s=>(by[s.date]=by[s.date]||[]).push(s));
+  return by;
+}
 
 function toast(msg){S.toast=msg;render();setTimeout(()=>{if(S.toast===msg){S.toast=null;render();}},2600);}
 function go(name,arg){S.route={name,arg:arg??null};window.scrollTo(0,0);render();}
@@ -3004,6 +3092,8 @@ const ICON={
   sliders:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7h11M18 7h3M3 17h3M10 17h11"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg>',
   pin:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11z"/><circle cx="12" cy="11" r="2.6"/></svg>',
   send:'<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4l4 8z"/></svg>',
+  chevL:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  chevR:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
   google:'<svg width="17" height="17" viewBox="0 0 48 48"><path fill="#4285F4" d="M45 24c0-1.6-.1-2.7-.4-4H24v7.5h12c-.2 2-1.6 5-4.5 7l6.9 5.3C42.5 36.2 45 30.6 45 24z"/><path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.3l-6.9-5.3c-1.9 1.3-4.4 2.2-7.7 2.2-5.9 0-10.9-3.9-12.7-9.2l-7.2 5.5C7.7 41 15.3 46 24 46z"/><path fill="#FBBC05" d="M11.3 28.4c-.5-1.4-.7-2.9-.7-4.4s.3-3 .7-4.4l-7.2-5.5C2.7 17 2 20.4 2 24s.7 7 2.1 9.9z"/><path fill="#EA4335" d="M24 10.2c3.3 0 5.6 1.4 6.9 2.6l5-4.9C32.9 5 28.9 3 24 3 15.3 3 7.7 8 4.1 14.1l7.2 5.5C13.1 14.1 18.1 10.2 24 10.2z"/></svg>',
 };
 
@@ -4877,15 +4967,54 @@ function coachBody(t){
         <td class="num">${ICON.star} ${p.rating}</td>
         <td><span class="pill good">Published</span></td></tr>`).join("")}
       </tbody></table></div>`;
+  /* A month grid, the way every calendar app draws one: weeks as rows, the
+     month's own days in full contrast and the spill from either side muted,
+     today ringed. Events are colored by sport — the same accent the rest of the
+     app uses — so a coach reads their week by shape before reading any text.
+     Three fit in a cell; the rest roll into "+N more", and the whole day opens
+     in a sheet on click. */
   if(t==="schedule"){
-    const all=mine.flatMap(p=>slotsFor(p.id).map(s=>({...s,p})));
-    all.sort((a,b)=>a.date.localeCompare(b.date));
-    return `<div class="sec-head" style="margin-top:18px"><h1>Schedule</h1></div>
-      <div style="display:flex;flex-direction:column;gap:9px">
-      ${all.map(s=>`<div class="slot"><div>
-        <div style="font-weight:700">${esc(s.p.title)}</div>
-        <div class="num" style="color:var(--muted);font-size:var(--text-sm)">${fmtDate(s.date)} · ${s.startTime}–${s.endTime} · ${esc(s.address)}</div></div>
-        <span class="num pill slate">${s.p.enrolled}/${s.p.cap} enrolled</span></div>`).join("")}</div>`;
+    const key=/^\d{4}-\d{2}$/.test(S.calMonth||"")?S.calMonth:TODAY.slice(0,7);
+    const [cy,cm]=key.split("-").map(Number);
+    const by=sessionsByDate();
+    const total=providerSessions().filter(s=>monthOf(s.date)===key).length;
+    const startDow=new Date(cy,cm-1,1).getDay();
+    const daysIn=new Date(cy,cm,0).getDate();
+    const weeks=Math.ceil((startDow+daysIn)/7);   // 5 or 6 — never a blank row
+    const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const cells=[];
+    for(let i=0;i<weeks*7;i++){
+      const dt=new Date(cy,cm-1,1-startDow+i);
+      const date=isoOf(dt);
+      const evs=by[date]||[];
+      const out=dt.getMonth()!==cm-1;
+      const shown=evs.slice(0,3);
+      cells.push(`<${evs.length?"button":"div"} class="cal-cell${out?" out":""}${evs.length?" has":""}"
+        ${evs.length?`data-calday="${date}" aria-label="${esc(fmtDayLong(date))}, ${evs.length} session${evs.length===1?"":"s"}"`:""}>
+        <span class="cal-num${date===TODAY?" today":""}">${dt.getDate()}</span>
+        ${shown.map(s=>{
+          const c=sportColor(s.p.sport);
+          return `<span class="cal-ev" style="background:${c}14;color:${sportInk(s.p.sport)}">
+            <span class="cal-dot" style="background:${c}"></span><b>${esc(s.startTime.replace(":00 ",""))} ${esc(s.p.title)}</b></span>`;
+        }).join("")}
+        ${evs.length>3?`<span class="cal-more">+${evs.length-3} more</span>`:""}
+      </${evs.length?"button":"div"}>`);
+    }
+    return `<div class="sec-head" style="margin-top:18px"><h1>Schedule</h1>
+        <span class="num" style="color:var(--faint);font-size:var(--t-small)">
+          ${total} session${total===1?"":"s"} this month</span></div>
+      <div class="cal-head">
+        <span class="cal-title">${esc(monthLabel(key))}</span>
+        <button class="btn ghost sm" data-calnav="today">Today</button>
+        <span class="cal-nav">
+          <button data-calnav="prev" aria-label="Previous month">${ICON.chevL||"‹"}</button>
+          <button data-calnav="next" aria-label="Next month">${ICON.chevR||"›"}</button>
+        </span>
+      </div>
+      <div class="cal">
+        <div class="cal-dow" aria-hidden="true">${DOW.map(d=>`<span>${d}</span>`).join("")}</div>
+        <div class="cal-grid">${cells.join("")}</div>
+      </div>`;
   }
   if(t==="roster") return `<div class="sec-head" style="margin-top:18px"><h1>Roster</h1>
       <button class="btn" data-addtrainer="1">+ Invite trainer</button></div>
@@ -4905,33 +5034,63 @@ function coachBody(t){
   /* PART 8.6 — a coach could not reply to a family. Ever. This rendered only
      conversations[0] with no compose box, while the rail advertised unread
      messages and the dashboard queue routed here. Mirrors the family thread. */
+  /* One inbox, two kinds of thread. A coach talks to a single family AND to a
+     whole roster at once, so the list is filtered by kind rather than split
+     into two screens — the thread pane and compose box are identical for both,
+     and only the header differs (a group names its members and can gain more). */
   if(t==="inbox"){
-    if(!S.conversations.length) return `<div class="sec-head" style="margin-top:18px"><h1>Inbox</h1></div>
-      <div class="empty"><h3>No messages yet</h3>
-        <p style="margin-top:6px">When a family messages you about a listing, the thread opens here.</p></div>`;
-    const active=S.conversations.find(x=>x.id===S.activeConv)||S.conversations[0];
+    const kindOf=c=>c.kind||"direct";     // seeded conversations predate `kind`
+    const tab=S.inboxTab==="group"?"group":"direct";
+    const title=c=>kindOf(c)==="group"?c.name:c.with;
     const initials=n=>String(n||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
-    return `<div class="sec-head" style="margin-top:18px"><h1>Inbox</h1></div>
-      <div class="msg-wrap">
+    const directs=S.conversations.filter(c=>kindOf(c)==="direct");
+    const groups=S.conversations.filter(c=>kindOf(c)==="group");
+    const shown=tab==="group"?groups:directs;
+    const head=`<div class="sec-head" style="margin-top:18px"><h1>Inbox</h1>
+        <button class="btn" data-newgroup="1">+ New group</button></div>
+      <div class="segwrap" style="justify-content:flex-start;margin:0">
+        <div class="seg2" role="tablist" aria-label="Conversation type">
+          <button role="tab" aria-selected="${tab==="direct"}" class="${tab==="direct"?"on":""}" data-inboxtab="direct">Direct${directs.length?` · ${directs.length}`:""}</button>
+          <button role="tab" aria-selected="${tab==="group"}" class="${tab==="group"?"on":""}" data-inboxtab="group">Groups${groups.length?` · ${groups.length}`:""}</button>
+        </div>
+      </div>`;
+    /* Each tab carries its own empty state — "no messages yet" is wrong and
+       discouraging when the coach simply hasn't made a group. */
+    if(!shown.length) return head+`<div class="empty" style="margin-top:22px">
+        <h3>${tab==="group"?"No group messages yet":"No messages yet"}</h3>
+        <p style="margin-top:6px">${tab==="group"
+          ? "A group reaches a whole roster at once — the parents on one team, or the trainers on your staff."
+          : "When a family messages you about a listing, the thread opens here."}</p>
+        ${tab==="group"?`<button class="btn" data-newgroup="1" style="margin-top:18px">Create a group</button>`:""}</div>`;
+    const active=shown.find(x=>x.id===S.activeConv)||shown[0];
+    const isGroup=kindOf(active)==="group";
+    const members=active.members||[];
+    const sub=isGroup
+      ? `${members.length} ${members.length===1?"person":"people"} · ${members.map(p=>p.name).join(", ")}`
+      : (PROGRAMS.find(p=>p.id===active.programId)||{}).title||"";
+    return head+`<div class="msg-wrap">
         <div class="msg-list">
-          ${S.conversations.map(c=>`<button class="msg-item ${c.id===active.id?"on":""}" data-cconv="${esc(c.id)}">
-            <span class="avatar">${esc(initials(c.with))}</span>
+          ${shown.map(c=>`<button class="msg-item ${c.id===active.id?"on":""}" data-cconv="${esc(c.id)}">
+            <span class="avatar">${esc(initials(title(c)))}</span>
             <span style="min-width:0;text-align:left">
-              <b style="display:block;font-size:var(--t-small)">${esc(c.with)}</b>
-              <span style="display:block;color:var(--muted);font-size:var(--t-small);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.last)}</span>
+              <b style="display:block;font-size:var(--t-small)">${esc(title(c))}</b>
+              <span class="msg-sub" style="display:block">${esc(c.last)}</span>
             </span>${S.unread&&S.unread[c.id]?`<span class="rbadge">${S.unread[c.id]}</span>`:""}</button>`).join("")}
         </div>
         <div class="msg-thread">
           <div style="display:flex;gap:12px;align-items:center;padding:15px 17px;border-bottom:1px solid var(--rule)">
-            <span class="avatar">${esc(initials(active.with))}</span>
-            <div><b>${esc(active.with)}</b>
-              <div style="color:var(--muted);font-size:var(--t-small)">${esc((PROGRAMS.find(p=>p.id===active.programId)||{}).title||"")}</div></div>
+            <span class="avatar">${esc(initials(title(active)))}</span>
+            <div style="min-width:0"><b>${esc(title(active))}</b>
+              <div class="msg-sub">${esc(sub)}</div></div>
+            ${isGroup?`<button class="btn ghost sm" style="margin-left:auto;flex:none" data-addpeople="${esc(active.id)}">Add people</button>`:""}
           </div>
           <div class="msg-scroll" id="msgscroll">
-            ${(S.messages[active.id]||[]).map(m=>`<div class="bub ${m.me?"them":"me"}">${esc(m.text)}</div>`).join("")}
+            ${(S.messages[active.id]||[]).map(m=>
+              `${isGroup&&m.me&&m.from?`<div class="msg-from">${esc(m.from)}</div>`:""}
+               <div class="bub ${m.me?"them":"me"}">${esc(m.text)}</div>`).join("")}
           </div>
           <form class="msg-compose" id="coachCompose">
-            <input name="text" placeholder="Reply to ${esc(active.with)}" autocomplete="off" required>
+            <input name="text" placeholder="Message ${esc(title(active))}" autocomplete="off" required>
             <button class="btn sm" type="submit">Send</button>
           </form>
         </div>
@@ -5054,6 +5213,35 @@ function trainerRow(m){
         ${i<steps.length-1?'<span class="bar"></span>':""}
       </div>`).join("")}</div>
   </div>`;
+}
+
+/* Everyone a coach can put in a group, in the order they'd think of them: the
+   athletes on their rosters, the trainers on staff, then anyone who has already
+   messaged them directly. Deduped by name, because the same person legitimately
+   appears as both a roster athlete and an open conversation. */
+function providerPeople(){
+  const out=[],seen=new Set();
+  const add=(id,name,role)=>{
+    const key=String(name||"").trim().toLowerCase();
+    if(!key||seen.has(key)) return;
+    seen.add(key); out.push({id,name,role});
+  };
+  (SEED.teams||[]).forEach(t=>(t.roster||[]).forEach(r=>add(r.id,r.name,t.name)));
+  (S.trainers||[]).forEach(t=>add(t.id,t.name,t.specialty));
+  S.conversations.filter(c=>(c.kind||"direct")==="direct").forEach(c=>add(c.id,c.with,"Direct message"));
+  return out;
+}
+
+/* The picker is shared by "New group" and "Add people" so a coach learns one
+   control. `chosen` pre-ticks members when re-opening. */
+function peoplePicker(people,chosen){
+  if(!people.length) return `<p style="color:var(--muted);font-size:var(--t-small)">
+    Everyone you can message is already in this group.</p>`;
+  const on=new Set(chosen||[]);
+  return `<div class="pick-list">${people.map(p=>`<label class="pick-row">
+    <input type="checkbox" name="member" value="${esc(p.id)}"${on.has(p.id)?" checked":""}>
+    <span style="min-width:0"><b>${esc(p.name)}</b><span>${esc(p.role||"")}</span></span>
+  </label>`).join("")}</div>`;
 }
 
 /* ═══════════════════ MODALS ═══════════════════ */
@@ -5211,6 +5399,61 @@ function modalHTML(){
       </div>
       <button class="btn wide" data-nav="bookings" style="margin-top:18px">View my bookings</button>
       <button class="btn ghost wide" data-close="1" style="margin-top:9px">Keep browsing</button>`);
+  }
+
+  /* One day, opened from the grid. Times run down the left as a spine so a
+     coach reads the shape of the day before any detail, each session carries
+     its sport color through from the cell that was clicked, and every row can
+     jump straight to the listing behind it. */
+  if(m.type==="calday"){
+    const evs=(sessionsByDate()[m.date]||[]);
+    const span=evs.length
+      ? `${evs[0].startTime} – ${evs[evs.length-1].endTime}`
+      : "";
+    return wrap(fmtDayLong(m.date),`
+      <p style="color:var(--muted);margin-bottom:6px;font-size:var(--t-small)">
+        ${evs.length} session${evs.length===1?"":"s"}${span?` · ${esc(span)}`:""}</p>
+      <div>${evs.map(s=>`<div class="day-ev">
+        <span class="day-time">${esc(s.startTime)}<br><span style="font-weight:600;color:var(--faint)">${esc(s.endTime)}</span></span>
+        <span class="day-bar" style="background:${sportColor(s.p.sport)}"></span>
+        <span style="min-width:0;flex:1">
+          <b style="display:block">${esc(s.p.title)}</b>
+          <span class="day-meta" style="display:block">${esc(s.p.sport)} · ${esc(s.address)}</span>
+          <span style="display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap">
+            <span class="num pill slate">${s.p.enrolled}/${s.p.cap} enrolled</span>
+            ${s.p.enrolled>=s.p.cap?`<span class="pill warn">Full</span>`:""}
+            <button class="btn ghost sm" data-open="${esc(s.p.id)}">View listing</button>
+          </span>
+        </span>
+      </div>`).join("")}</div>`,true);
+  }
+
+  if(m.type==="newgroup") return wrap("New group message",`
+    <p style="color:var(--muted);margin-bottom:18px;font-size:var(--t-small)">
+      Name the group and pick who's in it. Everyone you add sees the whole thread,
+      including messages sent before they joined.</p>
+    <form id="newGroupForm">
+      <div class="field"><label>Group name</label>
+        <input name="name" placeholder="U12 Soccer parents" autocomplete="off" required></div>
+      <div class="field"><label>Add people</label>${peoplePicker(providerPeople(),[])}</div>
+      <div id="newGroupErr" class="err hide" style="margin:8px 0"></div>
+      <button class="btn wide" type="submit">Create group</button>
+    </form>`);
+
+  if(m.type==="addpeople"){
+    const g=S.conversations.find(c=>c.id===m.id);
+    if(!g) return "";
+    const have=new Set((g.members||[]).map(p=>p.name.toLowerCase()));
+    const left=providerPeople().filter(p=>!have.has(p.name.toLowerCase()));
+    return wrap(`Add people to ${g.name}`,`
+      <p style="color:var(--muted);margin-bottom:18px;font-size:var(--t-small)">
+        ${(g.members||[]).length} already in this group. Anyone you add can read
+        the messages sent before they joined.</p>
+      <form id="addPeopleForm" data-gid="${esc(g.id)}">
+        ${peoplePicker(left,[])}
+        <div id="addPeopleErr" class="err hide" style="margin:8px 0"></div>
+        <button class="btn wide" type="submit"${left.length?"":" disabled"}>Add to group</button>
+      </form>`);
   }
 
   if(m.type==="newlisting") return wrap("Create a listing",`
@@ -7263,6 +7506,68 @@ function sigAiCoachWire(root){
     const c=S.conversations.find(x=>x.id===id); if(c) c.last=txt;
     if(S.unread) S.unread[id]=0;
     render();
+  };
+
+  /* month paging. "Today" returns to the current month rather than merely
+     selecting today, which is what a coach means by it when they're lost. */
+  $("[data-calnav]").forEach(b=>b.onclick=()=>{
+    const d=b.dataset.calnav;
+    const key=/^\d{4}-\d{2}$/.test(S.calMonth||"")?S.calMonth:TODAY.slice(0,7);
+    S.calMonth=d==="today"?TODAY.slice(0,7):shiftMonth(key,d==="next"?1:-1);
+    render();
+  });
+  $("[data-calday]").forEach(b=>b.onclick=()=>{S.modal={type:"calday",date:b.dataset.calday};render();});
+
+  /* direct ⇄ group. Switching tabs re-points the thread pane at the first
+     conversation of that kind, so the pane never shows a thread the list
+     beside it no longer contains. */
+  $("[data-inboxtab]").forEach(b=>b.onclick=()=>{
+    S.inboxTab=b.dataset.inboxtab==="group"?"group":"direct";
+    const first=S.conversations.find(c=>(c.kind||"direct")===S.inboxTab);
+    if(first) S.activeConv=first.id;
+    render();
+  });
+  $("[data-newgroup]").forEach(b=>b.onclick=()=>{S.modal={type:"newgroup"};render();});
+  $("[data-addpeople]").forEach(b=>b.onclick=()=>{S.modal={type:"addpeople",id:b.dataset.addpeople};render();});
+
+  const ngf=document.getElementById("newGroupForm");
+  if(ngf) ngf.onsubmit=e=>{
+    e.preventDefault();
+    const fd=new FormData(ngf);
+    const name=String(fd.get("name")||"").trim();
+    const ids=fd.getAll("member").map(String);
+    const err=document.getElementById("newGroupErr");
+    if(!ids.length){
+      err.textContent="Pick at least one person to message.";err.classList.remove("hide");return;}
+    const pool=providerPeople();
+    const members=ids.map(id=>pool.find(p=>p.id===id)).filter(Boolean).map(p=>({id:p.id,name:p.name}));
+    const id="conv_g"+Math.random().toString(36).slice(2,9);
+    S.conversations=[{id,kind:"group",name,members,
+      last:`Group created · ${members.length} ${members.length===1?"person":"people"}`,at:TODAY},...S.conversations];
+    S.messages[id]=[];
+    S.inboxTab="group";S.activeConv=id;S.modal=null;
+    render();toast(`"${name}" created`);
+  };
+
+  const apf=document.getElementById("addPeopleForm");
+  if(apf) apf.onsubmit=e=>{
+    e.preventDefault();
+    const ids=new FormData(apf).getAll("member").map(String);
+    const err=document.getElementById("addPeopleErr");
+    if(!ids.length){
+      err.textContent="Pick at least one person to add.";err.classList.remove("hide");return;}
+    const g=S.conversations.find(c=>c.id===apf.dataset.gid);
+    if(!g){S.modal=null;render();return;}
+    const pool=providerPeople();
+    const added=ids.map(id=>pool.find(p=>p.id===id)).filter(Boolean).map(p=>({id:p.id,name:p.name}));
+    g.members=(g.members||[]).concat(added);
+    /* A join is part of the conversation, not a silent mutation — it lands in
+       the thread so the group can see who arrived and when. */
+    (S.messages[g.id]=S.messages[g.id]||[]).push({id:"msg_"+Math.random().toString(36).slice(2,9),
+      me:false,system:true,text:`${added.map(p=>p.name).join(", ")} joined the group.`,at:TODAY});
+    g.last=`${added.map(p=>p.name).join(", ")} joined the group.`;
+    S.modal=null;render();
+    toast(added.length===1?`${added[0].name} added`:`${added.length} people added`);
   };
 
   $("[data-cdest]").forEach(b=>b.onclick=()=>{
