@@ -116,6 +116,19 @@ t1=$($B js "
 return bad.length?bad.join(' '):'CLEAN'})()" 2>/dev/null)
 [ "$(printf '%s' "${t1//\"/}" | tr -d '[:space:]')" = "CLEAN" ] && pass "17 heroes: horizontal, 40–54px, ≤3 lines, ≥55% width" || fail "§1 type: $t1"
 
+# §4/§5 — every page owns exactly its own sig-<id>; no page shows a foreign one.
+sm=$($B js "
+(()=>{const ids='$PAGES'.split(' ');let own=0,leak=[];
+ids.forEach(id=>{S.route={name:'page',arg:id};render();const a=document.querySelector('#app');
+ if(!a.querySelector('.sig-'+id))leak.push(id+':own-missing');
+ else own++;
+ ids.forEach(o=>{if(o!==id&&a.querySelector('.sig-'+o))leak.push(id+':has-'+o)})});
+return leak.length?leak.join(' '):('OK '+own)})()" 2>/dev/null)
+case "$(printf '%s' "${sm//\"/}")" in
+  *OK\ 17*) pass "17 unique signatures: each present on its own page, zero foreign leaks";;
+  *) fail "§5 signatures: $sm";;
+esac
+
 # §2 — darker slate present, the near-white grey retired.
 grep -q "E9EEF4" index.html && pass "slate #E9EEF4 present" || fail "slate #E9EEF4 missing"
 r=$(grep -oc "247, *248, *250\|247,248,250" index.html 2>/dev/null); r=${r:-0}
