@@ -4,8 +4,8 @@
 /*__FONTFACE__*/
 /* ═══════════════════════════════════════════════════════════════════
    SPORVE WEB — light counterpart to the dark mobile app.
-   Ground/ink inverted per spec; slate #475569 brand accent carried
-   verbatim from app_colors.dart; sport chroma verbatim from
+   Ground/ink inverted per spec; slate #223140 — web-darkened per owner
+   request (2026-08-07) from the app's #475569; sport chroma verbatim from
    sport_colors.dart (the only chromatic layer, accent-only).
    ═══════════════════════════════════════════════════════════════════ */
 :root{
@@ -743,7 +743,7 @@ img{max-width:100%;display:block}
      colour that had been promoted to universal chrome, which is exactly what
      the law forbids and what made every page read as "too much orange".
      Orange now survives ONLY as SPORT_COLOR.Basketball on a basketball tag.
-     Slate #475569 carries white text at 7:1. */
+     Slate #223140 carries white text at ~14:1. */
   background:var(--slate);color:#fff;
   transition:background .15s,box-shadow .15s,transform .12s;
 }
@@ -1701,8 +1701,8 @@ h2.ctr{margin-bottom:10px}
 .band.dark .acca{color:#AEB8C4}
 .band.dark .btn.ghost{border-color:#39424E;color:#FFFFFF}
 .band.dark .btn.ghost:hover{border-color:#5A6675;background:rgba(255,255,255,.05)}
-/* The global focus ring is --slate #475569. Measured against black that is
-   2.77:1, under the 3:1 WCAG minimum for a non-text indicator -- a keyboard
+/* The global focus ring is --slate #223140. Against black that is ~1.6:1,
+   under the 3:1 WCAG minimum for a non-text indicator -- a keyboard
    user tabbing the FAQ could not see where they were. Inside a dark band the
    ring goes near-white (17.84:1). Focus visibility is not decoration. */
 .band.dark :focus-visible{outline-color:#E8EDF3}
@@ -2627,7 +2627,7 @@ const SPORT_GLYPH = {
    falls back to its dusk-stadium gradient — legible, never white. */
 const HERO_IMGS = "__HERO_IMGS__".indexOf("__HERO") === 0 ? [] : [];
 
-const sportColor = s => SPORT_COLOR[s] || "#475569";
+const sportColor = s => SPORT_COLOR[s] || "#223140";
 /* Card / showcase art is a self-contained sport-tinted SVG data URI, never an
    external host — external image hosts broke the single-file + CSP rule (§9.11). */
 function phShot(sport){
@@ -7903,7 +7903,7 @@ document.addEventListener("error",e=>{
   if(!img||img.tagName!=="IMG"||img.dataset.fallback) return;
   img.dataset.fallback="1";
   const dot=img.parentElement&&img.parentElement.querySelector(".sporttag i");
-  const c=(dot&&dot.style.background)||"#475569";
+  const c=(dot&&dot.style.background)||"#223140";
   img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">
       <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">

@@ -26,7 +26,7 @@
 /* ── local helpers (shadow nothing, depend on little) ─────────────── */
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
   c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-const sc  = s => (typeof sportColor === "function" ? sportColor(s) : "#475569");
+const sc  = s => (typeof sportColor === "function" ? sportColor(s) : "#223140");
 /* The host's stroke icon set, read the same defensive way as ICON. Nothing in
    this module draws an emoji any more; a missing PICON renders nothing rather
    than falling back to a colour-font glyph on a different optical baseline. */
