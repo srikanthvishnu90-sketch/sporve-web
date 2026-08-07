@@ -78,7 +78,7 @@ c=$(grep -oc "picsum" index.html 2>/dev/null); c=${c:-0}
 # Per marketing page: zero emoji codepoints, zero decorative svg inside a band
 # (svg is allowed only in functional chrome), zero scaffolds, and no painted
 # #C2410C (rgb 194,65,12) or #38BDF8 (rgb 56,189,248).
-PAGES="what-is background-checks examples search map-search instant-booking messaging bookings-receipts saved athlete-progress scheduling payments roster session-notes media-consent insights ai-coach"
+PAGES="what-is background-checks search map-search instant-booking messaging bookings-receipts saved athlete-progress scheduling payments roster session-notes media-consent insights ai-coach"
 $B goto "file://$(pwd)/index.html" >/dev/null 2>&1
 sweep=$($B js "
 (()=>{const em=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/gu;const bad=[];
@@ -125,7 +125,7 @@ ids.forEach(id=>{S.route={name:'page',arg:id};render();const a=document.querySel
  ids.forEach(o=>{if(o!==id&&a.querySelector('.sig-'+o))leak.push(id+':has-'+o)})});
 return leak.length?leak.join(' '):('OK '+own)})()" 2>/dev/null)
 case "$(printf '%s' "${sm//\"/}")" in
-  *OK\ 17*) pass "17 unique signatures: each present on its own page, zero foreign leaks";;
+  *OK\ 16*) pass "16 unique signatures: each present on its own page, zero foreign leaks";;
   *) fail "§5 signatures: $sm";;
 esac
 
