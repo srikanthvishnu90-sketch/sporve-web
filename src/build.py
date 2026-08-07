@@ -149,7 +149,7 @@ def _scale(rgb, f):
 
 def _sport_vars(hexval):
     base = _rgb(hexval)
-    slate_bg, dark_bg = _rgb("#F1F5F9"), _rgb("#09090B")
+    slate_bg, dark_bg = _rgb("#E9EEF4"), _rgb("#09090B")
     # darken toward black until the ink clears 4.5:1 on the slate ground AND
     # carries white text (symmetric, so the slate check is the binding one).
     ink = base
@@ -168,7 +168,7 @@ def _sport_vars(hexval):
 _sport_css, _sport_fail = [], []
 for pid, hx in PAGE_SPORT.items():
     ink, bright = _sport_vars(hx)
-    if _cr(_rgb(ink), _rgb("#F1F5F9")) < 4.5 or _cr((255, 255, 255), _rgb(ink)) < 4.5:
+    if _cr(_rgb(ink), _rgb("#E9EEF4")) < 4.5 or _cr((255, 255, 255), _rgb(ink)) < 4.5:
         _sport_fail.append("%s ink %s fails AA" % (pid, ink))
     if _cr(_rgb(bright), _rgb("#09090B")) < 4.5:
         _sport_fail.append("%s bright %s fails AA on dark" % (pid, bright))

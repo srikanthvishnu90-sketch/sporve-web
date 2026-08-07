@@ -1942,29 +1942,31 @@ h2.ctr{margin-bottom:10px}
 /* Fallback for any page not yet given a hue; the .pg-<id> vars below override
    this by source order since build.py injects them at __SPORTVARS__ last. */
 .pgroot{--ps:var(--slate);--ps-ink:var(--slate-deep);--ps-bright:#8FA3BC}
-.pg-what-is{--ps:#2EA136;--ps-ink:#247E2A;--ps-bright:#2EA136}
+.pg-what-is{--ps:#2EA136;--ps-ink:#227628;--ps-bright:#2EA136}
 .pg-background-checks{--ps:#009AA0;--ps-ink:#00787D;--ps-bright:#009AA0}
-.pg-examples{--ps:#009F77;--ps-ink:#007C5D;--ps-bright:#009F77}
+.pg-examples{--ps:#009F77;--ps-ink:#007557;--ps-bright:#009F77}
 .pg-search{--ps:#DA5A05;--ps-ink:#B54B04;--ps-bright:#DA5A05}
-.pg-map-search{--ps:#748C00;--ps-ink:#607400;--ps-bright:#748C00}
-.pg-instant-booking{--ps:#2384FB;--ps-ink:#1D6ED0;--ps-bright:#2384FB}
+.pg-map-search{--ps:#748C00;--ps-ink:#5B6D00;--ps-bright:#748C00}
+.pg-instant-booking{--ps:#2384FB;--ps-ink:#1B67C4;--ps-bright:#2384FB}
 .pg-messaging{--ps:#D54F8A;--ps-ink:#B14273;--ps-bright:#D54F8A}
-.pg-bookings-receipts{--ps:#C27000;--ps-ink:#A15D00;--ps-bright:#C27000}
+.pg-bookings-receipts{--ps:#C27000;--ps-ink:#975700;--ps-bright:#C27000}
 .pg-saved{--ps:#DA4E77;--ps-ink:#B54163;--ps-bright:#DA4E77}
 .pg-athlete-progress{--ps:#9A68E0;--ps-ink:#8056BA;--ps-bright:#9A68E0}
 .pg-scheduling{--ps:#878500;--ps-ink:#706E00;--ps-bright:#878500}
-.pg-payments{--ps:#00A15E;--ps-ink:#007E49;--ps-bright:#00A15E}
+.pg-payments{--ps:#00A15E;--ps-ink:#007645;--ps-bright:#00A15E}
 .pg-roster{--ps:#0092CA;--ps-ink:#00729E;--ps-bright:#0092CA}
 .pg-session-notes{--ps:#886AF4;--ps-ink:#7158CB;--ps-bright:#886AF4}
 .pg-media-consent{--ps:#AB61D3;--ps-ink:#8E51AF;--ps-bright:#AB61D3}
-.pg-insights{--ps:#537BFD;--ps-ink:#4566D2;--ps-bright:#537BFD}
-.pg-ai-coach{--ps:#7172FA;--ps-ink:#5E5FD0;--ps-bright:#7172FA}
+.pg-insights{--ps:#537BFD;--ps-ink:#4160C6;--ps-bright:#537BFD}
+.pg-ai-coach{--ps:#7172FA;--ps-ink:#5859C3;--ps-bright:#7172FA}
 .pg-serif{font-family:"Instrument Serif",Georgia,"Times New Roman",serif;font-weight:400;
   letter-spacing:-.01em;line-height:1.02;font-style:normal}
 .pg-serif em{font-style:italic;color:var(--ps-ink)}
 .pgband{padding:72px 0;border-bottom:1px solid var(--rule)}
-.pgband.slate{background:#F1F5F9}
-.pgband.slate.alt{background:#F8FAFC}
+/* §2 — darker slate so bands actually read against white. #F1F5F9 was ~invisible;
+   it becomes the alt (where two slate bands touch); #F8FAFC retired. */
+.pgband.slate{background:#E9EEF4;border-bottom-color:#CBD5E1}
+.pgband.slate.alt{background:#F1F5F9}
 .pgband.white{background:var(--paper)}
 .pgband.dark{background:#09090B;border-bottom-color:#1C222B}
 .pgband.dark h2,.pgband.dark .pg-serif{color:#fff}
@@ -1997,7 +1999,7 @@ h2.ctr{margin-bottom:10px}
 /* ── Asymmetric editorial layout (page: views). Two-column hero with a floating
    result card, a full-bleed dark demo, and numbered claim/proof rows — the
    composition breaks the single-column stack. Everything stacks on narrow. */
-.pg-hero.split .shell{display:grid;grid-template-columns:1.06fr .94fr;gap:52px;align-items:center}
+.pg-hero.split .shell{display:grid;grid-template-columns:1.72fr .9fr;gap:48px;align-items:center}
 .pg-hero.split .pg-heroL{min-width:0}
 .pg-herocard{background:var(--paper);border-radius:var(--r-xl);padding:20px;max-width:400px;margin-left:auto;
   box-shadow:0 1px 2px rgba(11,12,14,.05),0 30px 60px -30px rgba(11,12,14,.36)}
@@ -2056,8 +2058,13 @@ h2.ctr{margin-bottom:10px}
   font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .pg-eyebrow .dot{width:8px;height:8px;border-radius:var(--r-pill);background:var(--ps);flex:0 0 auto}
 .pg-eyebrow a{color:var(--ps-ink);text-decoration:none}
-.pg-h1{font-size:clamp(40px,7vw,84px);margin:22px 0 0;max-width:15ch}
-.pg-sub{font-size:var(--text-md);color:var(--muted);max-width:52ch;margin:18px 0 0;line-height:1.55}
+/* §1 — horizontal headlines: down from 84px, runs wide (≤3 lines), not a
+   vertical stack. max-width:none so it fills its column; the ≤7-word rule keeps
+   it to 3 lines. Section H2s capped to ≤36 via the !important rule below,
+   overriding the pages' inline clamps without touching each template. */
+.pg-h1{font-size:clamp(40px,3.6vw,54px);margin:20px 0 0;max-width:none;line-height:1.06}
+.pgband h2.pg-serif{font-size:clamp(26px,2.4vw,36px)!important;line-height:1.14}
+.pg-sub{font-size:18px;color:var(--muted);max-width:56ch;margin:18px 0 0;line-height:1.55}
 .pg-cta{display:inline-flex;align-items:center;gap:8px;height:var(--h-ctl);padding:0 22px;
   border-radius:var(--r-ctl);background:var(--ps-ink);color:#fff;font-weight:600;font-size:var(--text-sm)}
 .pg-cta:hover{filter:brightness(.92)}
@@ -2078,7 +2085,7 @@ h2.ctr{margin-bottom:10px}
 .pg-proof .k{color:var(--faint)}.pg-proof .hl{color:var(--ps-ink);font-weight:700}
 /* S7 count-up */
 .pg-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;text-align:center}
-.pg-stat .n{font-family:"Instrument Serif",Georgia,serif;font-size:clamp(48px,7vw,88px);
+.pg-stat .n{font-family:"Instrument Serif",Georgia,serif;font-size:clamp(44px,5vw,64px);
   line-height:1;color:var(--ps-ink)}
 .pg-stat .l{color:var(--muted);font-size:var(--text-sm);margin-top:8px}
 /* S8 keep-exploring */

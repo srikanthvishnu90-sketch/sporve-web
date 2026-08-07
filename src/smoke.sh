@@ -104,6 +104,23 @@ he=$($B js "
  if(e>0||rails>0)o.push(r+'(emoji='+e+' rails='+rails+')')});return o.length?o.join(' '):'CLEAN'})()" 2>/dev/null)
 [ "$(printf '%s' "${he//\"/}" | tr -d '[:space:]')" = "CLEAN" ] && pass "home + explore: zero emoji, zero rails" || fail "home/explore sweep: $he"
 
+# §1 — horizontal headlines: 40–54px, ≤3 rendered lines, ≥55% of the shell.
+$B viewport 1440x900 >/dev/null 2>&1
+$B goto "file://$(pwd)/index.html" >/dev/null 2>&1
+t1=$($B js "
+(()=>{const bad=[];'$PAGES'.split(' ').forEach(id=>{S.route={name:'page',arg:id};render();
+ const h=document.querySelector('.pg-h1');const sh=document.querySelector('.pg-hero .shell');if(!h||!sh)return;
+ const fs=parseFloat(getComputedStyle(h).fontSize);const lh=parseFloat(getComputedStyle(h).lineHeight);
+ const lines=Math.round(h.clientHeight/lh);const w=Math.round(h.clientWidth/sh.clientWidth*100);
+ if(fs<40||fs>54||lines>3||w<55)bad.push(id+'('+fs.toFixed(0)+'px,'+lines+'ln,'+w+'%)')});
+return bad.length?bad.join(' '):'CLEAN'})()" 2>/dev/null)
+[ "$(printf '%s' "${t1//\"/}" | tr -d '[:space:]')" = "CLEAN" ] && pass "17 heroes: horizontal, 40–54px, ≤3 lines, ≥55% width" || fail "§1 type: $t1"
+
+# §2 — darker slate present, the near-white grey retired.
+grep -q "E9EEF4" index.html && pass "slate #E9EEF4 present" || fail "slate #E9EEF4 missing"
+r=$(grep -oc "247, *248, *250\|247,248,250" index.html 2>/dev/null); r=${r:-0}
+[ "$r" -eq 0 ] && pass "old near-white slate rgb(247,248,250) retired" || fail "old slate rgb(247,248,250) still present ($r)"
+
 # The dark-ground invariant. Resolves the PAINTED background through
 # transparent ancestors -- both historic contrast failures were inherited.
 #
