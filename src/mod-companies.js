@@ -138,11 +138,21 @@ const IMG_SPEC = {
   camp:   { ratio:"16 / 9", gallery:6, gRatio:"3 / 2", shots:["facility wide","group activity","shade & lunch area","drop-off zone","equipment","end-of-day huddle"] },
   team:   { ratio:"3 / 2",  gallery:4, gRatio:"3 / 2", shots:["match action","squad photo","head coach","home venue"] },
 };
-function shot(seed, w, h){ return "https://picsum.photos/seed/" + encodeURIComponent(seed) + "/" + w + "/" + h; }
+/* Self-contained showcase art — a slate SVG data URI, never an external host
+   (external image hosts violated the single-file + CSP rule, §9.11). Seed varies the
+   tint slightly so a gallery is not flat. */
+function shot(seed, w, h){
+  var hue = 0; for (var i=0;i<String(seed).length;i++){ hue=(hue+String(seed).charCodeAt(i))%40; }
+  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='"+w+"' height='"+h+"'>"+
+    "<rect width='"+w+"' height='"+h+"' fill='#EEF2F7'/>"+
+    "<rect width='"+w+"' height='"+h+"' fill='hsl("+(205+hue)+",30%,55%)' opacity='0.10'/>"+
+    "<circle cx='"+(w/2)+"' cy='"+(h/2)+"' r='"+(Math.min(w,h)*0.12)+"' fill='#64748B' opacity='0.4'/></svg>";
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
 
 /* ── real assets, with a placeholder underneath ──────────────────────
    Drop a file at the documented path and it appears — no rebuild, no
-   manifest, no build.py change. Until then the picsum seed stands in.
+   manifest, no build.py change. Until then the external stock art seed stands in.
 
      assets/listings/<programId>-hero.jpg      e.g. prog_9-hero.jpg
      assets/listings/<programId>-g<n>.jpg      e.g. prog_9-g0.jpg … -g5.jpg

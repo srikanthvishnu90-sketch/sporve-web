@@ -606,17 +606,16 @@ img{max-width:100%;display:block}
   display:grid;grid-template-columns:repeat(auto-fill,minmax(288px,1fr));
   gap:18px;padding:6px 0 12px;
 }
+/* §6.7 — frameless: no border, no shadow, no icon tile. A hairline top rule and
+   a --ink marker do the work; shadows live only on genuinely interactive chrome. */
 .prodcard{
-  text-align:left;display:flex;flex-direction:column;gap:7px;padding:22px;
-  background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-l);transition:.16s;
+  text-align:left;display:flex;flex-direction:column;gap:6px;padding:22px 20px 22px 18px;
+  background:transparent;border-top:1px solid var(--rule);border-radius:0;transition:background .16s;
 }
-.prodcard:hover{border-color:var(--ink);transform:translateY(-2px);box-shadow:var(--shadow-lift)}
-.prodcard .ic{
-  width:42px;height:42px;border-radius:13px;display:grid;place-items:center;
-  background:var(--slate-tint);font-size:var(--text-lg);margin-bottom:7px;color:var(--slate);
-}
-.prodcard .ic svg{width:20px;height:20px}
-.prodcard b{font-size:var(--text-base);letter-spacing:-.022em}
+.prodcard:hover{background:var(--raise)}
+.prodcard b{font-size:var(--text-base);letter-spacing:-.022em;position:relative}
+.prodcard b::before{content:"";position:absolute;left:-18px;top:.55em;width:7px;height:7px;
+  border-radius:var(--r-pill);background:var(--ink-2)}
 .prodcard span{color:var(--muted);font-size:var(--text-base);line-height:1.5}
 .prodsec{padding:34px 0 8px}
 /* An h2 takes the h2 step and the caps tracking. It was on --text-xl at
@@ -1671,8 +1670,11 @@ h2.ctr{margin-bottom:10px}
    only: an earlier attempt also set `.prodsec .sub` to inherit, which at
    (0,3,0) outranked `.band.dark .sub` and inherited straight to #000 on #000.
    Measured 1.00:1. The invariant catches this; leave it able to. */
-.band.dark .prodcard{color:var(--ink)}
-.band.dark .prodcard span:last-child{color:var(--muted)}
+.band.dark .prodcard{border-top-color:#1C222B}
+.band.dark .prodcard b{color:#fff}
+.band.dark .prodcard b::before{background:#8FA3BC}
+.band.dark .prodcard span{color:#94A3B8}
+.band.dark .prodcard:hover{background:rgba(255,255,255,.05)}
 
 /* Available to a screen reader, absent for everyone else. Used where an icon
    carries meaning on its own (the shield on a background-checked listing). */
@@ -2108,6 +2110,23 @@ const SPORT_GLYPH = {
 const HERO_IMGS = "__HERO_IMGS__".indexOf("__HERO") === 0 ? [] : [];
 
 const sportColor = s => SPORT_COLOR[s] || "#475569";
+/* Card / showcase art is a self-contained sport-tinted SVG data URI, never an
+   external host — external image hosts broke the single-file + CSP rule (§9.11). */
+function phShot(sport){
+  const c=sportColor(sport);
+  const svg="<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400'>"+
+    "<rect width='600' height='400' fill='#EEF2F7'/>"+
+    "<circle cx='300' cy='205' r='125' fill='"+c+"' opacity='0.12'/>"+
+    "<circle cx='300' cy='205' r='34' fill='"+c+"' opacity='0.5'/></svg>";
+  return "data:image/svg+xml,"+encodeURIComponent(svg);
+}
+function phAvatar(){
+  const svg="<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'>"+
+    "<rect width='150' height='150' fill='#E2E8F0'/>"+
+    "<circle cx='75' cy='58' r='26' fill='#94A3B8'/>"+
+    "<rect x='33' y='94' width='84' height='60' rx='30' fill='#94A3B8'/></svg>";
+  return "data:image/svg+xml,"+encodeURIComponent(svg);
+}
 /* The sport ramp is tuned to be legible as a MARK -- a dot, a wash, a 3px
    underline -- not as text. Measured as label text on white it runs 3.35:1
    (Soccer) to 3.95:1 (Boxing): every one of them under the 4.5:1 bar. This
@@ -2197,8 +2216,8 @@ const K=["id","biz","verified","sport","title","desc","price","model","rating","
 const PROGRAMS = RAW.map(r=>{
   const o={}; K.forEach((k,i)=>o[k]=r[i]);
   o.verified=!!o.verified; o.featured=!!o.featured;
-  o.img=`https://picsum.photos/seed/${o.id}/600/400`;
-  o.gallery=[o.img,`https://picsum.photos/seed/${o.id}b/600/400`,`https://picsum.photos/seed/${o.id}c/600/400`];
+  o.img=phShot(o.sport);
+  o.gallery=[o.img,phShot(o.sport),phShot(o.sport)];
   o.whatsIncluded = o.id==="prog_1" ? ["Training Bibs","Water Bottles","Professional Coaching"]
     : o.id==="prog_2" ? ["Tennis Balls","Racquet rentals"]
     : ["Equipment provided","Professional coaching","Progress report"];
@@ -2286,7 +2305,7 @@ function slotsFor(pid){
 const SEED={
   user:{id:"user_123",firstName:"Alex",lastName:"Mercer",email:"alex.mercer@gmail.com",
     role:"searcher",phone:"+1 (555) 019-2834",preferredSports:["Soccer","Tennis"],
-    img:"https://picsum.photos/seed/athlete-alex/150/150"},
+    img:phAvatar()},
   providerProfile:{id:"provider_123",businessName:"Apex Performance Club",
     bio:"Dedicated sports academy providing elite training clinics for junior athletes.",
     sports:["Soccer","Tennis","Basketball"],location:"Miami, FL",status:"approved",
@@ -2294,7 +2313,7 @@ const SEED={
   athletes:[{id:"athlete_1",firstName:"Julian",lastName:"Mercer",dob:"2013-04-12",
     gender:"male",preferredSports:["Soccer"],medical:"None",skillLevel:"developing",
     emergency:{name:"Alex Mercer",phone:"+1 (555) 019-2834",relation:"Father"},
-    img:"https://picsum.photos/seed/coach-jordan/150/150",
+    img:phAvatar(),
     parentConsent:true,consentAt:"2026-05-01T10:00:00.000Z",consentVersion:"v1"}],
   bookings:[{id:"book_1",athlete:"Julian Mercer",programId:"prog_1",
     program:"Elite Soccer Academy - U12 Training",sessionId:"sess_1",
@@ -2313,7 +2332,7 @@ const SEED={
     message:"Your booking for Soccer Skill Session 1 has been confirmed.",read:false,at:"2026-05-01T10:00:00.000Z"}],
   teams:[{id:"team_1",name:"Miami Elite Soccer U12",sport:"Soccer",
     roster:[{id:"athlete_1",name:"Julian Mercer",email:"alex.mercer@gmail.com",jersey:"10",
-      avatar:"https://picsum.photos/seed/coach-jordan/150/150",available:true,paid:true}]}],
+      avatar:phAvatar(),available:true,paid:true}]}],
   parentUpdates:[{id:"pu_seed_1",childId:"athlete_1",
     body:"Julian had a focused session working on first touch and passing under pressure. Great energy from start to finish.",
     skills:["First touch","Passing","Spatial awareness"],signal:"building consistency",
@@ -3389,7 +3408,6 @@ function productHTML(){
     ["Guests browse freely","Auth is triggered by an action — book, message, save — never by a wall, and the action resumes itself afterwards."],
   ];
   const card=(g,t,d,a)=>`<button class="prodcard" data-pdest="${esc(a)}">
-    <span class="ic" aria-hidden="true">${g}</span>
     <b>${esc(t)}</b><span>${esc(d)}</span></button>`;
   /* Full-width stacked section blocks, alternating slate -> white -> black ->
      slate -> white top to bottom. This was one mono-white <main class="shell">
@@ -3456,7 +3474,6 @@ function productHTML(){
       </div>
       <div class="prodgrid" data-rev>
         ${rules.map(([t,d])=>`<div class="prodcard" style="cursor:default">
-          <span class="ic" aria-hidden="true">${ICON.shield}</span>
           <b>${esc(t)}</b><span>${esc(d)}</span></div>`).join("")}
       </div>
     </div>
@@ -6572,8 +6589,8 @@ function wire(){
       title:d.title,desc:d.desc,price:+d.price,model:d.model,rating:0,reviews:0,
       lng:-80.19,lat:25.76,featured:false,skill:"All Levels",ageGroup:"All Ages",
       minAge:+d.minAge,maxAge:+d.maxAge,cap:+d.cap,enrolled:0,
-      img:`https://picsum.photos/seed/${id}/600/400`,
-      gallery:[`https://picsum.photos/seed/${id}/600/400`,`https://picsum.photos/seed/${id}b/600/400`,`https://picsum.photos/seed/${id}c/600/400`],
+      img:phShot(d.sport),
+      gallery:[phShot(d.sport),phShot(d.sport),phShot(d.sport)],
       whatsIncluded:["Equipment provided","Professional coaching","Progress report"],
       address:"Miami, FL 33101",cancellationPolicy:"moderate"});
     S.listings=[...S.listings,id];
@@ -6842,7 +6859,7 @@ function askCoach(q){
   },700);
 }
 
-/* Photography comes from picsum.photos. Behind a strict CSP — or simply
+/* Photography comes from external image hosts. Behind a strict CSP — or simply
    offline — those requests never land, and every card collapses to an empty
    box. Capture-phase, because `error` on <img> does not bubble. The stand-in
    is tinted with the listing's own sport colour, read off the badge that sits
