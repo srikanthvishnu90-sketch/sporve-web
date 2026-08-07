@@ -5431,6 +5431,12 @@ const INFO={
     {h:"Privacy Policy",b:"We process personal data to provide the service and protect athletes. You may request deletion of your account at any time."},
     {h:"Licenses",b:"Sporve is built with open-source software. Component licenses are available on request."},
   ]},
+  accessibility:{title:"Accessibility",sections:[
+    {h:"Our commitment",b:"Sporve is built to be usable by everyone, including people who rely on assistive technology. We aim to meet WCAG 2.1 Level AA across the site, and we treat accessibility as part of the work, not an afterthought."},
+    {h:"What we do",b:"Text meets a 4.5:1 contrast minimum, checked programmatically against every background it sits on. Every interactive control is reachable and operable by keyboard, with a visible focus state. Motion is decorative only: it respects your reduced-motion setting, and the site is fully readable with animation and JavaScript turned off. Images carry text alternatives, and page structure uses real headings and landmarks."},
+    {h:"Known limitations",b:"This is a pre-launch product and some flows are still being refined. A few seeded demo components are labelled as demo data rather than fully described to assistive technology yet. If you hit a barrier, it is a bug to us — please tell us and we will fix it."},
+    {h:"Report a problem",b:"If any part of Sporve is hard to use with a screen reader, keyboard, or other assistive technology, email support@sporve.com with the page and what happened. We read every message and prioritise access issues."},
+  ]},
 };
 function infoHTML(key){
   const d=INFO[key]||INFO.help;
@@ -5501,7 +5507,7 @@ function footerHTML(){
     ["Company",[["About","info:legal"],["Careers","info:legal"],["Press","info:legal"]]],
     ["Trust",[["Background checks","nav:trust"],["Privacy & Security","info:privacy"],
               ["Legal","info:legal"],["Report a concern","nav:trust"]]],
-    ["Support",[["Help Center","info:help"],["Contact us","info:help"],["support@sporve.com","mail"]]],
+    ["Support",[["Help Center","info:help"],["Contact us","info:help"],["Accessibility","info:accessibility"],["support@sporve.com","mail"]]],
   ];
   return `<footer class="sitefoot">
     <div class="shell">

@@ -8,3 +8,5 @@ node_modules/
 .env*
 backup/
 .agents/
+skills-lock.json
+.claude/skills/
