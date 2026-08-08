@@ -297,7 +297,7 @@ img{max-width:100%;display:block}
 }
 .productmenu{
   position:absolute;left:0;right:0;top:100%;z-index:70;
-  background:var(--paper);border-bottom:1px solid var(--rule);
+  background:#09090B;border-bottom:1px solid #1C222B;
   box-shadow:var(--shadow-lift);
   /* opacity 0->1 with translateY(8px->0), the Amboras dropdown entrance. */
   opacity:0;visibility:hidden;transform:translateY(8px);
@@ -1543,6 +1543,31 @@ h2.ctr{margin-bottom:10px}
   .cmgrid .pmdiv{display:none}
 }
 @media(max-width:720px){.pmgrid4{grid-template-columns:1fr}}
+
+/* T1b — dark reskin of BOTH mega-menu panels on the #09090B ground. Scoped to
+   #app .productmenu so it overrides the light-ground defaults above (which stay
+   in force nowhere else) with equal-plus specificity and later source order.
+   All colours are literals per the colour law — never a token that resolves
+   dark. Inter is already the body family globally. */
+#app .productmenu .eyebrow{color:#8B97A5}
+#app .productmenu .pmdiv{background:#1C222B}
+#app .productmenu .pmrow2{color:#FFFFFF}
+#app .productmenu .pmrow2:hover{background:rgba(255,255,255,.06)}
+#app .productmenu .pmrow2:focus-visible{background:rgba(255,255,255,.06);box-shadow:0 0 0 2px var(--slate-ring)}
+#app .productmenu .cmrow b,#app .productmenu .pmfeat b{color:#FFFFFF}
+#app .productmenu .cmrow span,#app .productmenu .pmfeat span:last-child,
+#app .productmenu .cmtalk p{color:#AEB8C4}
+#app .productmenu .cmtalk h3{color:#FFFFFF}
+#app .productmenu .cmrow:hover,#app .productmenu .cmrow:focus-visible{background:rgba(255,255,255,.06)}
+/* Promo/feature card: a raised near-black panel, not the light --raise. */
+#app .productmenu .pmfeat{background:#12151B}
+#app .productmenu .pmfeat:hover{background:#171B22}
+#app .productmenu .pmfeat-art{
+  background:linear-gradient(140deg,#1A212B,#12151B);color:#8FA3BC;
+}
+/* The "Book a call" ghost button sits on the dark panel: light hairline + text. */
+#app .productmenu .btn.ghost{border-color:rgba(255,255,255,.42);color:#FFFFFF;background:transparent}
+#app .productmenu .btn.ghost:hover{border-color:#FFFFFF}
 
 .x svg,.x path{pointer-events:none}
 /* ── PART 7 · auth sheet ─────────────────────────────────────────── */
