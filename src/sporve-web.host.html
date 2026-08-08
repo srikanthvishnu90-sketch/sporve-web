@@ -548,6 +548,21 @@ img{max-width:100%;display:block}
    not a heavy border. Each side carries a micro-label so the field still says
    what it is after the placeholder is typed over — the single biggest reason
    the old bar read as generic. */
+/* T2 — Zillow single-field hero search. On-scale input (var(--text-lg) = 17-19px
+   named clamp, >=16 so no iOS zoom); white field, obsidian submit. */
+.hero-search{margin:40px auto 0;max-width:720px;width:100%;display:flex;align-items:center;
+  background:#FFFFFF;border-radius:14px;padding:6px 6px 6px 24px;
+  box-shadow:0 8px 24px rgba(0,0,0,.35),0 32px 80px rgba(0,0,0,.45)}
+.hero-search input{flex:1;border:0;outline:none;background:none;font-family:var(--sans);
+  font-size:var(--text-lg);font-weight:400;color:var(--ink);height:52px}
+.hero-search input::placeholder{color:rgba(10,14,19,.45)}
+.hero-search button{width:52px;height:52px;border-radius:10px;flex-shrink:0;background:var(--ink);
+  color:#fff;display:flex;align-items:center;justify-content:center;transition:transform .15s ease}
+.hero-search button svg{width:20px;height:20px}
+.hero-search button:hover{transform:scale(1.04)}
+.hero-search:focus-within{box-shadow:0 0 0 3px rgba(255,255,255,.25),0 8px 24px rgba(0,0,0,.35),0 32px 80px rgba(0,0,0,.45)}
+@media(prefers-reduced-motion:reduce){.hero-search button{transition:none}}
+@media(max-width:720px){.hero-search{margin-top:32px;padding-left:18px}}
 .hero .searchpill{
   width:min(720px,100%);max-width:none;height:64px;margin-top:16px;flex:0 0 auto;
   align-items:stretch;gap:0;padding:0 8px 0 0;
@@ -3918,29 +3933,53 @@ function coachLandingHTML(){
 /* One pill, two heroes. It previously lived only inside heroHTML(), which is
    called by exploreHTML() alone — so the landing, the actual first touch, had
    no search at all. */
+/* T2 parser — one field to filter state. Order: zip, age, sport, remainder.
+   A title-case multi-word remainder is treated as a proper name (free text q),
+   so "Elite Soccer Academy" stays whole instead of pulling out "soccer". */
+function applyHeroSearch(raw){
+  S.locQuery=""; S.ageQuery=null; S.sports=[]; S.query="";
+  let rem=String(raw||"").trim();
+  const zip=(rem.match(/\b\d{5}\b/)||[])[0];
+  if(zip){ S.locQuery=zip; rem=rem.replace(zip," "); }
+  const am=rem.match(/\b(?:u|under\s?)(\d{1,2})\b/i)||rem.match(/\bage\s?(\d{1,2})\b/i);
+  if(am){ S.ageQuery=Number(am[1]); rem=rem.replace(am[0]," "); }
+  rem=rem.replace(/\s+/g," ").trim();
+  const words=rem.split(/\s+/).filter(Boolean);
+  const upper=words.filter(w=>/^[A-Z]/.test(w)).length;
+  const looksLikeName=words.length>=2 && upper/words.length>=0.6;
+  if(!looksLikeName){
+    const SYN={bball:"basketball",footy:"soccer",futbol:"soccer",mma:"martial arts",swim:"swimming",ballet:"dance"};
+    const canon=["basketball","soccer","tennis","swimming","dance","martial arts","karate","lacrosse","baseball","volleyball","golf","hockey"];
+    const allSports=[...new Set((typeof PROGRAMS!=="undefined"?PROGRAMS:[]).map(p=>p.sport))];
+    const cand=canon.concat(Object.keys(SYN)).sort((a,b)=>b.length-a.length);
+    const low=" "+rem.toLowerCase()+" ";
+    for(const c of cand){
+      if(low.includes(" "+c+" ")){
+        const target=SYN[c]||c;
+        const real=allSports.find(x=>x.toLowerCase()===target)||target.replace(/\b\w/g,m=>m.toUpperCase());
+        S.sports=[real];
+        rem=rem.replace(new RegExp("\\b"+c.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i")," ").replace(/\s+/g," ").trim();
+        break;
+      }
+    }
+  }
+  S.query=rem;
+}
 function searchPillHTML(){
-  return `<div class="searchpill">
-          <label class="sp-seg" for="q">
-            <span class="sp-lbl">What</span>
-            <span class="sp-val"><input class="seg" id="q" placeholder="Search sports, coaches, or programs"
-                   value="${esc(S.query)}" aria-label="Search"></span></label>
-          <span class="divider"></span>
-          <label class="sp-seg sp-where" for="qloc">
-            <span class="sp-lbl">Where</span>
-            <span class="sp-val">${ICON.pin}<input class="seg" id="qloc" placeholder="City or ZIP"
-                   value="${esc(S.locQuery||"")}" aria-label="Location"></span></label>
-          <span class="divider"></span>
-          ${/* The differentiator. Airbnb asks "when"; a parent's constraint is
-               "how old is my kid" — it says this product is about the child. */""}
-          <label class="sp-seg sp-age" for="qage">
-            <span class="sp-lbl">Child's age</span>
-            <span class="sp-val"><select class="seg" id="qage" aria-label="Child's age">
-              <option value="">Any age</option>
-              ${Array.from({length:13},(_,i)=>i+6).map(a=>
-                `<option value="${a}"${String(S.ageQuery)===String(a)?" selected":""}>${a} years old</option>`).join("")}
-            </select></span></label>
-          <button class="go" id="qgo" aria-label="Search">${ICON.search}</button>
-        </div>`;
+  /* T2 — Zillow-style single field. One input parses into sport/zip/age/free-text
+     on submit (see the #hero-q handler in wire()); the child's-age dimension moved
+     to an Age filter pill in the browse row (.fchips). */
+  return `<form class="hero-search" role="search" aria-label="Find a coach">
+    <input type="text" id="hero-q" autocomplete="off"
+      placeholder="Enter a sport, city, or ZIP code"
+      aria-label="Search by sport, city, or ZIP code" value="${esc(S.query||"")}">
+    <button type="submit" aria-label="Search">
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="2"/>
+        <path d="M14 14l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </form>`;
 }
 /* 3s on screen + .8s of travel per photograph. Changing this changes the
    cycle length below, but the @keyframes stops are written against a
@@ -4016,6 +4055,12 @@ function exploreHTML(){
                  stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg></button>
           ${S.sportOpen?sportMenuHTML():""}
         </span>
+        ${/* T2 — child's-age dimension, moved here from the retired hero cell. */""}
+        <label class="fchip agechip ${S.ageQuery?"on":""}"><span>Age</span>
+          <select id="qage2" aria-label="Child's age">
+            <option value="">Any</option>
+            ${Array.from({length:13},(_,i)=>i+6).map(a=>`<option value="${a}"${String(S.ageQuery)===String(a)?" selected":""}>${a}</option>`).join("")}
+          </select></label>
         <button class="fchip" data-openfilters="1">${ICON.sliders} More filters${
           (window.MOD_SEARCH&&MOD_SEARCH.activeCount&&MOD_SEARCH.activeCount())?
           `<span class="badge num">${MOD_SEARCH.activeCount()}</span>`:""}</button>
@@ -7771,20 +7816,20 @@ function sigAiCoachWire(root){
     toast("Signed in with Google");
   });
 
-  const q=document.getElementById("q");
-  if(q){
-    q.oninput=e=>{S.query=e.target.value;};
-    q.onkeydown=e=>{if(e.key==="Enter"){S.route={name:"explore",arg:null};render();}};
-  }
-  const ql=document.getElementById("qloc");
-  if(ql){
-    ql.oninput=e=>{S.locQuery=e.target.value;};
-    ql.onkeydown=e=>{if(e.key==="Enter"){S.route={name:"explore",arg:null};render();}};
-  }
-  const qa=document.getElementById("qage");
+  // T2 — single-field hero search: parse the raw string, set the existing filter
+  // state, render the explore grid (this app filters in place; no /find URL route).
+  const heroq=document.getElementById("hero-q");
+  const heroForm=heroq&&heroq.closest("form");
+  if(heroForm) heroForm.onsubmit=e=>{
+    e.preventDefault();
+    const raw=(heroq.value||"").trim();
+    if(!raw){ heroq.focus(); return; }
+    applyHeroSearch(raw);
+    S.route={name:"explore",arg:null}; render();
+  };
+  // Age dimension moved out of the hero into the browse filter row (.fchips).
+  const qa=document.getElementById("qage2");
   if(qa) qa.onchange=e=>{S.ageQuery=e.target.value||null;S.route={name:"explore",arg:null};render();};
-  const qgo=document.getElementById("qgo");
-  if(qgo) qgo.onclick=()=>{S.route={name:"explore",arg:null};render();};
 
   const sf=document.getElementById("signupForm");
   if(sf) sf.onsubmit=e=>{
