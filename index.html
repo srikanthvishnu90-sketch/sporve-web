@@ -276,7 +276,7 @@ img{max-width:100%;display:block}
    literals per the colour law (§3) — never a token that can resolve dark. */
 .topbar{transition:background .25s ease,border-color .25s ease}
 .topbar.on-hero{background:#0A0C0F;border-bottom-color:transparent}
-.topbar.on-hero .wordmark{color:#FFFFFF}
+.topbar.on-hero .wordmark{color:#8FA3BC}
 .topbar.on-hero .tnav{color:#FFFFFF}
 .topbar.on-hero .tnav:hover,
 .topbar.on-hero .prodwrap:hover>.tnav,
@@ -467,6 +467,10 @@ img{max-width:100%;display:block}
    left ~160px of empty dark below the search bar. Margins match the page
    gutter, so the panel's edges line up with the card grid beneath it. */
 .hero{padding:20px 0 0}
+/* Black ground ONLY behind the photo-panel hero (explore/boot), so the area
+   around the inset rounded animation reads black, not the white body. Light
+   home/coachinfo heroes (no .hero-panel, dark text) stay untouched. */
+.hero:has(.hero-panel){background:var(--ink)}
 .hero-panel{
   position:relative;overflow:hidden;
   /* Full-bleed, not shell-width. The grid below stays capped at --shell; the
