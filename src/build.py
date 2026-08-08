@@ -58,6 +58,7 @@ FAMILY_BY_PREFIX = {
     "hanken": "Hanken Grotesk",
     "instrument": "Instrument Serif",   # editorial serif, mini-page heroes only
     "archivo": "Archivo",               # display / large text
+    "jetbrainsmono": "JetBrains Mono",  # NUMERALS only (prices/ratings/counts)
     "inter": "Inter",                   # body / small text
     "sentinel": "Sentinel",
 }
@@ -72,7 +73,11 @@ VARIABLE_RANGE = {"Syne": "600 800", "Plus Jakarta Sans": "400 700",
                   # 400 body, 700 UI labels, 800 headlines.
                   "Hanken Grotesk": "400 800",
                   # New primary pair: Archivo display (large), Inter body (small).
-                  "Archivo": "400 800", "Inter": "400 700"}
+                  "Archivo": "400 800", "Inter": "400 700",
+                  # JetBrains Mono: tabular numerals only (prices, ratings,
+                  # counts, distances). Instrument Serif ships as static
+                  # Regular/Italic faces, so it needs no variable range here.
+                  "JetBrains Mono": "400 700"}
 font_files = sorted(glob.glob(os.path.join(ROOT, "assets", "fonts", "*.woff2")))
 faces, fam_seen = [], set()
 for fp in font_files:
