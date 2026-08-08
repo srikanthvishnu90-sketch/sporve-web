@@ -7105,10 +7105,16 @@ function syncNavHero(){
   const navH=bar.offsetHeight||76;
   bar.classList.toggle("on-hero", hero.getBoundingClientRect().bottom>navH+2);
 }
+let _navHeroRaf=0;
+function onNavScroll(){ if(_navHeroRaf) return;
+  _navHeroRaf=requestAnimationFrame(function(){ _navHeroRaf=0; syncNavHero(); }); }
 if(!window.__navHeroBound){
   window.__navHeroBound=true;
-  window.addEventListener("scroll",syncNavHero,{passive:true});
-  window.addEventListener("resize",syncNavHero,{passive:true});
+  /* rAF-throttled: coalesce a burst of scroll events into one layout read per
+     frame (getBoundingClientRect forces layout, so raw per-event was wasteful).
+     render() still calls syncNavHero() synchronously so the first paint is correct. */
+  window.addEventListener("scroll",onNavScroll,{passive:true});
+  window.addEventListener("resize",onNavScroll,{passive:true});
 }
 
 function wire(){
