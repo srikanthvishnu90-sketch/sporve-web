@@ -602,6 +602,30 @@ img{max-width:100%;display:block}
 .fchip.on:hover .xm{opacity:1}
 .fcount{margin-left:auto;color:var(--faint);font-size:var(--t-small);line-height:var(--h-compact)}
 
+/* ── boot surface: promo strip, kind tabs, map strip ─────────────────
+   The browse band rides the slate canvas (band alt = --raise), so these three
+   controls only add chrome — no new hex, every size on the 8-step scale. */
+.promobar{background:#000}
+.promobar-in{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 0}
+.promo-tag{font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  font-size:var(--text-xs);color:#FFFFFF}
+.promo-txt{color:#AEB8C4;font-size:var(--text-sm)}
+.promo-link{margin-left:auto;color:var(--accent-on-dark);font-weight:700;font-size:var(--text-sm)}
+.promo-link:hover{text-decoration:underline}
+.kindtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.kindtab{display:inline-flex;align-items:center;height:var(--h-compact);padding:0 16px;
+  border-radius:var(--r-pill);background:var(--paper);border:1px solid var(--rule-strong);
+  color:var(--muted);font-size:var(--t-small);font-weight:600;letter-spacing:-.008em;
+  transition:background .15s,border-color .15s,color .15s}
+.kindtab:hover{border-color:var(--ink-2);color:var(--ink)}
+.kindtab:focus-visible{outline:none;box-shadow:0 0 0 3px var(--slate-ring)}
+.kindtab.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.mapstrip-in{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}
+/* Boot-surface light bands ride the DARKER shipped slate (#E9EEF4, the same
+   ground as .pgband.slate), not the near-white --raise (#F7F8FA). Cards stay
+   white (--paper) on top, so the section keeps its slate cast. No new hex. */
+.band.slate{background:#E9EEF4;border-bottom-color:#CBD5E1}
+
 /* ── product overview page ───────────────────────────────────────── */
 .exhero{
   display:flex;justify-content:space-between;align-items:flex-end;gap:30px;
@@ -2888,6 +2912,7 @@ const S={
      The marketing scroll stays reachable at the `home` route (and from the
      Product menu), it just isn't the first thing a visitor lands on. */
   route:{name:"explore",arg:null},
+  kind:null,                       // browse kind tab: null | solo | camp | org (via ptypeOf)
   sportOpen:false,                 // the topbar sport chooser
   sportAnchor:null,                // px offset of the Sport button, for the panel
   showcaseSide:"families",
@@ -3897,45 +3922,154 @@ function heroHTML(){
 }
 
 function exploreHTML(){
-  const list=visiblePrograms();
   const f=S.filters;
-  const dirty=f.verifiedOnly||f.maxPrice||f.model||S.sports.length||S.query;
+  let list=visiblePrograms();
+  /* Kind tabs narrow the SAME result set by provider type, derived per-listing
+     via ptypeOf() — no new field, no schema change, no rails. */
+  if(S.kind) list=list.filter(p=>ptypeOf(p)===S.kind);
+  const dirty=f.verifiedOnly||f.maxPrice||f.model||S.sports.length||S.query||S.kind;
   /* The first featured listing in the current result set carries the wide
      card. It is a listing like any other — not a slot sold to anyone. */
   const heroIdx=list.findIndex(p=>p.featured);
   const chip=(key,label,on)=>`<button class="fchip ${on?"on":""}" data-filter="${key}" aria-pressed="${!!on}">
     ${key==="verified"?ICON.shield:""}${esc(label)}${on?`<span class="xm" aria-hidden="true">${ICON.xs}</span>`:""}</button>`;
-  return `${subnavHTML()}${heroHTML()}<main class="shell">
-    <div class="fchips" style="padding-top:26px">
-      ${/* Sport and Filters left global nav and landed here, with the grid they
-           filter. The chooser was otherwise unreachable once the nav changed. */""}
-      <span class="sportwrap">
-        <button class="fchip sportbtn ${S.sports.length?"on":""}" data-sportmenu="1"
-                aria-expanded="${!!S.sportOpen}" aria-haspopup="true">${
-          esc(S.sports.length===0?"Any sport":S.sports.length===1?S.sports[0]:S.sports.length+" sports")}
-          <svg class="chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg></button>
-        ${S.sportOpen?sportMenuHTML():""}
-      </span>
-      <button class="fchip" data-openfilters="1">${ICON.sliders} More filters${
-        (window.MOD_SEARCH&&MOD_SEARCH.activeCount&&MOD_SEARCH.activeCount())?
-        `<span class="badge num">${MOD_SEARCH.activeCount()}</span>`:""}</button>
-      ${chip("verified","Background-checked only",f.verifiedOnly)}
-      ${chip("under50","Under $50",f.maxPrice===50)}
-      ${chip("single","Single session",f.model==="single_session")}
-      ${chip("monthly","Monthly",f.model==="monthly")}
-      ${dirty?`<button class="fchip" data-filter="clear">Clear all</button>`:""}
-      <span class="fcount num">${list.length} of ${PROGRAMS.length} programs</span>
-    </div>
+  const kinds=[["","All coaches"],["solo","Private"],["camp","Camps"],["org","Team"]];
+  const kt=`<div class="kindtabs" role="tablist" aria-label="Coaching type">
+    ${kinds.map(([k,l])=>`<button class="kindtab ${(S.kind||"")===k?"on":""}" role="tab"
+       aria-selected="${(S.kind||"")===k}" data-kind="${k}">${esc(l)}</button>`).join("")}</div>`;
 
-    ${/* §6.4: a single vertical results grid — the rails (lateral scroll) are
-         the editorial anti-pattern and are removed. Horizontal scroll survives
-         only on the landing showcase and the S2 ticker. */""}
-    ${list.length?`<div class="grid">${list.map((p,i)=>i===heroIdx?featureCardHTML(p):cardHTML(p)).join("")}</div>`
-      :`<div class="empty"><div class="big">${ICON.search}</div><h3>No programs match those filters</h3>
-        <p style="margin-top:6px">Try clearing a filter or picking a different sport.</p>
-        <button class="btn ghost sm" data-filter="clear" style="margin-top:18px">Clear all filters</button></div>`}
-  </main>`;
+  return `
+  ${/* Founding-cohort promo strip. Dark ground with white/light-slate literals
+       (§3) so it reads as one dark band with the on-hero nav directly above it.
+       0% platform fees is an owner-set launch offer, not a computed metric. */""}
+  <div class="promobar">
+    <div class="shell promobar-in">
+      <span class="promo-tag">Founding coach cohort</span>
+      <span class="promo-txt">Join now and keep 0% platform fees through launch.</span>
+      <button class="promo-link" data-becomecoach="1">Become a coach →</button>
+    </div>
+  </div>
+
+  ${heroHTML()}
+
+  ${/* Light browse on the SLATE canvas (band alt = --raise). Cards stay white
+       on the slate ground; the filter bar and kind tabs sit above one vertical
+       grid — the rails (lateral scroll) remain removed. */""}
+  <section class="band slate browse" id="browse">
+    <div class="shell">
+      ${kt}
+      <div class="fchips">
+        <span class="sportwrap">
+          <button class="fchip sportbtn ${S.sports.length?"on":""}" data-sportmenu="1"
+                  aria-expanded="${!!S.sportOpen}" aria-haspopup="true">${
+            esc(S.sports.length===0?"Any sport":S.sports.length===1?S.sports[0]:S.sports.length+" sports")}
+            <svg class="chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg></button>
+          ${S.sportOpen?sportMenuHTML():""}
+        </span>
+        <button class="fchip" data-openfilters="1">${ICON.sliders} More filters${
+          (window.MOD_SEARCH&&MOD_SEARCH.activeCount&&MOD_SEARCH.activeCount())?
+          `<span class="badge num">${MOD_SEARCH.activeCount()}</span>`:""}</button>
+        ${chip("verified","Background-checked only",f.verifiedOnly)}
+        ${chip("under50","Under $50",f.maxPrice===50)}
+        ${chip("single","Single session",f.model==="single_session")}
+        ${chip("monthly","Monthly",f.model==="monthly")}
+        ${dirty?`<button class="fchip" data-filter="clear">Clear all</button>`:""}
+        <span class="fcount num">${list.length} of ${PROGRAMS.length} programs</span>
+      </div>
+
+      ${list.length?`<div class="grid">${list.map((p,i)=>i===heroIdx?featureCardHTML(p):cardHTML(p)).join("")}</div>`
+        :`<div class="empty"><div class="big">${ICON.search}</div><h3>No programs match those filters</h3>
+          <p style="margin-top:6px">Try clearing a filter or picking a different sport.</p>
+          <button class="btn ghost sm" data-filter="clear" style="margin-top:18px">Clear all filters</button></div>`}
+    </div>
+  </section>
+
+  <section class="band slate mapstrip">
+    <div class="shell" data-rev>
+      <div class="mapstrip-in">
+        <div>
+          <div class="eyebrow">Nearby</div>
+          <h2 style="margin-top:10px">See every coach on the map.</h2>
+          <p class="sub" style="margin-top:10px">Filter by sport and distance, then book the closest open slot.</p>
+        </div>
+        <button class="btn" data-nav="map">Open the map →</button>
+      </div>
+    </div>
+  </section>
+
+  ${/* Dark recap chapter: what a family gets after the session. Literals on the
+       black ground per §3; the card is the existing .lcard on dark. */""}
+  <section class="band dark">
+    <div class="shell lgrid">
+      <div data-rev>
+        <div class="eyebrow" style="color:var(--accent-on-dark)">After every session</div>
+        <h2 style="margin-top:12px">You always know how it went.</h2>
+        <p class="sub" style="margin-top:14px">Notes, focus areas and the next booking arrive in one thread — written by the coach, not a form.</p>
+        <div class="lchecks">
+          ${[["Session notes tied to your athlete, not a generic log"],
+             ["Receipts and rebooking in the same place"],
+             ["Media shared only with recorded consent"]]
+            .map(([t])=>`<div class="lcheck"><i>${TICK(12,3.4)}</i><span>${esc(t)}</span></div>`).join("")}
+        </div>
+      </div>
+
+      <div class="lcard" data-rev data-rev-d="1">
+        <div class="lcard-hd">
+          <span class="lcard-live"><i></i>Session recap</span>
+          <span class="featbadge" style="background:var(--slate-tint);color:var(--slate)">Example</span>
+        </div>
+        <div class="lrow"><span>Focus</span><em>First serve &amp; footwork</em></div>
+        <div class="lrow"><span>Went well</span><em>Toss consistency</em></div>
+        <div class="lrow"><span>Next up</span><em>Second-serve spin</em></div>
+        <div class="lrow"><span>Next session</span><em>Booked · Sat 9:00</em></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band slate">
+    <div class="shell">
+      <h2 class="ctr" data-rev>Two ways in</h2>
+      <p class="sub ctr" data-rev>The same platform families book on is the one coaches run their week on.</p>
+      <div class="dual">
+        <div class="dpath" data-rev>
+          <div class="eyebrow">For parents</div>
+          <h3>Find someone you'd trust with your kid</h3>
+          <p>Search by sport, your child's age and your budget. Book and pay without leaving the page.</p>
+          <ul class="dlist">
+            ${["Every coach clears a per-person check","Message before you spend anything",
+               "Sessions, receipts and updates in one thread","One account, however many kids"]
+              .map(t=>`<li>${TICK(14,3)}<span>${esc(t)}</span></li>`).join("")}
+          </ul>
+          <button class="btn" data-nav="explore">Find a coach</button>
+        </div>
+        <div class="dpath" data-rev data-rev-d="1">
+          <div class="eyebrow">For coaches</div>
+          <h3>Run your week, get paid on time</h3>
+          <p>Your calendar, your policies, your prices. Sporve handles the admin around them.</p>
+          <ul class="dlist">
+            ${["Free to join and list","Bring the families you already coach",
+               "Checkout and automatic payouts","Roster, notes, media and insights"]
+              .map(t=>`<li>${TICK(14,3)}<span>${esc(t)}</span></li>`).join("")}
+          </ul>
+          <button class="btn ghost" data-becomecoach="1">Become a coach</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  ${faqSectionHTML()}
+
+  <section class="band dark finalcta">
+    <div class="shell ctr" data-rev>
+      <h2>Every sport. One app.</h2>
+      <p class="sub ctr">Background-checked coaches, bookable today.</p>
+      <div class="ctarow">
+        <button class="btn" data-nav="explore">Find a coach</button>
+        <button class="btn ghost" data-becomecoach="1">Become a coach</button>
+      </div>
+    </div>
+  </section>`;
 }
 
 /* ═══════════════════ PRODUCT — everything the platform does ═══════════════
@@ -7289,9 +7423,13 @@ function sigAiCoachWire(root){
     if(f==="under50") S.filters.maxPrice=S.filters.maxPrice===50?null:50;
     if(f==="single") S.filters.model=S.filters.model==="single_session"?null:"single_session";
     if(f==="monthly") S.filters.model=S.filters.model==="monthly"?null:"monthly";
-    if(f==="clear"){S.filters={maxPrice:null,verifiedOnly:false,model:null};S.sport=null;S.query="";}
+    if(f==="clear"){S.filters={maxPrice:null,verifiedOnly:false,model:null};S.sport=null;S.query="";S.kind=null;}
     render();
   });
+
+  /* Kind tabs: narrow the browse grid by provider type. Empty value = All.
+     No route change — re-render in place, exactly like the filter chips. */
+  $("[data-kind]").forEach(b=>b.onclick=()=>{S.kind=b.dataset.kind||null;render();});
 
   /* book + message run through the auth gate; the intent resumes after sign-in */
   $("[data-book]").forEach(b=>b.onclick=()=>{
