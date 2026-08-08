@@ -245,6 +245,22 @@ img{max-width:100%;display:block}
 .topbar .wordmark,.footbase .wordmark,.footbrand .wordmark{
   text-transform:uppercase;color:var(--slate);font-size:var(--text-lg);
 }
+/* ── Scroll-aware header (owner request 2026-08-08): the bar is BLACK while the
+   dark hero photo sits under the nav, and reverts to the white bar once the
+   content scrolls up past the hero. Dark-ground text uses white/light-slate
+   literals per the colour law (§3) — never a token that can resolve dark. */
+.topbar{transition:background .25s ease,border-color .25s ease}
+.topbar.on-hero{background:#0A0C0F;border-bottom-color:transparent}
+.topbar.on-hero .wordmark{color:#FFFFFF}
+.topbar.on-hero .tnav{color:#FFFFFF}
+.topbar.on-hero .tnav:hover,
+.topbar.on-hero .prodwrap:hover>.tnav,
+.topbar.on-hero .prodwrap:focus-within>.tnav{background:rgba(255,255,255,.12);color:#FFFFFF}
+.topbar.on-hero .tnav.on{background:rgba(255,255,255,.16);color:#FFFFFF}
+.topbar.on-hero .navlink{color:#FFFFFF}
+.topbar.on-hero .navlink:hover{color:#8FA3BC}
+.topbar.on-hero .acct{background:transparent;border-color:rgba(255,255,255,.42);color:#FFFFFF}
+.topbar.on-hero .acct:hover{border-color:#FFFFFF;box-shadow:none}
 .searchpill{
   flex:1;max-width:520px;display:flex;align-items:center;gap:0;
   border:1px solid var(--rule-strong);border-radius:999px;box-shadow:var(--shadow);
@@ -7032,6 +7048,23 @@ function render(){
   const cs=document.getElementById("chatscroll"); if(cs&&S.chat.length) cs.scrollTop=cs.scrollHeight;
   wire();
   wireExtras();
+  syncNavHero();
+}
+
+/* Scroll-aware header: black while the dark hero photo is under the nav, white
+   once scrolled into the content. Reads elements fresh so it survives every
+   re-render; the window listeners are bound once. (owner request 2026-08-08) */
+function syncNavHero(){
+  const bar=document.querySelector(".topbar"); if(!bar) return;
+  const hero=document.querySelector(".band.hero");
+  if(!hero){ bar.classList.remove("on-hero"); return; }
+  const navH=bar.offsetHeight||76;
+  bar.classList.toggle("on-hero", hero.getBoundingClientRect().bottom>navH+2);
+}
+if(!window.__navHeroBound){
+  window.__navHeroBound=true;
+  window.addEventListener("scroll",syncNavHero,{passive:true});
+  window.addEventListener("resize",syncNavHero,{passive:true});
 }
 
 function wire(){
