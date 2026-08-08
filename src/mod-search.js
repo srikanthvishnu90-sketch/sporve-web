@@ -622,7 +622,9 @@ function repaintGrid(bar){
   const main=bar.parentElement;
   const grid=main.querySelector(".grid");
   if(!grid) return {kept:0,base:0};
-  injectCompareButtons(grid);
+  /* T3/§5: cards carry no per-card Compare button — their actions are the
+     whole-card link + View slots. (Compare feature dormant, not removed.) */
+  // injectCompareButtons(grid);
 
   const cards=Array.prototype.slice.call(grid.querySelectorAll(".card"));
   const byId=new Map(),order=[];
