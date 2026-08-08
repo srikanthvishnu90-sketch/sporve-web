@@ -249,45 +249,35 @@ img{max-width:100%;display:block}
 .hide{display:none !important}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 
-/* ── top bar ─────────────────────────────────────────────────────── */
+/* ── top bar — solid always-black chrome (T1) ─────────────────────────
+   #09090B at every scroll position: no backdrop-filter, no scroll-aware
+   flip. Three-zone grid `1fr auto 1fr` centres the menu group between a
+   left-anchored logo and a right-anchored action cluster. All text on the
+   black ground uses white/slate LITERALS per the colour law (§3) — never a
+   token that can resolve dark (--paper inverts under data-theme=dark). */
 .topbar{
-  position:sticky;top:0;z-index:60;background:var(--paper);
-  border-bottom:1px solid var(--rule);
+  position:sticky;top:0;z-index:60;background:#09090B;
+  border-bottom:1px solid #1C222B;
 }
-.topbar-in{display:flex;align-items:center;gap:20px;height:76px}
-.brand{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.topbar-in{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px;height:76px}
+.brand{display:flex;align-items:center;gap:9px;justify-self:start}
+.navcenter{justify-self:center;display:flex;align-items:center;min-width:0}
+.topnav{justify-self:end}
 .mark{
   width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--paper);
   display:grid;place-items:center;font-weight:700;font-size:var(--text-lg);letter-spacing:-.04em;
 }
-.wordmark{font-size:var(--text-lg);font-weight:800;letter-spacing:.02em;color:var(--slate);
+.wordmark{font-size:var(--text-lg);font-weight:800;letter-spacing:.02em;color:#8FA3BC;
   text-transform:uppercase}
 /* Lockup in the bar and the footer: uppercase, no badge — the badge survives
-   where it stands alone (auth sheet, avatar fallbacks). The wordmark is the
-   one piece of text that is NOT black: it carries the slate brand colour. */
+   where it stands alone (auth sheet, avatar fallbacks). */
 .topbar .brand .mark,.footbase .mark{display:none}
-/* No letter-spacing: the base .wordmark rule sets .02em, and three cascading
-   values (.02 / -.005 / -.01) on one uppercase Syne mark meant the logo was
-   tracked differently in the header, the footer and the auth sheet. */
-.topbar .wordmark,.footbase .wordmark,.footbrand .wordmark{
+/* Header wordmark carries the slate brand colour as a literal on black; the
+   footer keeps the token so it tracks the footer ground. */
+.topbar .wordmark{text-transform:uppercase;color:#8FA3BC;font-size:var(--text-lg)}
+.footbase .wordmark,.footbrand .wordmark{
   text-transform:uppercase;color:var(--slate);font-size:var(--text-lg);
 }
-/* ── Scroll-aware header (owner request 2026-08-08): the bar is BLACK while the
-   dark hero photo sits under the nav, and reverts to the white bar once the
-   content scrolls up past the hero. Dark-ground text uses white/light-slate
-   literals per the colour law (§3) — never a token that can resolve dark. */
-.topbar{transition:background .25s ease,border-color .25s ease}
-.topbar.on-hero{background:#0A0C0F;border-bottom-color:transparent}
-.topbar.on-hero .wordmark{color:#8FA3BC}
-.topbar.on-hero .tnav{color:#FFFFFF}
-.topbar.on-hero .tnav:hover,
-.topbar.on-hero .prodwrap:hover>.tnav,
-.topbar.on-hero .prodwrap:focus-within>.tnav{background:rgba(255,255,255,.12);color:#FFFFFF}
-.topbar.on-hero .tnav.on{background:rgba(255,255,255,.16);color:#FFFFFF}
-.topbar.on-hero .navlink{color:#FFFFFF}
-.topbar.on-hero .navlink:hover{color:#8FA3BC}
-.topbar.on-hero .acct{background:transparent;border-color:rgba(255,255,255,.42);color:#FFFFFF}
-.topbar.on-hero .acct:hover{border-color:#FFFFFF;box-shadow:none}
 .searchpill{
   flex:1;max-width:520px;display:flex;align-items:center;gap:0;
   border:1px solid var(--rule-strong);border-radius:999px;box-shadow:var(--shadow);
@@ -306,14 +296,16 @@ img{max-width:100%;display:block}
 /* ── primary nav cluster — Product · Filters · Saved · Sport ──────────
    Sits where the search pill used to, at Amboras' nav scale rather than the
    14px the folded-away subnav used. */
-.tnav-row{display:flex;align-items:center;gap:28px;flex:0 0 auto;margin-left:20px;min-width:0}
+/* Centred menu group on the black bar: slate labels, white on hover/active. */
+.tnav-row{display:flex;align-items:center;gap:28px;flex:0 0 auto;min-width:0}
 .tnav-row .tnav{
   display:inline-flex;align-items:center;gap:7px;height:var(--h-compact);padding:0 2px;
   border-radius:0;font-size:var(--t-body);font-weight:600;letter-spacing:-.012em;
-  color:var(--ink-2);background:none;
+  color:#AEB8C4;background:none;
 }
-.tnav-row .tnav:hover{background:none;color:var(--ink)}
-.tnav-row .tnav.on{background:none;color:var(--ink)}
+.tnav-row .tnav:hover,
+.prodwrap:hover>.tnav,.prodwrap:focus-within>.tnav{background:none;color:#FFFFFF}
+.tnav-row .tnav.on{background:none;color:#FFFFFF}
 .tnav-row .badge{
   display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;
   border-radius:999px;background:var(--slate);color:#fff;font-size:var(--text-xs);font-weight:700;
@@ -342,7 +334,6 @@ img{max-width:100%;display:block}
 .prodwrap:hover .productmenu,.prodwrap:focus-within .productmenu{
   opacity:1;visibility:visible;transform:none;
 }
-.prodwrap:hover>.tnav,.prodwrap:focus-within>.tnav{color:var(--ink)}
 .prodwrap:hover .chev,.prodwrap:focus-within .chev{transform:rotate(180deg)}
 .pmgrid{display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:26px 24px 22px}
 .pmcol{display:flex;flex-direction:column;gap:2px;padding:0 26px}
@@ -398,24 +389,34 @@ img{max-width:100%;display:block}
 }
 @media(max-width:560px){.sportmenu-grid{grid-template-columns:1fr}}
 
-.topnav{display:flex;align-items:center;gap:4px;margin-left:auto;flex:0 0 auto}
+.topnav{display:flex;align-items:center;gap:16px;flex:0 0 auto}
 .tnav{
   padding:9px 13px;border-radius:999px;font-size:var(--text-base);font-weight:600;color:var(--ink-2);
   transition:background .15s,color .15s;white-space:nowrap;
 }
 .tnav:hover{background:var(--raise)}
 .tnav.on{background:var(--slate-tint);color:var(--slate)}
-/* §4 — one pill, 46px, hairline, white. Shadow appears on hover only, so the
-   control sits quietly in the bar instead of announcing itself. */
-.acct{
-  display:flex;align-items:center;gap:9px;height:46px;padding:0 7px 0 14px;
-  border:1px solid var(--rule-strong);border-radius:var(--r-pill);
-  background:var(--paper);box-shadow:none;
-  transition:box-shadow .15s,border-color .15s;
+/* §4 CTA — the white pill on the black bar. White, not accent, so it does not
+   spend the page's orange budget. */
+.navcta{
+  display:inline-flex;align-items:center;height:40px;padding:0 18px;
+  border-radius:var(--r-pill);background:#FFFFFF;color:#09090B;
+  font-weight:700;font-size:var(--t-body);white-space:nowrap;
+  transition:background .15s;
 }
-.acct:hover{box-shadow:var(--shadow);border-color:var(--slate)}
-.acct .burger{width:16px;height:11px;display:grid;gap:3.2px;flex:0 0 auto}
-.acct .burger span{height:1.5px;background:currentColor;display:block}
+.navcta:hover{background:#E9EEF4}
+/* Account control (T1): the desktop hamburger+avatar PILL is retired. On
+   desktop a bare avatar glyph keeps the account menu reachable (sign-in is
+   action-triggered per the product's auth model); at <=900 it becomes the
+   hamburger that opens the account/nav sheet. */
+.acct{
+  display:flex;align-items:center;justify-content:center;height:40px;width:40px;padding:0;
+  border:0;border-radius:var(--r-pill);background:transparent;color:#FFFFFF;
+  transition:background .15s;
+}
+.acct:hover{background:rgba(255,255,255,.10)}
+.acct .burger{display:none;width:18px;height:12px;grid-template-rows:repeat(3,1px);gap:4px}
+.acct .burger span{height:1.5px;background:#FFFFFF;display:block}
 .acct .avatar{width:32px;height:32px;font-size:12.5px}
 .avatar{
   width:32px;height:32px;border-radius:var(--r-pill);background:var(--slate);color:#fff;
@@ -441,10 +442,20 @@ img{max-width:100%;display:block}
    primary nav row so the whole bar reads as one set. */
 .navlink{
   display:inline-flex;align-items:center;gap:6px;height:var(--h-compact);padding:0 2px;
-  border-radius:0;font-size:var(--t-body);font-weight:600;color:var(--ink);
+  border-radius:0;font-size:var(--t-body);font-weight:600;color:#FFFFFF;
   white-space:nowrap;transition:color .15s;
 }
-.navlink:hover{background:none;color:var(--slate)}
+.navlink:hover{background:none;color:#8FA3BC}
+/* At <=900 the centred menu collapses; the account control becomes the sheet
+   hamburger. On the narrowest bars the quiet "Become a coach" link yields
+   space to the pill + hamburger. */
+@media(max-width:900px){
+  .navcenter{display:none}
+  .acct{width:44px}
+  .acct .burger{display:grid}
+  .acct .avatar{display:none}
+}
+@media(max-width:560px){.topnav .becomecoach{display:none}}
 @media(max-width:1180px){
   /* .becomecoach used to be display:none here, which deleted the entire coach
      acquisition CTA on phones and split-window laptops and left the toggle as
@@ -3223,16 +3234,19 @@ function topbarHTML(){
   return `<header class="topbar"><div class="shell topbar-in">
     <button class="brand" data-nav="explore" aria-label="Sporve home">
       <span class="mark">S</span><span class="wordmark">sporve</span></button>
-    ${S.portal==="family"?primaryNavHTML():""}
+    ${/* Column 2 of the 1fr auto 1fr grid: the centred menu group. Rendered
+          for families only, but the wrapper is always present so the grid
+          keeps three columns and the group stays geometrically centred. */""}
+    <div class="navcenter">${S.portal==="family"?primaryNavHTML():""}</div>
     <nav class="topnav" aria-label="Main">
-      ${/* No global role toggle. Airbnb, Uber and Zillow all separate the two
-            audiences by funnel, not by a segmented control in the chrome — and
-            here the toggle was also the unauthenticated door into a real
-            coach's dashboard. One text link, visible at every breakpoint;
-            signed-in coaches switch from the account menu. */""}
       ${S.portal==="family"
-        ? `<button class="navlink becomecoach" data-becomecoach="1">Become a coach</button>`
-        : `<button class="navlink becomecoach" data-portal="family">Back to families</button>`}
+        ? `<button class="navlink becomecoach" data-becomecoach="1">Become a coach</button>
+           <button class="navcta" data-nav="explore">Find a coach</button>`
+        : `<button class="navlink becomecoach" data-portal="family">Back to families</button>
+           <button class="navcta" data-portal="family">Find a coach</button>`}
+      ${/* Account control. The desktop hamburger+avatar PILL is retired (T1):
+            desktop shows a bare avatar glyph, <=900 shows the sheet hamburger.
+            Both keep the account menu — and therefore sign-in — reachable. */""}
       <button class="acct" data-acct="1" aria-label="Account menu">
         <span class="burger" aria-hidden="true"><span></span><span></span><span></span></span>
         <span class="avatar">${u?esc(u.firstName[0]+u.lastName[0]):`<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>`}</span>
@@ -7232,29 +7246,35 @@ function render(){
   syncNavHero();
 }
 
-/* Scroll-aware header: black while the dark hero photo is under the nav, white
-   once scrolled into the content. Reads elements fresh so it survives every
-   re-render; the window listeners are bound once. (owner request 2026-08-08) */
-function syncNavHero(){
-  const bar=document.querySelector(".topbar"); if(!bar) return;
-  // The boot/browse hero is <section class="hero">; the family/coach landings
-  // use "band hero" — the ".hero" token matches both. Only fires on pages that
-  // render a dark hero directly under the nav.
-  const hero=document.querySelector(".hero");
-  if(!hero){ bar.classList.remove("on-hero"); return; }
-  const navH=bar.offsetHeight||76;
-  bar.classList.toggle("on-hero", hero.getBoundingClientRect().bottom>navH+2);
-}
-let _navHeroRaf=0;
-function onNavScroll(){ if(_navHeroRaf) return;
-  _navHeroRaf=requestAnimationFrame(function(){ _navHeroRaf=0; syncNavHero(); }); }
-if(!window.__navHeroBound){
-  window.__navHeroBound=true;
-  /* rAF-throttled: coalesce a burst of scroll events into one layout read per
-     frame (getBoundingClientRect forces layout, so raw per-event was wasteful).
-     render() still calls syncNavHero() synchronously so the first paint is correct. */
-  window.addEventListener("scroll",onNavScroll,{passive:true});
-  window.addEventListener("resize",onNavScroll,{passive:true});
+/* Scroll-aware header RETIRED (T1): the bar is now solid #09090B at every
+   scroll position, so there is no white/black flip to compute. Kept as a
+   no-op — render() still calls it — and no scroll/resize listeners are bound,
+   removing the per-frame getBoundingClientRect layout read that fed the flip. */
+function syncNavHero(){}
+
+/* §2.5 a11y for the CSS-disclosure mega-menus. The panels open on :hover /
+   :focus-within (robust against render() replacing #app), but that leaves
+   aria-expanded static and offers no Escape. These once-bound, document-level
+   delegated listeners survive every re-render: they keep aria-expanded honest,
+   enforce one-open-panel-at-a-time on focus, and close on Escape by blurring
+   the focused control (which drops the :focus-within that holds the panel). */
+if(!window.__navA11yBound){
+  window.__navA11yBound=true;
+  const setExp=(w,v)=>{const t=w&&w.querySelector(":scope>.tnav[aria-haspopup]");
+    if(t)t.setAttribute("aria-expanded",v?"true":"false");};
+  document.addEventListener("focusin",e=>{
+    document.querySelectorAll(".prodwrap").forEach(w=>setExp(w,w.contains(e.target)));});
+  document.addEventListener("focusout",e=>{const w=e.target.closest&&e.target.closest(".prodwrap");
+    if(w&&!w.contains(e.relatedTarget))setExp(w,false);});
+  document.addEventListener("pointerover",e=>{const w=e.target.closest&&e.target.closest(".prodwrap");
+    if(w)setExp(w,true);});
+  document.addEventListener("pointerout",e=>{const w=e.target.closest&&e.target.closest(".prodwrap");
+    if(w&&!w.contains(e.relatedTarget))setExp(w,false);});
+  document.addEventListener("keydown",e=>{if(e.key!=="Escape")return;
+    const a=document.activeElement;
+    if(a&&a.closest&&a.closest(".prodwrap"))a.blur();
+    document.querySelectorAll(".prodwrap>.tnav[aria-haspopup]")
+      .forEach(t=>t.setAttribute("aria-expanded","false"));});
 }
 
 function wire(){
