@@ -194,7 +194,7 @@ body{
    dropped to 700 in this pass -- it was already clamping there and only looked
    like a hierarchy. `.num` is NOT display-face; it only sets tabular-nums. */
 .hero .display,h1,h2,h3,h4,.wordmark,.bignum,.t-num,.stat .v,
-.fstats span:first-child,.metric .v,.livecount,.card .biz{font-family:var(--display)}
+.fstats span:first-child,.metric .v,.livecount{font-family:var(--display)}
 body,.navlink,.btn,.roleswitch button,.seg2 button,
 .faqq,.stile b,.feat b,.step3 b,.tritem,.tnav,.fchip,.advfilters,.prodcard b,
 .card .ttl,input,select,textarea,button{font-family:var(--sans)}
@@ -730,7 +730,7 @@ img{max-width:100%;display:block}
 /* ── cards ───────────────────────────────────────────────────────── */
 .grid{
   display:grid;gap:24px 22px;
-  grid-template-columns:repeat(auto-fill,minmax(258px,1fr));
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
   padding:30px 0 56px;
 }
 
@@ -751,23 +751,23 @@ img{max-width:100%;display:block}
 .rail-track{display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x proximity;
   scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:4px 2px 8px;margin:0 -2px}
 .rail-track::-webkit-scrollbar{display:none}
-.rail-track>.card{flex:0 0 clamp(240px,78vw,280px);scroll-snap-align:start}
+.rail-track>.card{flex:0 0 228px;scroll-snap-align:start}
 @media(max-width:640px){
   .rail-head h2{font-size:var(--text-xl)}
   .rail-arrows{display:none}
   .rail-track>.card{flex-basis:80vw}
 }
 .card{
-  text-align:left;display:flex;flex-direction:column;gap:9px;position:relative;
+  text-align:left;display:flex;flex-direction:column;gap:7px;position:relative;
   background:var(--paper);border-radius:var(--r-xl);overflow:hidden;
-  box-shadow:0 1px 2px rgba(11,12,14,.05),0 12px 30px -20px rgba(11,12,14,.3);
+  box-shadow:0 1px 2px rgba(10,14,19,.06);
   transition:transform .18s cubic-bezier(.2,.7,.3,1),box-shadow .18s;
 }
-.card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lift)}
-.card>*:not(.shot):not(.featfoot){padding-left:16px;padding-right:16px}
-.card>*:last-child:not(.featfoot){padding-bottom:17px}
+.card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(10,14,19,.14)}
+.card>*:not(.shot):not(.featfoot){padding-left:14px;padding-right:14px}
+.card>*:last-child:not(.featfoot){padding-bottom:14px}
 .card .shot{
-  position:relative;aspect-ratio:20/19;overflow:hidden;background:var(--raise2);
+  position:relative;aspect-ratio:16/10;overflow:hidden;background:var(--raise2);
 }
 
 /* ── featured card — two columns wide, content over the photograph ─ */
@@ -804,28 +804,34 @@ img{max-width:100%;display:block}
 .card .shot img{width:100%;height:100%;object-fit:cover;transition:transform .5s cubic-bezier(.2,.7,.3,1)}
 .card:hover .shot img{transform:scale(1.045)}
 .heart{
-  position:absolute;top:11px;right:11px;width:32px;height:32px;border-radius:999px;
+  position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:999px;
   display:grid;place-items:center;background:rgba(11,12,14,.32);backdrop-filter:blur(6px);
   color:#fff;transition:.15s;z-index:2;
 }
 .heart:hover{transform:scale(1.09);background:rgba(11,12,14,.5)}
 .heart.on{color:#FF5A6E}
 .sporttag{
-  position:absolute;top:11px;left:11px;z-index:2;display:flex;align-items:center;gap:5px;
-  padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);
-  font-size:var(--text-xs);font-weight:700;letter-spacing:-.01em;color:var(--ink);
+  position:absolute;top:10px;left:10px;z-index:2;display:flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);
+  font-size:var(--text-sm);font-weight:600;letter-spacing:-.01em;color:var(--ink);
 }
 .sporttag i{width:7px;height:7px;border-radius:2px;display:block}
+.card .heart svg{width:14px;height:14px}
 .card .row1{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
 /* The provider name -- the landing's "coach name" role: t-display at the card
    step, uppercase, tracked open a touch because it sits at a small cap size. */
-.card .biz{font-weight:700;font-size:var(--text-base);letter-spacing:-.01em;
-  line-height:1.2}
-.card .rate{display:flex;align-items:center;gap:3px;font-size:var(--text-sm);flex:0 0 auto}
+.card .biz{font-family:var(--sans);font-weight:600;font-size:var(--text-base);
+  color:var(--ink);letter-spacing:-.01em;line-height:1.2}
+.card .rate{display:flex;align-items:center;gap:3px;font-family:var(--mono);
+  font-weight:600;font-size:var(--text-sm);flex:0 0 auto}
+.card .rate svg{width:10px;height:10px}
 .card .ttl{color:var(--muted);font-size:var(--text-base);line-height:1.4}
 .card .meta{color:var(--faint);font-size:var(--text-sm)}
-.card .price{font-size:var(--text-base);margin-top:1px}
-.card .price b{font-weight:700}
+.card .price{font-family:var(--mono);font-weight:600;font-size:var(--text-base);
+  color:var(--ink);margin-top:1px}
+.card .price b{font-weight:600}
+.card .price span{font-family:var(--sans);font-size:var(--text-sm)}
+.card .verifline svg,.card .pendline svg{width:11px;height:11px}
 .verifline{display:flex;align-items:center;gap:5px;font-size:var(--text-sm);font-weight:600;color:var(--gold-ink)}
 .pendline{display:flex;align-items:center;gap:5px;font-size:var(--text-sm);font-weight:600;color:var(--warn)}
 
@@ -1667,13 +1673,18 @@ h2.ctr{margin-bottom:10px}
 #app .footcol button,#app .footcol a,#app .footlegal,
 #app .footbrand p,#app .pmrow span span,#app .se-live,
 #app .biz2{font-size:var(--text-sm)}
-/* body-weight UI: form controls, prices, primary rows */
-#app .card .price,#app select,#app option,#app input,#app textarea,
+/* body-weight UI: form controls, primary rows */
+#app select,#app option,#app input,#app textarea,
 #app .mark,#app .pmrow b{font-size:var(--text-base)}
-/* card titles and the wordmark. `.card .biz` is the card's primary line --
-   un-muted and weight 600 -- so it takes the card-title step rather than
-   sharing the meta step with `.card .ttl` underneath it. */
-#app .card .biz,#app .wordmark{font-size:var(--text-lg)}
+/* listing-card density: trust line + sport tag ride the meta step, the mono
+   price sits at 13px so nothing but the .biz title tops 13.5px on a card. */
+#app .card .verifline,#app .card .pendline,#app .card .sporttag{font-size:var(--text-sm)}
+#app .card .price{font-size:13px}
+/* the wordmark. `.card .biz` is the card's primary line -- at the dense listing
+   size it takes the body step (14.5px), the single element allowed above 13.5px
+   on a card, so the mono price and meta lines read as clearly subordinate. */
+#app .wordmark{font-size:var(--text-lg)}
+#app .card .biz{font-size:var(--text-base)}
 
 /* §3 — the sort control shipped as a raw native <select> sitting between two
    bespoke pills, keeping the OS chrome, radius and font. Same 36px pill as the
