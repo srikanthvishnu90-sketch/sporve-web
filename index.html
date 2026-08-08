@@ -7097,7 +7097,10 @@ function render(){
    re-render; the window listeners are bound once. (owner request 2026-08-08) */
 function syncNavHero(){
   const bar=document.querySelector(".topbar"); if(!bar) return;
-  const hero=document.querySelector(".band.hero");
+  // The boot/browse hero is <section class="hero">; the family/coach landings
+  // use "band hero" — the ".hero" token matches both. Only fires on pages that
+  // render a dark hero directly under the nav.
+  const hero=document.querySelector(".hero");
   if(!hero){ bar.classList.remove("on-hero"); return; }
   const navH=bar.offsetHeight||76;
   bar.classList.toggle("on-hero", hero.getBoundingClientRect().bottom>navH+2);
