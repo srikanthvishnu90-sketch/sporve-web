@@ -3557,7 +3557,7 @@ function productMenuHTML(){
       <div class="eyebrow">New</div>
       <button class="pmfeat" role="menuitem" data-pdest="page:ai-coach">
         <span class="pmfeat-art" aria-hidden="true">${ICON.send}</span>
-        <b>AI Coach</b>
+        <b>Coach finder</b>
         <span>Describe your kid's goal in plain words. It only ever suggests
           background-checked coaches.</span>
       </button>
@@ -4294,7 +4294,7 @@ function productHTML(){
     [PICON.calendar,"Instant booking","Pick a real open slot and pay in one flow. No callback.","nav:explore"],
     [PICON.message,"Message before you commit","Ask a coach anything first. Conversations stay attached to the booking.","nav:messages"],
     [PICON.receipt,"Bookings & receipts","Every session, payment, and cancellation in one thread.","nav:bookings"],
-    [PICON.spark,"AI Coach","A grounded assistant that only recommends background-checked coaches.","nav:assistant"],
+    [PICON.spark,"Coach finder","A grounded assistant that only recommends background-checked coaches.","nav:assistant"],
     [PICON.chart,"Athlete progress","Notes, goals, and a plan that follows your athlete, not a coach.","nav:timeline"],
     [PICON.heart,"Saved","Keep the shortlist. Guests get three saves before signing in.","nav:saved"],
     [PICON.bell,"Notifications","Choose what reaches you by email, SMS, or push.","nav:notifications"],
@@ -4755,7 +4755,7 @@ function mapHTML(){
     </div></main>`;
 }
 
-/* ── AI Coach concierge — grounded: only ever cites seeded listings ── */
+/* ── Coach finder concierge — grounded: only ever cites seeded listings ── */
 function assistantHTML(){
   /* The chat itself stays exactly as it is -- turning a scrolling thread into
      stacked bands would break its layout and its scroll anchoring. What it
@@ -4807,7 +4807,7 @@ function assistantHTML(){
           <i class="dotdot"></i><i class="dotdot" style="animation-delay:.16s"></i><i class="dotdot" style="animation-delay:.32s"></i></div>`:""}
       </div>
       <form class="msg-compose" id="chatForm">
-        <input id="chatInput" placeholder="Describe the goal, sport, age, and budget" aria-label="Ask the AI Coach" autocomplete="off">
+        <input id="chatInput" placeholder="Describe the goal, sport, age, and budget" aria-label="Ask the coach finder" autocomplete="off">
         <button class="btn" type="submit" aria-label="Send">${ICON.send}</button>
       </form>
     </div>
@@ -4884,7 +4884,7 @@ function scheduleHTML(){
 
 /* ── coach portal ────────────────────────────────────────────────── */
 /* Sidebar is short and NOUNS-ONLY (spec Part 1, decision 5). Anything not a
-   noun is reached through the AI bar or a drill-in. */
+   noun is reached through the coach-finder bar or a drill-in. */
 function coachHTML(){
   const t=S.coachTab;
   const core=[["dashboard","Home"],["schedule","Schedule"],["bookings","Bookings"],
@@ -6027,7 +6027,7 @@ Marcus Chen, marcus@example.com"></textarea></div>
                 guest. They render their own sign-in prompts, so listing them
                 costs nothing and strands nobody. */
             [["explore","Explore"],["bookings","Bookings"],["messages","Messages"],
-             ["profile","Profile"],["saved","Saved"],["map","Map"],["assistant","AI Coach"],
+             ["profile","Profile"],["saved","Saved"],["map","Map"],["assistant","Coach finder"],
              ["trust","Trust & safety"]]
             .map(([k,l])=>`<button class="rail-lite" data-nav="${k}" style="text-align:left;padding:11px 12px;border-radius:var(--r-m);font-weight:600">${l}</button>`).join("")}
         </div>
@@ -6157,7 +6157,7 @@ function notifSettingsHTML(){
 /* ── footer — four columns (spec §8), identical on both views ─────── */
 function footerHTML(){
   const cols=[
-    ["Product",[["Find a coach","nav:explore"],["Map","nav:map"],["AI Coach","nav:assistant"],
+    ["Product",[["Find a coach","nav:explore"],["Map","nav:map"],["Coach finder","nav:assistant"],
                 ["Become a coach","coach"],["Coach dashboard","tab:dashboard"]]],
     ["Company",[["About","info:legal"],["Careers","info:legal"],["Press","info:legal"]]],
     ["Trust",[["Background checks","nav:trust"],["Privacy & Security","info:privacy"],
@@ -6197,7 +6197,7 @@ function footerHTML(){
    re-skinned to the dark spec. */
 function closeZoneHTML(){
   const cols=[
-    ["Product",[["Find a coach","nav:explore"],["Map","nav:map"],["AI Coach","nav:assistant"],
+    ["Product",[["Find a coach","nav:explore"],["Map","nav:map"],["Coach finder","nav:assistant"],
                 ["Become a coach","coach"],["Coach dashboard","tab:dashboard"]]],
     ["Company",[["About","info:legal"],["Careers","info:legal"],["Press","info:legal"]]],
     ["Trust",[["Background checks","nav:trust"],["Privacy & Security","info:privacy"],
@@ -6254,7 +6254,7 @@ const PAGE_META={
   "session-notes":{t:"Session notes",sport:"Fencing",cta:"coachtab:notes",ctaL:"See session notes",kx:["roster","media-consent","athlete-progress"]},
   "media-consent":{t:"Media & consent",sport:"Gymnastics",cta:"coachtab:media",ctaL:"See media & consent",kx:["session-notes","background-checks","roster"]},
   "insights":{t:"Insights",sport:"Rowing",cta:"coachtab:insights",ctaL:"Open insights",kx:["payments","scheduling","roster"]},
-  "ai-coach":{t:"AI Coach",sport:"Martial Arts",cta:"assistant",ctaL:"Try the assistant",kx:["search","what-is","messaging"]},
+  "ai-coach":{t:"Coach finder",sport:"Martial Arts",cta:"assistant",ctaL:"Try the assistant",kx:["search","what-is","messaging"]},
 };
 function pageCTA(meta){
   if(meta.cta.indexOf("coachtab:")===0){const tab=meta.cta.split(":")[1];
@@ -6479,10 +6479,10 @@ function sig_insights(){ return `<div class="sig-insights" aria-label="Business 
     <div class="si-tile si-demo"><span class="si-badge">Demo data</span><div class="si-k">New this month</div><div class="si-v">9 <i class="si-up">↑</i></div></div>
   </div>
 </div>`; }
-function sig_ai_coach(){ return `<div class="sig-ai-coach" aria-label="AI Coach demo">
-  <div class="ac-head"><span class="ac-dot"></span><span class="ac-title">AI Coach · Chicago, IL</span><span class="ac-pill">Demo data</span></div>
+function sig_ai_coach(){ return `<div class="sig-ai-coach" aria-label="Coach finder demo">
+  <div class="ac-head"><span class="ac-dot"></span><span class="ac-title">Coach finder · Chicago, IL</span><span class="ac-pill">Demo data</span></div>
   <form class="ac-bar" onsubmit="return false">
-    <input class="ac-input" type="text" value="a martial arts coach for my 9-year-old" aria-label="Ask the AI Coach">
+    <input class="ac-input" type="text" value="a martial arts coach for my 9-year-old" aria-label="Ask the coach finder">
     <button class="ac-go" type="submit">Ask</button>
   </form>
   <div class="ac-chiprow" data-acchips>
@@ -14221,7 +14221,7 @@ function backgroundStep(d, err){
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
       stroke-linecap="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
     <p>Until the check clears, your listings stay <b>hidden and unbookable</b>. They are saved as drafts,
-      they do not appear in search, in the map, or to the AI Coach, and no family can pay for one.</p>
+      they do not appear in search, in the map, or to the coach finder, and no family can pay for one.</p>
   </div>
 
   <div class="cob-two">
