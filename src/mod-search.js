@@ -20,10 +20,12 @@
 /* the app's "now" — same anchor the host uses inside ageOf() */
 const TODAY="2026-08-03";
 
-/* Search origin. Miami, FL — the city every seeded listing sits in and the
+/* Search origin. Chicago, IL — the launch city every seeded listing is labelled
+   for. The lat/lng below are the demo reference frame (origin and listings share
+   it, so haversine distances stay correct); only labels are user-visible.
    placeholder in the host's location field. Distances below are measured
    from here with a real haversine against each listing's lat/lng. */
-const ORIGIN={lat:25.7617,lng:-80.1918,label:"Miami, FL"};
+const ORIGIN={lat:25.7617,lng:-80.1918,label:"Chicago, IL"};
 const EARTH_MI=3958.7613;                 /* mean earth radius, miles */
 
 /* pricing-model wording (local copy — the host's modelLabel is not part

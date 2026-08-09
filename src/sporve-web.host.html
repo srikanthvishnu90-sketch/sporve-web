@@ -1,4 +1,4 @@
-<title>Sporve for Web</title>
+<noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
 
 <style>
 /*__FONTFACE__*/
@@ -2961,8 +2961,8 @@ const PROGRAMS = RAW.map(r=>{
   o.whatsIncluded = o.id==="prog_1" ? ["Training Bibs","Water Bottles","Professional Coaching"]
     : o.id==="prog_2" ? ["Tennis Balls","Racquet rentals"]
     : ["Equipment provided","Professional coaching","Progress report"];
-  o.address = o.id==="prog_1" ? "123 Coral Way, Miami, FL 33145"
-    : o.id==="prog_2" ? "450 Tennis Center Dr, Miami, FL 33149" : "Miami, FL 33101";
+  o.address = o.id==="prog_1" ? "Lincoln Park, Chicago, IL 60614"
+    : o.id==="prog_2" ? "Lakeview, Chicago, IL 60657" : "Chicago, IL 60601";
   o.cancellationPolicy = o.id==="prog_2" ? "strict" : "moderate";
   return o;
 });
@@ -3025,9 +3025,9 @@ function dayAfter(n){
 }
 
 const SESSIONS=[
-  {id:"sess_1",programId:"prog_1",title:"Soccer Skill Session 1",date:dayAfter(4),startTime:"05:00 PM",endTime:"06:30 PM",tz:"EST",address:"123 Coral Way, Miami, FL"},
-  {id:"sess_2",programId:"prog_1",title:"Soccer Skill Session 2",date:dayAfter(6),startTime:"05:00 PM",endTime:"06:30 PM",tz:"EST",address:"123 Coral Way, Miami, FL"},
-  {id:"sess_3",programId:"prog_2",title:"Weekly Tennis Practice",date:dayAfter(5),startTime:"04:00 PM",endTime:"05:30 PM",tz:"EST",address:"450 Tennis Center Dr, Miami, FL"},
+  {id:"sess_1",programId:"prog_1",title:"Soccer Skill Session 1",date:dayAfter(4),startTime:"05:00 PM",endTime:"06:30 PM",tz:"CST",address:"Lincoln Park, Chicago, IL"},
+  {id:"sess_2",programId:"prog_1",title:"Soccer Skill Session 2",date:dayAfter(6),startTime:"05:00 PM",endTime:"06:30 PM",tz:"CST",address:"Lincoln Park, Chicago, IL"},
+  {id:"sess_3",programId:"prog_2",title:"Weekly Tennis Practice",date:dayAfter(5),startTime:"04:00 PM",endTime:"05:30 PM",tz:"CST",address:"Lakeview, Chicago, IL"},
 ];
 /* generic slots for every other listing so booking works everywhere */
 function slotsFor(pid){
@@ -3039,7 +3039,7 @@ function slotsFor(pid){
     date:dayAfter(d+(n%4)),
     startTime:["04:00 PM","05:00 PM","10:00 AM"][i],
     endTime:["05:30 PM","06:30 PM","11:30 AM"][i],
-    tz:"EST",address:PROGRAMS.find(p=>p.id===pid).address}));
+    tz:"CST",address:PROGRAMS.find(p=>p.id===pid).address}));
 }
 
 const SEED={
@@ -3048,7 +3048,7 @@ const SEED={
     img:phAvatar()},
   providerProfile:{id:"provider_123",businessName:"Apex Performance Club",
     bio:"Dedicated sports academy providing elite training clinics for junior athletes.",
-    sports:["Soccer","Tennis","Basketball"],location:"Miami, FL",status:"approved",
+    sports:["Soccer","Tennis","Basketball"],location:"Chicago, IL",status:"approved",
     onboardingCompleted:true,stripeAccountId:"acct_mockstripe123"},
   athletes:[{id:"athlete_1",firstName:"Julian",lastName:"Mercer",dob:"2013-04-12",
     gender:"male",preferredSports:["Soccer"],medical:"None",skillLevel:"developing",
@@ -3070,7 +3070,7 @@ const SEED={
   ]},
   notifications:[{id:"notif_1",title:"Booking Confirmed",
     message:"Your booking for Soccer Skill Session 1 has been confirmed.",read:false,at:"2026-05-01T10:00:00.000Z"}],
-  teams:[{id:"team_1",name:"Miami Elite Soccer U12",sport:"Soccer",
+  teams:[{id:"team_1",name:"Chicago Elite Soccer U12",sport:"Soccer",
     roster:[{id:"athlete_1",name:"Julian Mercer",email:"alex.mercer@gmail.com",jersey:"10",
       avatar:phAvatar(),available:true,paid:true}]}],
   parentUpdates:[{id:"pu_seed_1",childId:"athlete_1",
@@ -3244,7 +3244,7 @@ function visiblePrograms(){
   }
   /* The Where field used to be pure decoration — its only appearance in the
      codebase was its own markup. A parent could type "Orlando, FL" and get
-     all 30 Miami listings back. On a local-services marketplace that is worse
+     all 30 Chicago listings back. On a local-services marketplace that is worse
      than having no field, so it now actually filters. */
   if(S.locQuery&&S.locQuery.trim()){
     const l=S.locQuery.trim().toLowerCase();
@@ -3733,7 +3733,7 @@ function landingHTML(){
       <div class="lcard" data-rev data-rev-d="1">
         <div class="lcard-hd">
           <span class="lcard-live"><i></i>Live catalogue</span>
-          <span class="featbadge" style="background:var(--slate-tint);color:var(--slate)">Miami, FL</span>
+          <span class="featbadge" style="background:var(--slate-tint);color:var(--slate)">Chicago, IL</span>
         </div>
         <div class="lstats">
           <div class="lstat"><span>Programs</span><b data-count="${f.programs}">0</b></div>
@@ -3900,7 +3900,7 @@ function famFrames(){
   return `
   <div class="frame"><div class="fbar"><i></i><i></i><i></i></div>
     <div class="fbody">
-      <div class="fsearch">Soccer · Miami, FL</div>
+      <div class="fsearch">Soccer · Chicago, IL</div>
       ${PROGRAMS.slice(0,3).map(x=>`<div class="frow">
         <span class="fthumb" style="background:${sportColor(x.sport)}22"></span>
         <span><b>${esc(x.title.slice(0,26))}</b><span class="num">${money(x.price)} · ${ICON.star} ${x.rating}</span></span></div>`).join("")}
@@ -4035,7 +4035,7 @@ function coachLandingHTML(){
       and the honest version is this: we built the coach side first because every trainer we
       talked to was losing evenings to scheduling texts and chasing payments. If that's your
       week, the product is already built and you can look at all of it before you commit to anything.</p>
-      <p class="sig">— The Sporve team, Miami</p>
+      <p class="sig">— The Sporve team, Chicago</p>
     </div>
   </section>
 
@@ -4666,7 +4666,7 @@ function messagesHTML(){
   </main>`;
 }
 
-/* ── map (real lng/lat from the seed, projected to a Miami bbox) ──── */
+/* ── map (real lng/lat from the seed, projected to a Chicago bbox) ──── */
 function mapHTML(){
   const list=visiblePrograms();
   const LNG=[-80.345,-80.115], LAT=[25.655,25.870];
@@ -4675,7 +4675,7 @@ function mapHTML(){
   const sel=S.mapPick?PROGRAMS.find(p=>p.id===S.mapPick):null;
   return `${subnavHTML()}<main class="shell">
     <div class="sec-head"><div><h1>Map</h1>
-      <p style="color:var(--muted);margin-top:4px" class="num">${list.length} programs across Miami-Dade</p></div>
+      <p style="color:var(--muted);margin-top:4px" class="num">${list.length} programs across Chicagoland</p></div>
       <button class="btn ghost sm" data-nav="explore">List view</button></div>
     <div class="maplayout">
       <div class="mapcanvas" role="application" aria-label="Program map">
@@ -4754,7 +4754,7 @@ function assistantHTML(){
               I only recommend listings that exist on Sporve and have cleared a background check.</p>
             <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:22px">
               ${["My 11-year-old wants to make the soccer team",
-                 "Beginner swimming near Miami under $60",
+                 "Beginner swimming near Chicago under $60",
                  "Advanced basketball for a 14-year-old",
                  "Something for a shy 8-year-old"]
                 .map(q=>`<button class="btn ghost sm" data-ask="${esc(q)}">${esc(q)}</button>`).join("")}
@@ -4776,7 +4776,7 @@ function answerFor(q){
   const t=q.toLowerCase();
   const budget=(t.match(/(?:under|below|less than|max)\s*\$?(\d{2,4})/)||[])[1];
   /* Age is read from a string with the money taken OUT first, and a bare
-     number no longer counts as an age. "Beginner swimming near Miami under
+     number no longer counts as an age. "Beginner swimming near Chicago under
      $60" used to parse 60 as the athlete's age — the bare-number fallback
      grabbed the first digits it saw, because "$" is a non-word boundary — and
      then recommended an adults-only 16–60 masters programme to a parent. */
@@ -6072,7 +6072,7 @@ function infoHTML(key){
         <div><div style="font-weight:700">Safety team</div>
           <a href="mailto:safety@sporve.com" style="color:var(--slate);font-size:var(--text-base)">safety@sporve.com</a></div>
         <div><div style="font-weight:700">Location</div>
-          <div style="color:var(--muted);font-size:var(--text-base)">Miami, FL</div></div>
+          <div style="color:var(--muted);font-size:var(--text-base)">Chicago, IL</div></div>
       </div>
     </div>
   </main>`;
@@ -6137,7 +6137,7 @@ function footerHTML(){
       </div>
       <div class="footbase">
         <div class="footlegal">
-          <span>© 2026 Sporve Inc. All rights reserved.</span><span>Miami, FL</span>
+          <span>© 2026 Sporve Inc. All rights reserved.</span><span>Chicago, IL</span>
           <span>Sporve is a marketplace connecting families with independent coaches.</span>
         </div>
       </div>
@@ -6180,7 +6180,7 @@ function closeZoneHTML(){
         </div>
       </div>
       <div class="closer-base">
-        <span>© 2026 Sporve Inc. All rights reserved. · Miami, FL</span>
+        <span>© 2026 Sporve Inc. All rights reserved. · Chicago, IL</span>
         <span>Sporve is a marketplace connecting families with independent coaches.</span>
       </div>
     </div></footer>`;
@@ -6232,7 +6232,7 @@ function pageKX(id){
     </div></div></section>`;
 }
 function sig_background_checks(){ return `<div class="sig-background-checks" role="img" aria-label="Verification timeline for a swim coach: submitted and cleared, now bookable">
-  <div class="sbc-top"><span class="sbc-dot"></span><span class="sbc-sport">Swimming · Miami, FL</span><span class="sbc-pill">Demo data</span></div>
+  <div class="sbc-top"><span class="sbc-dot"></span><span class="sbc-sport">Swimming · Chicago, IL</span><span class="sbc-pill">Demo data</span></div>
   <div class="sbc-name">Coral Reef Aquatics — Learn to Swim</div>
   <div class="sbc-sub">Deion Carter · lead swim coach</div>
   <ol class="sbc-rail">
@@ -6254,8 +6254,8 @@ function sig_search(){ return `<div class="sig-search">
   </div>
 </div>`; }
 function sig_map_search(){ return `<div class="sig-map-search">
-  <div class="sms-top"><span class="sms-dot"></span><span class="sms-sport">Cycling · Boulder, CO</span><span class="sms-pill">Demo data</span></div>
-  <div class="sms-map" role="img" aria-label="Map with four cycling-coach pins near Boulder">
+  <div class="sms-top"><span class="sms-dot"></span><span class="sms-sport">Cycling · Chicago, IL</span><span class="sms-pill">Demo data</span></div>
+  <div class="sms-map" role="img" aria-label="Map with four cycling-coach pins near Chicago">
     <div class="sms-pin" style="left:23%;top:31%"><span class="sms-tear"></span></div>
     <div class="sms-pin" style="left:63%;top:24%"><span class="sms-tear"></span></div>
     <div class="sms-pin sms-pin--live" style="left:45%;top:68%" tabindex="0" aria-label="Flatirons Junior Cycling, 1.2 miles away, 32 dollars">
@@ -6271,7 +6271,7 @@ function sig_map_search(){ return `<div class="sig-map-search">
   <div class="sms-hint">Hover the highlighted pin</div>
 </div>`; }
 function sig_instant_booking(){ return `<div class="sig-instant-booking">
-  <div class="sib-top"><span class="sib-dot"></span><span class="sib-sport">Baseball · Miami, FL</span><span class="sib-pill">Demo data</span></div>
+  <div class="sib-top"><span class="sib-dot"></span><span class="sib-sport">Baseball · Chicago, IL</span><span class="sib-pill">Demo data</span></div>
   <div class="sib-name">Grand Slam Baseball — Hitting Lab</div>
   <div class="sib-sub">Pick an open slot · pay in the same flow</div>
   <input type="radio" name="sibslot" class="sib-r" id="sib-1"><label class="sib-slot" for="sib-1"><span class="sib-day">Sat May 16</span><span class="sib-time">9:00 AM</span><span class="sib-dur">60 min</span></label>
@@ -6298,7 +6298,7 @@ function sig_messaging(){ return `<div class="sig-messaging">
 </div>`; }
 function sig_bookings_receipts(){ return `<div class="sig-bookings-receipts">
   <div class="sr-hd"><span class="sr-dot"></span><span class="sr-title">Gridiron Youth &mdash; QB Skills</span><span class="sr-pill">Demo data</span></div>
-  <div class="sr-sub">Football &middot; Miami, FL &middot; Sat May 16 &middot; 10:00 AM</div>
+  <div class="sr-sub">Football &middot; Chicago, IL &middot; Sat May 16 &middot; 10:00 AM</div>
   <div class="sr-lines">
     <div class="sr-line"><span>Session &middot; 60 min</span><span class="sr-amt">$44.75</span></div>
     <div class="sr-line"><span>Service fee</span><span class="sr-amt">$5.25</span></div>
@@ -6411,11 +6411,11 @@ function sig_session_notes(){ return `<div class="sig-session-notes">
   </div>
 </div>`; }
 function sig_media_consent(){ return `<div class="sig-media-consent" aria-label="Media consent demo">
-  <div class="mc-head"><span class="mc-dot"></span><span class="mc-sport">Gymnastics · Miami, FL</span><span class="mc-pill">Demo data</span></div>
+  <div class="mc-head"><span class="mc-dot"></span><span class="mc-sport">Gymnastics · Chicago, IL</span><span class="mc-pill">Demo data</span></div>
   <div class="mc-grid">
     <div class="mc-tile"><span class="mc-cap">Level 3 floor</span></div>
     <div class="mc-tile"><span class="mc-cap">Beam practice</span></div>
-    <div class="mc-tile"><span class="mc-cap">Team, Miami</span></div>
+    <div class="mc-tile"><span class="mc-cap">Team, Chicago</span></div>
     <div class="mc-tile mc-locked" tabindex="0" role="img" aria-label="Blocked — parent consent not on file">
       <div class="mc-scrim"></div>
       <span class="mc-lock" aria-hidden="true"></span>
@@ -6436,7 +6436,7 @@ function sig_insights(){ return `<div class="sig-insights" aria-label="Business 
   </div>
 </div>`; }
 function sig_ai_coach(){ return `<div class="sig-ai-coach" aria-label="AI Coach demo">
-  <div class="ac-head"><span class="ac-dot"></span><span class="ac-title">AI Coach · Denver, CO</span><span class="ac-pill">Demo data</span></div>
+  <div class="ac-head"><span class="ac-dot"></span><span class="ac-title">AI Coach · Chicago, IL</span><span class="ac-pill">Demo data</span></div>
   <form class="ac-bar" onsubmit="return false">
     <input class="ac-input" type="text" value="a martial arts coach for my 9-year-old" aria-label="Ask the AI Coach">
     <button class="ac-go" type="submit">Ask</button>
@@ -6521,7 +6521,7 @@ function pageHTML(id){
         <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:background-checks">How the checks work →</button>`}</div>
       </div>
       <div class="pg-herocard sig-what-is" aria-hidden="true">
-        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Soccer · Miami, FL</span></div>
+        <div class="hc-top"><span class="hc-dot"></span><span class="hc-sport">Soccer · Chicago, IL</span></div>
         <div class="hc-name">Coral Reef FC — U12 Development</div>
         <div class="hc-meta"><span class="hc-chk">Background-checked</span> · Intermediate · ages 9–12</div>
         <div class="hc-foot"><span class="hc-price">$45<span style="font-weight:400;color:var(--muted);font-size:var(--text-sm)"> / session</span></span><span class="hc-book">Book</span></div>
@@ -6535,13 +6535,13 @@ function pageHTML(id){
       </div>
       <div class="pg-demo wide" aria-hidden="true">
         <span class="dpill"><span class="ddot" style="width:6px;height:6px;background:var(--ps-bright)"></span> Demo data</span>
-        <div class="dq">soccer coach · U12 · within 10 mi of Miami</div>
+        <div class="dq">soccer coach · U12 · within 10 mi of Chicago</div>
         <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
           <div><div class="dname">Coral Reef FC — U12 Development</div>
             <div class="dmeta"><span class="dchk">Background-checked</span> · Intermediate · ages 9–12</div></div>
           <span class="dprice">$45</span></div>
         <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
-          <div><div class="dname">Miami United — Saturday Skills</div>
+          <div><div class="dname">Chicago United — Saturday Skills</div>
             <div class="dmeta"><span class="dchk">Background-checked</span> · All levels · ages 8–12</div></div>
           <span class="dprice">$30</span></div>
         <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
@@ -6736,7 +6736,7 @@ if(id==="map-search"){
             <div class="dmeta"><span class="dchk">Background-checked</span> · 2.4 mi · ages 9–13</div></div>
           <span class="dprice">$26</span></div>
         <div class="drow"><span class="ddot" style="background:var(--ps-bright)"></span>
-          <div><div class="dname">Boulder Creek Riders — Weeknight Spin</div>
+          <div><div class="dname">Lakefront Riders — Weeknight Spin</div>
             <div class="dmeta"><span class="dchk">Background-checked</span> · 3.8 mi · ages 8–12</div></div>
           <span class="dprice">$30</span></div>
       </div>
@@ -8104,7 +8104,7 @@ function sigAiCoachWire(root){
       img:phShot(d.sport),
       gallery:[phShot(d.sport),phShot(d.sport),phShot(d.sport)],
       whatsIncluded:["Equipment provided","Professional coaching","Progress report"],
-      address:"Miami, FL 33101",cancellationPolicy:"moderate"});
+      address:"Chicago, IL 60601",cancellationPolicy:"moderate"});
     S.listings=[...S.listings,id];
     S.modal=null;S.coachTab="listings";render();toast("Listing created");
   };

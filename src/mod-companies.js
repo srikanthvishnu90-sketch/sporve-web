@@ -59,43 +59,43 @@ const COMPANIES = [
   {
     id:"apex", name:"Apex Performance Club", verified:true,
     tagline:"Elite training clinics for junior athletes",
-    bio:"Dedicated sports academy providing elite training clinics for junior athletes. Five programmes across five sports, run out of a single campus in Coral Way.",
-    hood:"Coral Way, Miami", founded:2016, coaches:14, seed:"apex",
+    bio:"Dedicated sports academy providing elite training clinics for junior athletes. Five programmes across five sports, run out of a single campus in Lincoln Park.",
+    hood:"Lincoln Park, Chicago", founded:2016, coaches:14, seed:"apex",
     look:"Multi-sport, sunlit, premium — clean modern facility, branded kit, wide angle.",
   },
   {
     id:"coral", name:"Coral Reef Aquatics", verified:true,
     tagline:"Every way to be fast in water",
     bio:"Swim, dive, polo and surf under one roof — and one ocean break. Competitive squads share deck time with first-timers, which is the point.",
-    hood:"Miami Beach", founded:2011, coaches:11, seed:"coral",
+    hood:"Lakeview, Chicago", founded:2011, coaches:11, seed:"coral",
     look:"Water everywhere — lane lines, spray, sunrise pool decks, one ocean break. Cyan-dominant.",
   },
   {
     id:"hoops", name:"Downtown Hoops Academy", verified:true,
     tagline:"Hardwood, track and everything that moves",
     bio:"A basketball academy that grew into movement generally — speed work, indoor volleyball and a hip-hop programme now share the floor.",
-    hood:"Downtown Miami", founded:2018, coaches:9, seed:"hoops",
+    hood:"The Loop, Chicago", founded:2018, coaches:9, seed:"hoops",
     look:"Urban indoor — hardwood, gym lighting, painted city court, motion blur on movement.",
   },
   {
     id:"everglade", name:"Everglade Racquet Institute", verified:false,
     tagline:"Five racquets, one set of fundamentals",
     bio:"Tennis, pickleball, badminton, squash and table tennis taught as one family of skills. Small groups by design — no programme runs above twelve.",
-    hood:"West Kendall", founded:2021, coaches:6, seed:"everglade",
+    hood:"Oak Park, Chicago", founded:2021, coaches:6, seed:"everglade",
     look:"Courts and geometry — hard-court blue, net lines, racquet detail. Precise, low motion.",
   },
   {
     id:"ironside", name:"Ironside Combat Gym", verified:true,
     tagline:"Discipline first, contact later",
     bio:"Boxing, wrestling, MMA, karate and judo for young athletes. Every programme starts non-contact and stays there until the coach says otherwise.",
-    hood:"Little Haiti, Miami", founded:2014, coaches:10, seed:"ironside",
+    hood:"Pilsen, Chicago", founded:2014, coaches:10, seed:"ironside",
     look:"Low-key lighting, mats, wraps, gi texture. Discipline over aggression — these are minors.",
   },
   {
     id:"sunset", name:"Sunset Field Athletics", verified:false,
     tagline:"Open grass, five sports, golden hour",
-    bio:"Baseball, softball, flag football, lacrosse and cricket on shared fields in South Miami. The widest age spread of any operator on Sporve.",
-    hood:"South Miami", founded:2019, coaches:8, seed:"sunset",
+    bio:"Baseball, softball, flag football, lacrosse and cricket on shared fields in Hyde Park. The widest age spread of any operator on Sporve.",
+    hood:"Hyde Park, Chicago", founded:2019, coaches:8, seed:"sunset",
     look:"Open grass at golden hour — long lenses, chalk lines, dust. Warm and wide.",
   },
 ];
@@ -257,8 +257,8 @@ function teamMeta(p){
   const kit = 165, tourn = 420, travel = 380, league = 95, ref = 110;
   return {
     tier:["Select","Travel","Premier","Academy"][p.id.length % 4],
-    league:{ Soccer:"Florida State Premier League", Basketball:"AAU Gold Circuit", Swimming:"USA Swimming — Florida Gold Coast",
-             "Water Polo":"USA Water Polo Junior Olympics", Boxing:"USA Boxing Youth", Wrestling:"Florida Scholastic Series",
+    league:{ Soccer:"Illinois State Premier League", Basketball:"AAU Gold Circuit", Swimming:"USA Swimming — Illinois Swimming",
+             "Water Polo":"USA Water Polo Junior Olympics", Boxing:"USA Boxing Youth", Wrestling:"Illinois Scholastic Series",
              Karate:"USA Karate Junior League", Softball:"USSSA Fastpitch", Cricket:"USA Cricket Youth" }[p.sport] || "Regional Youth League",
     tryouts:[{ date:"2026-08-22", time:"9:00a – 12:00p" },{ date:"2026-08-29", time:"9:00a – 12:00p" }],
     tryoutDeadline:"2026-08-19",
@@ -707,7 +707,7 @@ function companiesView(){
   <section class="band alt" style="padding:64px 0 56px">
     <div class="shell">
       <div class="eyebrow" data-rev>Examples</div>
-      <h1 style="margin-top:16px;max-width:18ch" data-rev>Six real businesses in Miami.</h1>
+      <h1 style="margin-top:16px;max-width:18ch" data-rev>Six sample businesses in Chicago.</h1>
       <p class="lede" style="margin:16px 0 0;max-width:56ch;text-align:left" data-rev>${nProg} programmes,
         ${nSport} sports, ${nBiz} operators — ${nChecked} background-checked, ${nBiz - nChecked} still pending.</p>
     </div>

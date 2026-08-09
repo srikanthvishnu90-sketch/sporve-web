@@ -173,7 +173,7 @@ function seedItems(){
       published: true }),
     mk({ id: "md_3", kind: "profile", slot: "facility", mediaType: "photo", durationSec: null,
       sessionId: null, programId: (myListings()[0] || PROGRAMS[0]).id, athleteIds: [],
-      caption: "Main pitch, Coral Way — shaded parent seating along the east side",
+      caption: "Main pitch, Lincoln Park — shaded parent seating along the east side",
       createdAt: "2026-06-09T16:10:00.000Z", published: true }),
     mk({ id: "md_4", kind: "profile", slot: "action", mediaType: "photo", durationSec: null,
       sessionId: s0.id, programId: s0.programId, athleteIds: ["athlete_1"],

@@ -443,7 +443,7 @@ function identityStep(d, err){
   <div class="cob-two">
     <div class="${fieldCls(err, "city")}" data-cob-field="city">
       <label for="cobCity">City</label>
-      <input id="cobCity" data-cob-in="city" value="${esc(d.city)}" placeholder="Miami">
+      <input id="cobCity" data-cob-in="city" value="${esc(d.city)}" placeholder="Chicago">
     </div>
     <div class="${fieldCls(err, "region")}" data-cob-field="region">
       <label for="cobRegion">State or region</label>

@@ -108,7 +108,7 @@ const state = {
     unmet: { weekday: 6, timeLabel: "9:00 – 11:00 AM", requests: 8 },
   },
   funnel: {
-    /* Sample. A 30-day window for a comparable Miami coach, used to show
+    /* Sample. A 30-day window for a comparable Chicago coach, used to show
        the shape of the funnel — not a measurement of this account. */
     windowLabel: "a 30-day window",
     stages: [
