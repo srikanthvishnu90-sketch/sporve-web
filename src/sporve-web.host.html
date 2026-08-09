@@ -439,9 +439,9 @@ img{max-width:100%;display:block}
    topbar is always #09090B (no scroll flip to a light ground), so white text
    never lands on white. Scoped to .navcenter/.topnav so the product-page
    .tnav-row is untouched. Active .on keeps its slate-tint chip (:not(.on)). */
-.navcenter .tnav{font-size:var(--text-lg)}
+.navcenter .tnav{font-size:15.5px}
 .navcenter .tnav:not(.on){color:#FFFFFF}
-.topnav .navcta,.topnav .navlink{font-size:var(--text-lg)}
+.topnav .navlink{font-size:15.5px}
 /* At <=900 the centred menu collapses; the account control becomes the sheet
    hamburger. On the narrowest bars the quiet "Become a coach" link yields
    space to the pill + hamburger. */
@@ -3393,10 +3393,8 @@ function topbarHTML(){
     <div class="navcenter">${S.portal==="family"?primaryNavHTML():""}</div>
     <nav class="topnav" aria-label="Main">
       ${S.portal==="family"
-        ? `<button class="navlink becomecoach" data-becomecoach="1">Become a coach</button>
-           <button class="navcta" data-nav="explore">Find a coach</button>`
-        : `<button class="navlink becomecoach" data-portal="family">Back to families</button>
-           <button class="navcta" data-portal="family">Find a coach</button>`}
+        ? `<button class="navlink becomecoach" data-becomecoach="1">Become a coach</button>`
+        : `<button class="navlink becomecoach" data-portal="family">Back to families</button>`}
       ${/* Account control. The desktop hamburger+avatar PILL is retired (T1):
             desktop shows a bare avatar glyph, <=900 shows the sheet hamburger.
             Both keep the account menu — and therefore sign-in — reachable. */""}
@@ -4183,17 +4181,7 @@ function exploreHTML(){
        aria-selected="${i===0}" data-kindtab="${sec}" data-kindjump="${sec}">${esc(l)}</button>`).join("")}</div>`;
 
   return `
-  ${/* Founding-cohort promo strip. Dark ground with white/light-slate literals
-       (§3) so it reads as one dark band with the on-hero nav directly above it.
-       Fee stated as the real flat 12% per booking (no 0% claim). */""}
-  <div class="promobar">
-    <div class="shell promobar-in">
-      <span class="promo-tag">Founding coach cohort</span>
-      <span class="promo-txt">Join now. A simple, flat 12% per booking, nothing hidden.</span>
-      <button class="promo-link" data-becomecoach="1">Become a coach →</button>
-    </div>
-  </div>
-
+  ${/* Founding-cohort promo strip removed per owner (2026-08-09). */""}
   ${heroHTML()}
 
   ${/* Light browse on the SLATE canvas (band alt = --raise). Cards stay white
