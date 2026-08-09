@@ -462,6 +462,14 @@ img{max-width:100%;display:block}
    at white — it must not resolve to slate like a generic .navlink). */
 .topnav .navlink.becomecoach{font-weight:500;color:#FFFFFF;opacity:.85;transition:opacity .15s}
 .topnav .navlink.becomecoach:hover{color:#FFFFFF;opacity:1}
+/* Top-bar nav sizing/colour (owner ask): larger, Squarespace-scale type across
+   the whole bar, and the centre menu resting WHITE. Safe on colour law — the
+   topbar is always #09090B (no scroll flip to a light ground), so white text
+   never lands on white. Scoped to .navcenter/.topnav so the product-page
+   .tnav-row is untouched. Active .on keeps its slate-tint chip (:not(.on)). */
+.navcenter .tnav{font-size:var(--text-lg)}
+.navcenter .tnav:not(.on){color:#FFFFFF}
+.topnav .navcta,.topnav .navlink{font-size:var(--text-lg)}
 /* At <=900 the centred menu collapses; the account control becomes the sheet
    hamburger. On the narrowest bars the quiet "Become a coach" link yields
    space to the pill + hamburger. */
