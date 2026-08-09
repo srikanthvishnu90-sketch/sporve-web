@@ -224,7 +224,7 @@ else:
 # A finished <head> (100-point #88): real title, description, Open Graph +
 # Twitter cards, theme-color, and a self-contained SVG favicon (no external
 # host, so the CSP + single-file constraints still hold).
-_OG = "https://the-sporve-web.vercel.app/og.svg"
+_OG = "https://the-sporve-web.vercel.app/og.png"
 _FAVICON = ("data:image/svg+xml,"
     "%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E"
     "%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E"
@@ -237,18 +237,22 @@ STANDALONE = (
     '<meta charset="utf-8">\n'
     '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
     '<title>Sporve — Every sport. One app.</title>\n'
-    '<meta name="description" content="Book a background-checked coach for your kid. '
-    'Search 20+ sports by age and distance, message a coach, and book a real open slot in minutes.">\n'
+    '<meta name="description" content="Sporve connects families with coaches, trainers, camps '
+    'and teams across 20+ sports in Chicagoland — searchable by sport, age, and distance.">\n'
     '<meta name="theme-color" content="#09090B">\n'
     '<meta property="og:type" content="website">\n'
     '<meta property="og:site_name" content="Sporve">\n'
     '<meta property="og:title" content="Sporve — Every sport. One app.">\n'
-    '<meta property="og:description" content="Book a background-checked coach for your kid across 20+ sports.">\n'
+    '<meta property="og:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">\n'
     '<meta property="og:url" content="https://the-sporve-web.vercel.app/">\n'
     f'<meta property="og:image" content="{_OG}">\n'
+    '<meta property="og:image:width" content="1200">\n'
+    '<meta property="og:image:height" content="630">\n'
+    '<meta property="og:image:type" content="image/png">\n'
+    '<meta property="og:image:alt" content="Sporve — Every sport. One app.">\n'
     '<meta name="twitter:card" content="summary_large_image">\n'
     '<meta name="twitter:title" content="Sporve — Every sport. One app.">\n'
-    '<meta name="twitter:description" content="Book a background-checked coach for your kid across 20+ sports.">\n'
+    '<meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">\n'
     f'<meta name="twitter:image" content="{_OG}">\n'
     f'<link rel="icon" href="{_FAVICON}">\n'
     "</head>\n<body>\n__SPORVE_BODY__\n</body>\n</html>\n"
