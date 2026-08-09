@@ -553,7 +553,9 @@ img{max-width:100%;display:block}
 .hero-search{margin:40px auto 0;max-width:720px;width:100%;display:flex;align-items:center;
   background:#FFFFFF;border-radius:14px;padding:6px 6px 6px 24px;
   box-shadow:0 8px 24px rgba(0,0,0,.35),0 32px 80px rgba(0,0,0,.45)}
-.hero-search input{flex:1;border:0;outline:none;background:none;font-family:var(--sans);
+/* #app-scoped to beat `#app input{font-size:--text-base}` (id specificity):
+   --text-lg is a named clamp (17-19px, on-scale) and >=16 so iOS won't zoom. */
+#app .hero-search input{flex:1;border:0;outline:none;background:none;font-family:var(--sans);
   font-size:var(--text-lg);font-weight:400;color:var(--ink);height:52px}
 .hero-search input::placeholder{color:rgba(10,14,19,.45)}
 .hero-search button{width:52px;height:52px;border-radius:10px;flex-shrink:0;background:var(--ink);
