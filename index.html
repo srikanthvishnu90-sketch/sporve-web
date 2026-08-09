@@ -7674,11 +7674,16 @@ try{
 function sigAiCoachWire(root){
   const inp=root.querySelector('.ac-input'), chips=root.querySelector('[data-acchips]');
   if(!inp||!chips) return;
-  const run=()=>{ const m=inp.value.match(/\b(\d{1,2})\b/); const age=m?('Age '+m[1]):'Any age';
-    chips.innerHTML='<span class="ac-chip">Martial Arts</span><span class="ac-chip">'+age+'</span><span class="ac-chip">Verified only</span>'; };
+  const run=()=>{ const v=inp.value.toLowerCase(); const m=inp.value.match(/\b(\d{1,2})\b/); const age=m?('Age '+m[1]):'Any age';
+    const SPORTS=['Soccer','Basketball','Swimming','Tennis','Baseball','Volleyball','Football','Boxing','Golf','Hockey','Lacrosse','Cycling','Gymnastics','Track & Field','Martial Arts','Rowing','Fencing','Wrestling','Softball','Pickleball'];
+    let sport=SPORTS.find(s=>v.includes(s.toLowerCase()));
+    if(!sport){ if(/karate|judo|taekwondo|bjj|jiu|jujitsu|jiu-jitsu|mma/.test(v))sport='Martial Arts'; else if(/swim/.test(v))sport='Swimming'; else if(/run|sprint|track/.test(v))sport='Track & Field'; }
+    sport=sport||'Any sport';
+    chips.innerHTML='<span class="ac-chip">'+sport+'</span><span class="ac-chip">'+age+'</span><span class="ac-chip">Verified only</span>'; };
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); }});
   root.querySelector('.ac-bar').addEventListener('submit',e=>{ e.preventDefault(); run(); });
 }
+document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
 }catch(_e){}
 
   $("[data-fav]").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFav(b.dataset.fav);});
@@ -7850,7 +7855,7 @@ function sigAiCoachWire(root){
   $("[data-attach]").forEach(b=>b.onclick=()=>toast("Attachments are available when a conversation has a family or session context"));
   $("[data-cmdmodel]").forEach(b=>b.onclick=e=>{e.stopPropagation();S.cmdModelOpen=!S.cmdModelOpen;render();});
   $("[data-cmdmodelpick]").forEach(b=>b.onclick=()=>{S.aiModel=b.dataset.cmdmodelpick;S.cmdModelOpen=false;render();
-    toast(S.aiModel==="Sporve AI"?"Using Sporve AI — grounded on your calendar, roster, and listings":"Switched to "+S.aiModel);});
+    toast(S.aiModel==="Sporve AI"?"Using Sporve AI":"Switched to "+S.aiModel);});
   $("[data-cmdhist]").forEach(b=>b.onclick=()=>toast(S.cmdLog&&S.cmdLog.length?"Recent Sporve AI activity is shown below":"No Sporve AI activity yet"));
   $("[data-voice]").forEach(b=>b.onclick=()=>
     toast("Voice input needs a microphone permission this demo doesn't request"));
@@ -8434,8 +8439,8 @@ function submitCommand(text){
 function runCommand(text){
   const t=text.toLowerCase();
   let did="";
-  if(/confirm/.test(t)&&/session/.test(t)){did="Confirmed tomorrow's sessions";S.coachTab="schedule";}
-  else if(/fill|waitlist|open slot/.test(t)){did="Opened the waitlist to fill a slot";S.coachTab="waitlist";}
+  if(/confirm/.test(t)&&/session/.test(t)){did="Opened schedule to confirm sessions";S.coachTab="schedule";}
+  else if(/fill|waitlist|open slot/.test(t)){did="Opened the waitlist";S.coachTab="waitlist";}
   else if(/message|family|families/.test(t)){did="Opened your inbox";S.coachTab="inbox";}
   else if(/find/.test(t)&&/(coach|team|camp)/.test(t)){did="Opened coach search";S.portal="family";S.route={name:"explore",arg:null};}
   else if(/create/.test(t)&&/event/.test(t)){did="Opened your schedule to create an event";S.coachTab="schedule";}
