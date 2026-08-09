@@ -96,13 +96,16 @@ if [ "$(printf '%s' "$sweepc" | tr -d '[:space:]')" = "CLEAN" ]; then
 elif [ -z "$(printf '%s' "$sweepc" | tr -d '[:space:]')" ]; then
   printf "  \033[33mWARN\033[0m  %s\n" "§9 sweep did not return — re-run"
 else fail "§9 sweep: $sweep"; fi
-# Home + explore: zero emoji, no rails.
+# Home + explore: zero emoji. Rails are now ALLOWED here: the owner overrode the
+# no-rails §6.4 rule via the six-task spec 2026-08-08; the explore kind bands
+# (.kindrow, T4) are intentional horizontal rows, so a rail no longer fails this
+# check. Emoji stay banned; the rail count is dropped from the fail condition.
 he=$($B js "
 (()=>{const em=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/gu;const o=[];
 ['home','explore'].forEach(r=>{S.route={name:r,arg:null};render();const a=document.querySelector('#app');
- const e=(a.innerText.match(em)||[]).length;const rails=a.querySelectorAll('.rail-track').length;
- if(e>0||rails>0)o.push(r+'(emoji='+e+' rails='+rails+')')});return o.length?o.join(' '):'CLEAN'})()" 2>/dev/null)
-[ "$(printf '%s' "${he//\"/}" | tr -d '[:space:]')" = "CLEAN" ] && pass "home + explore: zero emoji, zero rails" || fail "home/explore sweep: $he"
+ const e=(a.innerText.match(em)||[]).length;
+ if(e>0)o.push(r+'(emoji='+e+')')});return o.length?o.join(' '):'CLEAN'})()" 2>/dev/null)
+[ "$(printf '%s' "${he//\"/}" | tr -d '[:space:]')" = "CLEAN" ] && pass "home + explore: zero emoji (rails allowed per six-task override)" || fail "home/explore sweep: $he"
 
 # §1 — horizontal headlines: 40–54px, ≤3 rendered lines, ≥55% of the shell.
 $B viewport 1440x900 >/dev/null 2>&1

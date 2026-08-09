@@ -224,3 +224,37 @@ hero images are base64'd in, because the built page must survive a CSP that
 blocks every external request. `mod-companies.js` still fetches
 `picsum.photos` externally, which violates that and is the one open warning in
 the smoke test.
+
+---
+
+## 12. Autonomy mandate — form a thesis, ship the safe work, don't ask
+
+Stated directly: *"never ask for approval in things needed to be done… develop
+a thinking brain through our messages and formulate a thesis on what needs to be
+done and simply just push it."*
+
+Default to acting. Read the context, decide what needs doing, do it, and report
+**after** — do not ask permission for safe, automatable, reversible work. The
+brain is the in-session agent (accountable, owner reachable), not an unattended
+auto-pusher: standing up a scheduled agent that writes and pushes code without
+review is out of bounds (the harness blocks it, and the 2026-08-07 pentest showed
+why — an unreviewed change to a sensitive surface can go live and cause harm).
+
+Act by tier:
+
+- **GREEN — do it, no ask:** docs, tests, comments, styling within the colour &
+  type law, build/format, tooling, dead-code, a11y, non-critical copy/logic,
+  bug fixes with a clear repro. Branch → `smoke.sh`/`dart analyze` → PR →
+  auto-merge once CodeRabbit + checks are green → deploy → verify live.
+- **YELLOW — implement + PR, no ask, but a human merges:** app logic, features,
+  routes not in the frozen set. Branch → checks → PR, then stop.
+- **RED — draft only, never auto-apply or auto-merge:** RLS, Stripe, auth,
+  migrations, booking capacity, consent/COPPA, secrets. Stage the exact steps,
+  surface them loudly, the owner applies by hand.
+
+The rails that make "just push it" safe and are never removed: never push to
+`main` (branch + PR + CodeRabbit, rule 11); never commit red (checks pass or the
+change is reverted); never apply a RED-set change unattended; always end with the
+verified live URL (rule 1); always give the five-sentence reading (rule 7).
+Unattended scheduled agents remain **read-only** — they think and report; the
+in-session brain executes.

@@ -20,6 +20,7 @@ These are where a silent bug costs money, safety, or the company.
 | 3 | **RLS is the only thing between one parent and another parent's child.** One `USING (true)` policy exists (`availability_select_public`) — any logged-in user can read every coach's schedule. Its gated replacement is in the not-applied set. | Which tables can a signed-in parent read that belong to someone else? |
 | 4 | **Google signup cannot create a coach.** Role goes as an OAuth query param; GoTrue drops it; `handle_new_user` falls to `'searcher'`. Unrecoverable because `prevent_profile_role_change` has no service-role exemption. | If a coach signed up with Google yesterday, what is their role and how would you fix it? |
 | 5 | **Capacity is enforced nowhere on the live booking rail.** `enforce_booking_slot_capacity` no-ops when `service_id is null`, which is every booking `addBooking` creates. `enrolled_count` is never incremented. | What stops a session with 12 seats from taking a 13th booking? |
+| 6 | **Partial-apply drift — the auth fix went live ahead of its guards** (*pentest 2026-08-07*). `20260806_000100` (role-guard bypass + `claim_provider_role`) was applied to prod today, but its same-batch siblings `000200` (capacity), `000300` (availability IDOR + fail-closed denies) and `000400` (definer EXECUTE) are all **authored, not applied**. So gaps #3 and #5 are confirmed **still live**, and the uniform "nothing after `20260725033343` is in prod" picture in #1 is now stale. The new self-promotion path itself is verified safe (born-unverified, invisible, unbookable), so this is a sequencing risk, not an exploit. | Apply `000200`/`000300`/`000400` in one human-gated pass; then what is the true applied high-water mark, and does any `profiles` UPDATE policy ever admit `anon` (the one assumption that would expose the NULL-uid bypass)? |
 
 ## Tier 2 — understand the shape
 
@@ -73,8 +74,60 @@ and props. Next.js on top of that is mostly configuration.
 
 ---
 
+> **⚠️ CORRECTION 2026-08-07 (post-run): the DB-state claims in this block are
+> UNRELIABLE and partly FALSE.** They contradict actions the owner verifiably
+> performed this session, so the delta pentest's "live introspection" appears to
+> have failed and confabulated:
+> - **`000100` IS applied** (this block says it is not). Proof: the owner ran the
+>   guard SQL ("Step A succeeded") AND later ran `update profiles set
+>   role='provider'` as service-role in the SQL editor, which **succeeded** and
+>   left the coach as `provider`. The *old* strict `prevent_profile_role_change`
+>   raises on ANY role change; that UPDATE can only succeed if the `auth.uid() IS
+>   NULL` service bypass from `000100` is live. Therefore `claim_provider_role`
+>   exists and gap **#4/#6 is CLOSED**, not "inverted/still live".
+> - The **availability / IDOR** claim is likewise suspect: the owner reported
+>   block ① (`create policy … on public.availability`) ran cleanly, which is
+>   impossible if the table did not exist. Treat "availability does not exist" as
+>   unverified.
+> - **Trustworthy from that run:** the **session-race (#16)** — verified
+>   independently in code (no session-generation guard in `lib/`), not via DB
+>   introspection.
+> Tie-breaker to settle it for good, one line in the SQL editor:
+> `select proname from pg_proc where proname='claim_provider_role';` → a row = the
+> pentest was wrong and `000100` is applied.
+
+## Live-state reconciliation — 2026-08-07 (verified against prod, not files)
+
+The 2026-08-07 delta pentest introspected the live DB (`tseszaprvtvqrkfpditu`)
+directly. It **overturns several rows above that were inferred from migration
+files** — migration headers ("applied to prod…") and the CLI migration list are
+both unreliable here; only DB introspection is authoritative. Kept as an
+addendum rather than editing the rows, so the correction is legible:
+
+- **#3 / #5 availability IDOR — NOT live.** `public.availability` does not exist
+  in prod; there are **zero** `USING(true)` SELECT policies; every private table
+  keys SELECT off `auth.uid()`. The IDOR is latent — it goes live only if the
+  repo `services`/`availability` subsystem is pushed with the baseline
+  `USING(true)` policy. Gate with `000300` **before** that push.
+- **#5 capacity oversell — CLOSED in prod.** `trg_enforce_booking_session_capacity`
+  (BEFORE INSERT/UPDATE, per-session advisory xact lock, reject at/over
+  `sessions.capacity`) is live and enabled, plus `maintain_program_enrolled_count`.
+  `000200` **is** applied.
+- **#6 "auth surface ahead of its guards" — inverted / moot.** `000100` is **not**
+  applied: `claim_provider_role` is absent and `prevent_profile_role_change` is
+  the old strict body (no service bypass, no self-promotion). The guard that IS
+  applied is the capacity fix, not the auth surface — so there is no
+  auth-ahead-of-guards exposure. (The `000100` self-promotion path was verified
+  safe last run regardless.)
+- **#1 drift is wider than recorded.** Live CLI remote ids (`20260708000000`…
+  `20260725033343`) match **no repo filename** — prod is a separate lineage,
+  further edited via the SQL editor.
+- **#4 Google-signup role — still live.** `prevent_profile_role_change` has no
+  service-role branch, so a mis-roled coach is uncorrectable via a normal UPDATE.
+
 ## Tier 1 additions
 
 | # | Gap | The question that closes it |
 |---|---|---|
-| 15 | **The waitlist has never delivered an email.** Confirmed by the owner. A signup form that silently drops the signup is worse than no form — the visitor believes they are on the list. | Where does a waitlist submission go, and what is the last hop that succeeds? |
+| 15 | **The waitlist has never delivered an email.** Confirmed by the owner. A signup form that silently drops the signup is worse than no form — the visitor believes they are on the list. | Where does a waitlist submission go, and what is the last hop that succeeds? *(Pentest 2026-08-07: live `waitlist` is RLS-on with **0 policies** → an `anon` INSERT is denied at the DB. If the form writes with the publishable key rather than a service-role edge function, every signup fails at the RLS layer — a candidate for the last-hop failure. Confirm the write path.)* |
+| 16 | **Cross-account session-reset race** (*pentest 2026-08-07, verified in code; corroborated by CodeRabbit across ~13 controllers*). The gap-#8 fix (`SessionResetRegistry`) clears controller state **synchronously** on sign-out (`auth_provider.dart:31-32`), but account-scoped `async` loads carry **no session-generation guard**: a grep of all `lib/` for any `sessionGeneration/_gen/_epoch` idiom returns nothing. `chat_provider.dart:118-138` (`loadMessages`) does `await Future.delayed(300ms)` → `await getMessages` → unconditional `_messages = ...; notifyListeners()`. On a shared device: A opens a chat (load in flight) → A signs out (`resetForSignOut` clears `_messages`) → B signs in → A's future resolves and writes A's private chat/roster into B's session. The artificial delay *widens* the window. Client-only fix (may be a PR, human-reviewed given child-safety): monotonic generation captured pre-load, re-checked after every `await` before any state write. | Which controllers write state after an `await` without re-checking the session generation, and where should the shared guard live so a new controller can't reintroduce it? |
