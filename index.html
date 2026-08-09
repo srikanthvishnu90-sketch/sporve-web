@@ -1509,6 +1509,37 @@ h2.ctr{margin-bottom:10px}
   .footbrand{grid-column:1/-1;padding-right:0}}
 @media(max-width:760px){.footgrid{grid-template-columns:repeat(2,1fr);gap:26px}}
 
+/* ── T5 close-zone: Amboras-style dark closer fused with the footer ──
+   Obsidian ground (#0B0C0E, already the hero base) with a top hairline; all
+   text is white / white-alpha LITERALS (§3). closer-title uses Instrument
+   Serif via --display; its clamp caps at 54px (an on-scale --text-hero max)
+   because 64px is off the 8-step type scale the smoke test enforces. */
+.close-zone{background:#0B0C0E;border-top:1px solid #1C222B;padding:74px 0 34px}
+.closer{display:grid;grid-template-columns:1.1fr 1.4fr;gap:56px;align-items:start}
+.closer-left{display:flex;flex-direction:column;align-items:flex-start;gap:18px}
+.close-zone .wordmark{color:#fff;text-transform:uppercase;font-size:var(--text-xl)}
+.closer-title{font-family:var(--display);font-weight:400;color:#F5F7F9;
+  font-size:clamp(44px,4.6vw,54px);line-height:1.02;letter-spacing:-.01em}
+.closer-title em{font-style:italic}
+.closer-link{display:inline-flex;align-items:center;gap:9px;cursor:pointer;
+  color:#F5F7F9;font-family:var(--sans);font-weight:600;font-size:var(--text-base)}
+.closer-link svg{width:15px;height:15px;flex:0 0 auto}
+.closer-link:hover{color:#fff;text-decoration:underline}
+.closer-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:28px}
+.closer-col{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.closer-col h5{font-family:var(--sans);text-transform:uppercase;letter-spacing:.14em;
+  font-size:var(--text-xs);font-weight:700;color:rgba(245,247,249,.5);margin-bottom:4px}
+.closer-col button,.closer-col a{font-family:var(--sans);font-size:var(--text-base);
+  color:rgba(245,247,249,.72);text-align:left;text-decoration:none;transition:color .14s}
+.closer-col button:hover,.closer-col a:hover{color:#F5F7F9}
+.closer-base{margin-top:42px;padding-top:24px;border-top:1px solid #1C222B;
+  display:flex;flex-direction:column;gap:6px}
+.closer-base span{color:rgba(245,247,249,.5);font-size:var(--text-sm)}
+@media(max-width:900px){
+  .closer{grid-template-columns:1fr;gap:38px}
+  .closer-cols{grid-template-columns:repeat(2,1fr)}
+}
+
 /* ── notification settings ───────────────────────────────────────── */
 .notifhead,.notifrow{
   display:grid;grid-template-columns:1fr 74px 74px 74px;gap:12px;align-items:center;
@@ -4212,91 +4243,11 @@ function exploreHTML(){
     </div>
   </section>
 
-  <section class="band slate mapstrip">
-    <div class="shell" data-rev>
-      <div class="mapstrip-in">
-        <div>
-          <div class="eyebrow">Nearby</div>
-          <h2 style="margin-top:10px">See every coach on the map.</h2>
-          <p class="sub" style="margin-top:10px">Filter by sport and distance, then book the closest open slot.</p>
-        </div>
-        <button class="btn" data-nav="map">Open the map →</button>
-      </div>
-    </div>
-  </section>
-
-  ${/* Dark recap chapter: what a family gets after the session. Literals on the
-       black ground per §3; the card is the existing .lcard on dark. */""}
-  <section class="band dark">
-    <div class="shell lgrid">
-      <div data-rev>
-        <div class="eyebrow" style="color:var(--accent-on-dark)">After every session</div>
-        <h2 style="margin-top:12px">You always know how it went.</h2>
-        <p class="sub" style="margin-top:14px">Notes, focus areas and the next booking arrive in one thread — written by the coach, not a form.</p>
-        <div class="lchecks">
-          ${[["Session notes tied to your athlete, not a generic log"],
-             ["Receipts and rebooking in the same place"],
-             ["Media shared only with recorded consent"]]
-            .map(([t])=>`<div class="lcheck"><i>${TICK(12,3.4)}</i><span>${esc(t)}</span></div>`).join("")}
-        </div>
-      </div>
-
-      <div class="lcard" data-rev data-rev-d="1">
-        <div class="lcard-hd">
-          <span class="lcard-live"><i></i>Session recap</span>
-          <span class="featbadge" style="background:var(--slate-tint);color:var(--slate)">Example</span>
-        </div>
-        <div class="lrow"><span>Focus</span><em>First serve &amp; footwork</em></div>
-        <div class="lrow"><span>Went well</span><em>Toss consistency</em></div>
-        <div class="lrow"><span>Next up</span><em>Second-serve spin</em></div>
-        <div class="lrow"><span>Next session</span><em>Booked · Sat 9:00</em></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="band slate">
-    <div class="shell">
-      <h2 class="ctr" data-rev>Two ways in</h2>
-      <p class="sub ctr" data-rev>The same platform families book on is the one coaches run their week on.</p>
-      <div class="dual">
-        <div class="dpath" data-rev>
-          <div class="eyebrow">For parents</div>
-          <h3>Find someone you'd trust with your kid</h3>
-          <p>Search by sport, your child's age and your budget. Book and pay without leaving the page.</p>
-          <ul class="dlist">
-            ${["Every coach clears a per-person check","Message before you spend anything",
-               "Sessions, receipts and updates in one thread","One account, however many kids"]
-              .map(t=>`<li>${TICK(14,3)}<span>${esc(t)}</span></li>`).join("")}
-          </ul>
-          <button class="btn" data-nav="explore">Find a coach</button>
-        </div>
-        <div class="dpath" data-rev data-rev-d="1">
-          <div class="eyebrow">For coaches</div>
-          <h3>Run your week, get paid on time</h3>
-          <p>Your calendar, your policies, your prices. Sporve handles the admin around them.</p>
-          <ul class="dlist">
-            ${["Free to join and list","Bring the families you already coach",
-               "Checkout and automatic payouts","Roster, notes, media and insights"]
-              .map(t=>`<li>${TICK(14,3)}<span>${esc(t)}</span></li>`).join("")}
-          </ul>
-          <button class="btn ghost" data-becomecoach="1">Become a coach</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  ${faqSectionHTML()}
-
-  <section class="band dark finalcta">
-    <div class="shell ctr" data-rev>
-      <h2>Every sport. One app.</h2>
-      <p class="sub ctr">Background-checked coaches, bookable today.</p>
-      <div class="ctarow">
-        <button class="btn" data-nav="explore">Find a coach</button>
-        <button class="btn ghost" data-becomecoach="1">Become a coach</button>
-      </div>
-    </div>
-  </section>`;
+  ${/* T5 — the landing now ends on one continuous obsidian close-zone that
+       fuses the final CTA and the footer. The map strip, session-recap,
+       "Two ways in" two-path and the FAQ moved to page:what-is so the landing
+       reads exactly hero → browse → close. */""}
+  ${closeZoneHTML()}`;
 }
 
 /* ═══════════════════ PRODUCT — everything the platform does ═══════════════
@@ -6207,6 +6158,48 @@ function footerHTML(){
     </div></footer>`;
 }
 
+/* T5 — Amboras-style closing zone. One continuous obsidian band that fuses the
+   final CTA and the footer, rendered ONLY on the landing (explore route). On
+   that route render() suppresses the global footerHTML() so the page carries
+   exactly one footer region — this one. All text is white / white-alpha
+   LITERALS on the dark ground (§3: never a token that can resolve dark). The
+   footer columns and copyright lines reuse footerHTML()'s data/hrefs verbatim,
+   re-skinned to the dark spec. */
+function closeZoneHTML(){
+  const cols=[
+    ["Product",[["Find a coach","nav:explore"],["Map","nav:map"],["AI Coach","nav:assistant"],
+                ["Become a coach","coach"],["Coach dashboard","tab:dashboard"]]],
+    ["Company",[["About","info:legal"],["Careers","info:legal"],["Press","info:legal"]]],
+    ["Trust",[["Background checks","nav:trust"],["Privacy & Security","info:privacy"],
+              ["Legal","info:legal"],["Report a concern","nav:trust"]]],
+    ["Support",[["Help Center","info:help"],["Contact us","info:help"],["Accessibility","info:accessibility"],["support@sporve.com","mail"]]],
+  ];
+  return `<footer class="close-zone">
+    <div class="shell">
+      <div class="closer">
+        <div class="closer-left">
+          <span class="wordmark">sporve</span>
+          <h2 class="closer-title">Every sport,<br><em>one app.</em></h2>
+          <a class="closer-link" data-nav="page:what-is">What is Sporve?
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7h10M8 3l4 4-4 4"/></svg></a>
+        </div>
+        <div class="closer-cols">
+          ${cols.map(([h,links])=>`<div class="closer-col">
+            <h5>${esc(h)}</h5>
+            ${links.map(([t,a])=>a==="mail"
+              ? `<a href="mailto:support@sporve.com">${esc(t)}</a>`
+              : `<button data-foot="${a}">${esc(t)}</button>`).join("")}
+          </div>`).join("")}
+        </div>
+      </div>
+      <div class="closer-base">
+        <span>© 2026 Sporve Inc. All rights reserved. · Miami, FL</span>
+        <span>Sporve is a marketplace connecting families with independent coaches.</span>
+      </div>
+    </div></footer>`;
+}
+
 /* ═══════════════════ RENDER ═══════════════════ */
 /* ══════════════ MINI-PAGE REGISTRY + RENDERER ══════════════
    One row per page: title, sport, recipe, the app route its CTA deep-links to,
@@ -6592,6 +6585,83 @@ function pageHTML(id){
       <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Find the coach <em>your kid remembers.</em></h2>
       <div class="pg-ctarow">${pageCTA(meta)}</div>
     </div></section>
+
+    ${/* T5 — moved off the landing (exploreHTML) to keep the landing at
+         hero → browse → close. Markup + styles preserved verbatim: the map
+         strip, the dark session-recap chapter, the "Two ways in" two-path,
+         and the FAQ accordion now live here on page:what-is. */""}
+  <section class="band slate mapstrip">
+    <div class="shell" data-rev>
+      <div class="mapstrip-in">
+        <div>
+          <div class="eyebrow">Nearby</div>
+          <h2 style="margin-top:10px">See every coach on the map.</h2>
+          <p class="sub" style="margin-top:10px">Filter by sport and distance, then book the closest open slot.</p>
+        </div>
+        <button class="btn" data-nav="map">Open the map →</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="band dark">
+    <div class="shell lgrid">
+      <div data-rev>
+        <div class="eyebrow" style="color:var(--accent-on-dark)">After every session</div>
+        <h2 style="margin-top:12px">You always know how it went.</h2>
+        <p class="sub" style="margin-top:14px">Notes, focus areas and the next booking arrive in one thread — written by the coach, not a form.</p>
+        <div class="lchecks">
+          ${[["Session notes tied to your athlete, not a generic log"],
+             ["Receipts and rebooking in the same place"],
+             ["Media shared only with recorded consent"]]
+            .map(([t])=>`<div class="lcheck"><i>${TICK(12,3.4)}</i><span>${esc(t)}</span></div>`).join("")}
+        </div>
+      </div>
+
+      <div class="lcard" data-rev data-rev-d="1">
+        <div class="lcard-hd">
+          <span class="lcard-live"><i></i>Session recap</span>
+          <span class="featbadge" style="background:var(--slate-tint);color:var(--slate)">Example</span>
+        </div>
+        <div class="lrow"><span>Focus</span><em>First serve &amp; footwork</em></div>
+        <div class="lrow"><span>Went well</span><em>Toss consistency</em></div>
+        <div class="lrow"><span>Next up</span><em>Second-serve spin</em></div>
+        <div class="lrow"><span>Next session</span><em>Booked · Sat 9:00</em></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band slate">
+    <div class="shell">
+      <h2 class="ctr" data-rev>Two ways in</h2>
+      <p class="sub ctr" data-rev>The same platform families book on is the one coaches run their week on.</p>
+      <div class="dual">
+        <div class="dpath" data-rev>
+          <div class="eyebrow">For parents</div>
+          <h3>Find someone you'd trust with your kid</h3>
+          <p>Search by sport, your child's age and your budget. Book and pay without leaving the page.</p>
+          <ul class="dlist">
+            ${["Every coach clears a per-person check","Message before you spend anything",
+               "Sessions, receipts and updates in one thread","One account, however many kids"]
+              .map(t=>`<li>${TICK(14,3)}<span>${esc(t)}</span></li>`).join("")}
+          </ul>
+          <button class="btn" data-nav="explore">Find a coach</button>
+        </div>
+        <div class="dpath" data-rev data-rev-d="1">
+          <div class="eyebrow">For coaches</div>
+          <h3>Run your week, get paid on time</h3>
+          <p>Your calendar, your policies, your prices. Sporve handles the admin around them.</p>
+          <ul class="dlist">
+            ${["Free to join and list","Bring the families you already coach",
+               "Checkout and automatic payouts","Roster, notes, media and insights"]
+              .map(t=>`<li>${TICK(14,3)}<span>${esc(t)}</span></li>`).join("")}
+          </ul>
+          <button class="btn ghost" data-becomecoach="1">Become a coach</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  ${faqSectionHTML()}
     ${pageKX(id)}
     </div>`;
   }
@@ -7402,7 +7472,9 @@ function render(){
   const app=document.getElementById("app");
   app.classList.toggle("reg-serious",seriousRoute||seriousTab);
 
-  app.innerHTML=topbarHTML()+body+footerHTML();
+  /* T5 — the landing (explore) ends in its own .close-zone footer, so the
+     global footerHTML() is suppressed there to keep exactly one footer. */
+  app.innerHTML=topbarHTML()+body+(r.name==="explore"?"":footerHTML());
   document.getElementById("layer").innerHTML=modalHTML()+(S.toast?`<div class="toast">${esc(S.toast)}</div>`:"");
 
   const sc=document.getElementById("msgscroll"); if(sc) sc.scrollTop=sc.scrollHeight;
