@@ -3503,7 +3503,7 @@ function pricingHTML(){
       </div>
       <div class="panel">
         <div class="eyebrow">For coaches</div>
-        <h2 style="margin-top:8px">A tiered platform fee</h2>
+        <h2 style="margin-top:8px">A flat 12% platform fee</h2>
         <p style="color:var(--muted);margin-top:8px;font-size:var(--t-small)">
           Taken only when a booking is paid, and itemized on every payout — gross,
           fee, and your net on each one. Joining and listing are free.</p>
@@ -3976,8 +3976,8 @@ function coachFrames(){
   <div class="frame"><div class="fbar"><i></i><i></i><i></i></div>
     <div class="fbody">
       <div class="eyebrow">Net payout</div>
-      <div class="num" style="font-size:var(--text-xl);font-weight:700;letter-spacing:-.03em">$41</div>
-      <div class="num" style="color:var(--muted);font-size:var(--text-sm)">$45 gross · $4 platform fee</div>
+      <div class="num" style="font-size:var(--text-xl);font-weight:700;letter-spacing:-.03em">$40</div>
+      <div class="num" style="color:var(--muted);font-size:var(--text-sm)">$45 gross · $5 platform fee</div>
       <span class="fpill good">Payouts connected</span>
     </div><p class="fcap">Automatic payouts with the fee itemized</p></div>
   <div class="frame"><div class="fbar"><i></i><i></i><i></i></div>
@@ -4008,7 +4008,7 @@ function coachLandingHTML(){
   const faq=[
     ["How does the background check work?","Every individual clears their own check — not the business. Your listings stay unbookable and hidden from search until yours clears, and an org being approved never vouches for a trainer on its roster."],
     ["When do I get paid?","Payouts run automatically after a completed session. Each one itemizes gross, the platform fee, and your net."],
-    ["What does Sporve take?","A tiered platform fee, taken only when you get paid and itemized on every payout — gross, fee, and your net on each booking. Joining, listing, and messaging are free."],
+    ["What does Sporve take?","A flat 12% platform fee, taken only when you get paid and itemized on every payout — gross, fee, and your net on each booking. Joining, listing, and messaging are free."],
     ["What happens when someone cancels?","The cancellation policy copied onto the booking at purchase governs the refund — not whatever your listing says later. You pick flexible, moderate, or strict per service."],
     ["Who owns the client relationship?","You do. Families you bring keep booking you, and your roster and notes are yours."],
     ["Can I leave and take my data?","Yes. Request an export at any time. Deletion is reviewed as a case so financial and safety records required by law are retained, and everything else is removed."]];
@@ -11039,7 +11039,7 @@ window.MOD_COACHOPS = {
    MOD_PAYMENTS — money for Sporve Web.
 
    Four real backend flows, mirrored exactly on the client:
-     · checkout        review → payment method → confirm, 9% platform fee
+     · checkout        review → payment method → confirm, 12% platform fee
                        itemized, card validated (Luhn + IIN brand + expiry)
      · cancellation    refund follows the policy SNAPSHOTTED onto the booking
                        at purchase, never the listing's current policy
@@ -11048,7 +11048,7 @@ window.MOD_COACHOPS = {
      · split pay       one booking across two guardians, cents reconciled
 
    Money is held in INTEGER CENTS everywhere and only formatted at the edge.
-   The host's money() renders whole dollars; a 9% fee is rarely whole, so
+   The host's money() renders whole dollars; a 12% fee is rarely whole, so
    amounts computed here print through usd() at two decimals. Nothing here
    invents a movement of money: every figure shown comes from a row in
    S.transactions that a user action actually wrote.
@@ -11063,7 +11063,7 @@ window.MOD_COACHOPS = {
   const TODAY = "2026-08-03";
   const NOW = new Date(2026, 7, 3, 0, 0, 0);
 
-  const FEE_PCT = 9;                 // platform fee, charged on top of the coach's price
+  const FEE_PCT = 12;                // platform fee, charged on top of the coach's price (flat 12%, owner decision 2026-08-06)
   const PACK_SESSIONS = 5;
   const PACK_DISCOUNT_PCT = 10;
   const SPLIT_VALID_DAYS = 7;

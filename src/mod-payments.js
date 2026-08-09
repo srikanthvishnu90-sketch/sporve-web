@@ -3,7 +3,7 @@
    MOD_PAYMENTS — money for Sporve Web.
 
    Four real backend flows, mirrored exactly on the client:
-     · checkout        review → payment method → confirm, 9% platform fee
+     · checkout        review → payment method → confirm, 12% platform fee
                        itemized, card validated (Luhn + IIN brand + expiry)
      · cancellation    refund follows the policy SNAPSHOTTED onto the booking
                        at purchase, never the listing's current policy
@@ -12,7 +12,7 @@
      · split pay       one booking across two guardians, cents reconciled
 
    Money is held in INTEGER CENTS everywhere and only formatted at the edge.
-   The host's money() renders whole dollars; a 9% fee is rarely whole, so
+   The host's money() renders whole dollars; a 12% fee is rarely whole, so
    amounts computed here print through usd() at two decimals. Nothing here
    invents a movement of money: every figure shown comes from a row in
    S.transactions that a user action actually wrote.
@@ -27,7 +27,7 @@
   const TODAY = "2026-08-03";
   const NOW = new Date(2026, 7, 3, 0, 0, 0);
 
-  const FEE_PCT = 9;                 // platform fee, charged on top of the coach's price
+  const FEE_PCT = 12;                // platform fee, charged on top of the coach's price (flat 12%, owner decision 2026-08-06)
   const PACK_SESSIONS = 5;
   const PACK_DISCOUNT_PCT = 10;
   const SPLIT_VALID_DAYS = 7;
