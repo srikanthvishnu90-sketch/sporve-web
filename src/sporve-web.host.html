@@ -691,13 +691,19 @@ img{max-width:100%;display:block}
 .cg-continue:hover{background:#A9BACF}
 .cg-or{display:flex;align-items:center;gap:14px;margin:20px 0;color:#8FA3BC;font-family:var(--sans);font-size:var(--text-sm);max-width:400px}
 .cg-or::before,.cg-or::after{content:"";flex:1;height:1px;background:#222A33}
-.cg-oauth{display:flex;gap:12px}
+.cg-oauth{display:flex;flex-direction:column;gap:12px;max-width:400px}
+.cg-social{height:54px;border-radius:12px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;display:flex;align-items:center;justify-content:center;gap:10px;position:relative;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:var(--text-base);transition:background .15s}
+.cg-social:hover{background:#1B2027}
+.cg-social-ic{position:absolute;left:16px;display:grid;place-items:center}
 .cg-sq{width:54px;height:54px;border-radius:12px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;display:grid;place-items:center;cursor:pointer;transition:background .15s}
 .cg-sq:hover{background:#1B2027}
 .cg-fine{margin-top:26px;color:#8FA3BC;font-family:var(--sans);font-size:var(--text-sm)}
 .cg-fine button{background:none;border:0;color:#F7F9FF;cursor:pointer;text-decoration:underline;font:inherit}
 .cg-right{position:relative;overflow:hidden;background:#000;display:grid;place-items:center}
 .cg-welcome{font-family:var(--display);font-size:var(--text-hero);color:#F7F9FF;letter-spacing:-.02em;text-align:center;padding:24px;line-height:1.05}
+.cg-type{display:inline-block;white-space:nowrap;border-right:.055em solid #F7F9FF;clip-path:inset(0 100% 0 0);animation:cgtype 1.9s steps(17,end) .15s forwards,cgcaret .75s step-end infinite}
+@keyframes cgtype{to{clip-path:inset(0 -.12em 0 0)}}
+@keyframes cgcaret{50%{border-color:transparent}}
 .cg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 @media(max-width:900px){.coachgate{grid-template-columns:1fr}.cg-right{display:none}}
 .promo-link:hover{text-decoration:underline}
@@ -7446,8 +7452,8 @@ function coachGateHTML(){
       </form>
       <div class="cg-or">or</div>
       <div class="cg-oauth">
-        <button class="cg-sq" type="button" data-cg-google="1" aria-label="Continue with Google">${ICON.google}</button>
-        <button class="cg-sq" type="button" data-cg-apple="1" aria-label="Continue with Apple">${APPLE}</button>
+        <button class="cg-social" type="button" data-cg-google="1" aria-label="Continue with Google"><span class="cg-social-ic">${ICON.google}</span>Continue with Google</button>
+        <button class="cg-social" type="button" data-cg-apple="1" aria-label="Continue with Apple"><span class="cg-social-ic">${APPLE}</span>Continue with Apple</button>
       </div>
       <p class="cg-fine">Just exploring? <button type="button" data-cg-demo="1">Use the demo account</button></p>`;
   return `<div class="coachgate">
@@ -7466,7 +7472,7 @@ function coachGateHTML(){
                <source src="/video/hero.mp4"  type="video/mp4"></video>
            NO `loop` here (the coach gate holds the final "Welcome to Sporve"
            frame). The .cg-welcome fallback shows until the files land. */""}
-      <div class="cg-welcome">Welcome to Sporve</div>
+      <div class="cg-welcome"><span class="cg-type">Welcome to Sporve</span></div>
     </div>
   </div>`;
 }
