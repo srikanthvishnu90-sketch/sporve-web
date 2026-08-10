@@ -707,6 +707,31 @@ img{max-width:100%;display:block}
    too, so header chrome reads as one register at every breakpoint. Scoped to
    this one modal so the shared .modal component is untouched elsewhere. */
 .acct-sheet{font-family:var(--nav-face)}
+/* ── coach entry gate (split-screen: login left, welcome video right) ── */
+.coachgate{position:fixed;inset:0;z-index:90;display:grid;grid-template-columns:1fr 1fr;background:#09090B;overflow-y:auto}
+.cg-left{position:relative;display:flex;flex-direction:column;justify-content:center;padding:56px clamp(28px,6vw,84px);min-height:100vh}
+.cg-back{position:absolute;top:24px;left:24px;background:none;border:0;color:#8FA3BC;font-family:var(--sans);font-size:var(--text-base);cursor:pointer}
+.cg-back:hover{color:#F7F9FF}
+.cg-wordmark{font-family:var(--display);font-size:var(--text-xl);color:#F7F9FF;letter-spacing:-.01em;margin-bottom:40px}
+.cg-h1{font-family:var(--display);font-size:var(--text-2xl);color:#F7F9FF;letter-spacing:-.02em;line-height:1.1;margin:0}
+.cg-sub{font-family:var(--sans);color:#8FA3BC;font-size:var(--text-base);margin-top:12px;max-width:44ch;line-height:1.55}
+.cg-form{margin-top:26px;max-width:400px;display:flex;flex-direction:column;gap:14px}
+.cg-input{width:100%;height:54px;padding:0 16px;border-radius:12px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;font-family:var(--sans);font-size:var(--text-lg)}
+.cg-input::placeholder{color:#8290A0}
+.cg-input:focus{outline:none;border-color:#8FA3BC}
+.cg-continue{height:54px;border-radius:12px;border:0;background:#8FA3BC;color:#0A0C0F;font-family:var(--sans);font-weight:700;font-size:var(--text-lg);cursor:pointer;transition:background .15s}
+.cg-continue:hover{background:#A9BACF}
+.cg-or{display:flex;align-items:center;gap:14px;margin:20px 0;color:#8FA3BC;font-family:var(--sans);font-size:var(--text-sm);max-width:400px}
+.cg-or::before,.cg-or::after{content:"";flex:1;height:1px;background:#222A33}
+.cg-oauth{display:flex;gap:12px}
+.cg-sq{width:54px;height:54px;border-radius:12px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;display:grid;place-items:center;cursor:pointer;transition:background .15s}
+.cg-sq:hover{background:#1B2027}
+.cg-fine{margin-top:26px;color:#8FA3BC;font-family:var(--sans);font-size:var(--text-sm)}
+.cg-fine button{background:none;border:0;color:#F7F9FF;cursor:pointer;text-decoration:underline;font:inherit}
+.cg-right{position:relative;overflow:hidden;background:#000;display:grid;place-items:center}
+.cg-welcome{font-family:var(--display);font-size:var(--text-hero);color:#F7F9FF;letter-spacing:-.02em;text-align:center;padding:24px;line-height:1.05}
+.cg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+@media(max-width:900px){.coachgate{grid-template-columns:1fr}.cg-right{display:none}}
 .promo-link:hover{text-decoration:underline}
 .kindtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
 .kindtab{display:inline-flex;align-items:center;height:var(--h-compact);padding:0 16px;
@@ -7451,6 +7476,59 @@ if(id==="messaging"){
     </div>`;
 }
 
+/* Coach entry gate. "Become a coach" lands here first: an Airbnb-style split —
+   login/sign-up on the left (or a Continue screen if already signed in), the
+   "Welcome to Sporve" video on the right. Full-screen (render() omits topbar/
+   footer for this route). Colour law: black ground, white/slate literals. */
+function startCoachOnboarding(){
+  S.portal="coach";S.signupRole="coach";
+  if(!isVerified()){S.onboardStep=0;S.modal={type:"onboard"};}
+  else {S.coachTab=modView("onboard")?"onboard":"dashboard";}
+  S.route={name:"dashboard",arg:null};window.scrollTo(0,0);render();
+}
+function coachGateHTML(){
+  const u=S.auth.user, verified=isVerified();
+  const APPLE='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.8c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.8-3.5.8s-1.8-.8-3-.8c-1.5 0-2.9.9-3.7 2.3-1.6 2.7-.4 6.8 1.1 9 .8 1.1 1.6 2.3 2.8 2.3 1.1 0 1.6-.7 2.9-.7s1.7.7 2.9.7 2-1.1 2.7-2.2c.9-1.2 1.2-2.4 1.2-2.5 0 0-2.3-.9-2.3-3.6zM14.2 5.9c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.7-1.2z"/></svg>';
+  const left = verified ? `
+      <h1 class="cg-h1">Welcome back${u&&u.firstName?", "+esc(u.firstName):""}.</h1>
+      <p class="cg-sub">Continue to set up your coaching profile. Your listings go live the moment your background check clears.</p>
+      <div class="cg-form">
+        <button class="cg-continue" type="button" data-cg-proceed="1">Continue${u&&u.firstName?" as "+esc(u.firstName):""}</button>
+      </div>
+      <p class="cg-fine">Not you? <button type="button" data-cg-signout="1">Use a different account</button></p>`
+  : `
+      <h1 class="cg-h1">Log in or sign up</h1>
+      <p class="cg-sub">Coach on Sporve — set your availability, take bookings, and get paid, all in one place.</p>
+      <form class="cg-form" id="cgForm">
+        <input class="cg-input" id="cgId" type="text" placeholder="Phone number or email" autocomplete="username" aria-label="Phone number or email" required>
+        <button class="cg-continue" type="submit">Continue</button>
+      </form>
+      <div class="cg-or">or</div>
+      <div class="cg-oauth">
+        <button class="cg-sq" type="button" data-cg-google="1" aria-label="Continue with Google">${ICON.google}</button>
+        <button class="cg-sq" type="button" data-cg-apple="1" aria-label="Continue with Apple">${APPLE}</button>
+      </div>
+      <p class="cg-fine">Just exploring? <button type="button" data-cg-demo="1">Use the demo account</button></p>`;
+  return `<div class="coachgate">
+    <div class="cg-left">
+      <button class="cg-back" type="button" data-cg-back="1">&larr; Back</button>
+      <div class="cg-wordmark">Sporve</div>
+      ${left}
+    </div>
+    <div class="cg-right">
+      ${/* VIDEO — Codex owns the asset. Files: public/video/hero.{webm,mp4} +
+           hero-poster.jpg (served same-origin at /video/…; no CSP header is set,
+           so they play). Once present, replace the .cg-welcome fallback below with:
+             <video class="cg-video" autoplay muted playsinline preload="metadata"
+                    poster="/video/hero-poster.jpg">
+               <source src="/video/hero.webm" type="video/webm">
+               <source src="/video/hero.mp4"  type="video/mp4"></video>
+           NO `loop` here (the coach gate holds the final "Welcome to Sporve"
+           frame). The .cg-welcome fallback shows until the files land. */""}
+      <div class="cg-welcome">Welcome to Sporve</div>
+    </div>
+  </div>`;
+}
 function render(){
   const r=S.route;
   let body;
@@ -7469,6 +7547,7 @@ function render(){
     else if(r.name==="info") body=infoHTML(r.arg||"help");
     else body=coachHTML();
   }
+  else if(r.name==="coachgate") body=coachGateHTML();
   else if(r.name==="home") body=landingHTML();
   /* PART 1/3 — the two new nav destinations */
   else if(r.name==="coachinfo") body=coachLandingHTML();
@@ -7506,7 +7585,7 @@ function render(){
 
   /* T5 — the landing (explore) ends in its own .close-zone footer, so the
      global footerHTML() is suppressed there to keep exactly one footer. */
-  app.innerHTML=topbarHTML()+body+(r.name==="explore"?"":footerHTML());
+  app.innerHTML=(r.name==="coachgate"?"":topbarHTML())+body+((r.name==="explore"||r.name==="coachgate")?"":footerHTML());
   document.getElementById("layer").innerHTML=modalHTML()+(S.toast?`<div class="toast">${esc(S.toast)}</div>`:"");
 
   const sc=document.getElementById("msgscroll"); if(sc) sc.scrollTop=sc.scrollHeight;
@@ -7819,11 +7898,20 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   /* Become a coach opens the signup wizard directly — there is no marketing
      page in front of it any more. */
   $("[data-becomecoach]").forEach(b=>b.onclick=()=>{
-    S.portal="coach";S.signupRole="coach";
-    if(!isVerified()){S.onboardStep=0;S.modal={type:"onboard"};}
-    else {S.coachTab=modView("onboard")?"onboard":"dashboard";S.route={name:"dashboard",arg:null};}
-    window.scrollTo(0,0);render();
+    /* Become a coach now opens the split-screen gate first (login/sign-up or a
+       Continue screen), which then runs startCoachOnboarding on completion. */
+    S.portal="coach";S.signupRole="coach";S.modal=null;go("coachgate");
   });
+  $("#cgForm").forEach(f=>f.onsubmit=e=>{e.preventDefault();
+    const id=(document.getElementById("cgId")||{}).value||"";
+    S.pendingIntent=startCoachOnboarding;
+    completeAuth({...SEED.user,email:id.includes("@")?id:SEED.user.email,role:"provider"});});
+  $("[data-cg-google]").forEach(b=>b.onclick=()=>{S.pendingIntent=startCoachOnboarding;completeAuth({...SEED.user,role:"provider"});});
+  $("[data-cg-apple]").forEach(b=>b.onclick=()=>toast("Apple sign-in isn't wired up yet"));
+  $("[data-cg-demo]").forEach(b=>b.onclick=()=>{S.pendingIntent=startCoachOnboarding;completeAuth({...SEED.user,role:"provider"});});
+  $("[data-cg-proceed]").forEach(b=>b.onclick=()=>startCoachOnboarding());
+  $("[data-cg-signout]").forEach(b=>b.onclick=()=>{S.auth={status:"guest",user:null};render();});
+  $("[data-cg-back]").forEach(b=>b.onclick=()=>{S.portal="family";go("home");});
   $("[data-coachdash]").forEach(b=>b.onclick=()=>{
     S.portal="coach";S.coachTab="dashboard";go("dashboard");});
   $("[data-sportjump]").forEach(b=>b.onclick=()=>{
