@@ -11467,7 +11467,7 @@ window.MOD_COACHOPS = {
             ? sumRow("Paid with", "1 session credit")
             : sumRow("Paid with", esc(r.method))}
           ${sumRow("Session price", usd(r.grossCents))}
-          ${sumRow(`Platform fee (${FEE_PCT}%)`, usd(r.feeCents))}
+          ${sumRow(`Sporve's ${FEE_PCT}% (paid by the coach)`, "−" + usd(r.feeCents))}
           ${sumRow("Charged", usd(r.totalCents), "total")}
         </div>
         <p class="pm-fine">Cancellation policy on this booking: <b>${esc(POLICIES[r.policy].label)}</b> —
@@ -11556,7 +11556,7 @@ window.MOD_COACHOPS = {
 
         <div class="pm-sum pm-gap">
           ${sumRow("Session price", usd(t.gross))}
-          ${sumRow(`Platform fee (${FEE_PCT}%)`, usd(t.fee))}
+          ${sumRow(`Sporve's ${FEE_PCT}% (paid by the coach)`, "−" + usd(t.fee))}
           ${sumRow("Total", usd(t.total), "total")}
         </div>
 
@@ -11580,7 +11580,7 @@ window.MOD_COACHOPS = {
       </div>
       <div class="pm-sum pm-gap">
         ${sumRow("Session price", usd(t.gross))}
-        ${sumRow(`Platform fee (${FEE_PCT}%)`, usd(t.fee))}
+        ${sumRow(`Sporve's ${FEE_PCT}% (paid by the coach)`, "−" + usd(t.fee))}
         ${sumRow(d.useCredit ? "Charged today" : "Total", usd(t.total), "total")}
       </div>
       ${d.useCredit ? `<p class="pm-fine">Nothing is charged today — a credit you already paid for covers
@@ -12011,7 +12011,7 @@ window.MOD_COACHOPS = {
         <div class="pm-math">
           <div class="eyebrow">How ${usd(ch.total)} divides</div>
           <div class="pm-math-row"><span>Session price</span><span class="num">${usd(ch.gross)}</span></div>
-          ${ch.fee != null ? `<div class="pm-math-row"><span>Platform fee (${FEE_PCT}%)</span><span class="num">${usd(ch.fee)}</span></div>` : ""}
+          ${ch.fee != null ? `<div class="pm-math-row"><span>Sporve's ${FEE_PCT}% (paid by the coach)</span><span class="num">−${usd(ch.fee)}</span></div>` : ""}
           <div class="pm-math-row pm-math-sep"><span>Their half</span><span class="num">${usd(half)}</span></div>
           <div class="pm-math-row"><span>Your half${mine !== half ? " (carries the odd cent)" : ""}</span><span class="num">${usd(mine)}</span></div>
           <div class="pm-math-row on"><span><b>Together</b></span><span class="num"><b>${usd(mine + half)}</b></span></div>
@@ -12103,8 +12103,9 @@ window.MOD_COACHOPS = {
       <div class="sec-head"><div>
         <p class="eyebrow">Payments</p>
         <h1>Wallet</h1>
-        <p class="pm-lede">Your cards, every charge and refund with the ${FEE_PCT}% fee itemized, and any
-          session credits you have bought. Every row here corresponds to money that actually moved.</p>
+        <p class="pm-lede">Your cards, every charge and refund with Sporve's ${FEE_PCT}% itemized so you can
+          see it comes out of the coach's side, and any session credits you have bought.
+          Every row here corresponds to money that actually moved.</p>
       </div></div>
 
       <div class="stats">
@@ -12112,8 +12113,8 @@ window.MOD_COACHOPS = {
           <div class="d">${list.length ? esc(cardLabel(defaultCard())) + " is default" : "None yet"}</div></div>
         <div class="stat"><div class="k">Net charged</div><div class="v num">${usd(netCharged)}</div>
           <div class="d">${rows.length} transaction${rows.length === 1 ? "" : "s"}, refunds included</div></div>
-        <div class="stat"><div class="k">Platform fees</div><div class="v num">${usd(feesPaid)}</div>
-          <div class="d">${FEE_PCT}% of each booking</div></div>
+        <div class="stat"><div class="k">Sporve's share</div><div class="v num">${usd(feesPaid)}</div>
+          <div class="d">${FEE_PCT}% of each booking, paid by the coach</div></div>
         <div class="stat"><div class="k">Session credits</div><div class="v num">${creditTotal}</div>
           <div class="d">${creditRows.length ? "across " + creditRows.length + " listing" + (creditRows.length === 1 ? "" : "s") : "No packs bought"}</div></div>
       </div>

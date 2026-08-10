@@ -13,7 +13,7 @@
 
 Sporve's 12% is a **share of the coach's price**, not a surcharge on it.
 
-```
+```text
 Coach lists:        $100
 Parent pays:        $100      <- the only number the family sees
 Sporve's 12%:        $12      <- taken from the coach's side
@@ -67,12 +67,17 @@ The family books and is done. The fee never enters their total.
 
 ## Still open
 
-- **Employee sub-payouts.** The owner states coaches/teams set their own staff pay and fee
-  costs. `sporve-web.host.html` seeds `commissionType`/`commissionValue` on trainers
-  (`:3117`, `:5833`, `:8203`) and renders "15% commission" (`:5555`) — but nothing
-  multiplies it and no payout row exists. Undecided: is staff commission taken from the
-  coach's 88%, or from gross before Sporve's cut? Nothing can be built until that sentence
-  exists.
+- ~~**Employee sub-payouts.**~~ **Closed 2026-08-10 by the owner:**
+
+  > "that's all up to the coaches in itself… if i regoster a golf course, and they offer 3
+  > coaches, then they handle the commision between the 88% of the trainings and how much
+  > each individual keeps"
+
+  Staff commission is taken **from the org's 88%**, after Sporve's cut — and the split is
+  the org's own business, not something Sporve arbitrates. Sporve's math therefore stops at
+  `gross → 12% → 88% to the org`. The existing `commissionType`/`commissionValue` fields
+  (`sporve-web.host.html:3117`, `:5833`, `:8203`, `:5555`) are the org's internal
+  bookkeeping and must never be netted against the platform fee.
 - **Single source of truth.** The rate is still authored as a separate constant in five
   places, which is why it has now been partially migrated twice. A `platform_config` row
   read by every surface is the real fix and belongs in the backend build.
