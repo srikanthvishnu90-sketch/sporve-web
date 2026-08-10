@@ -4473,8 +4473,8 @@ function detailHTML(id){
       </div>
       <div style="margin-top:18px">
         <div class="linerow"><span>${money(p.price)} × 1 session</span><span class="num">${money(p.price)}</span></div>
-        <div class="linerow"><span>Service fee</span><span class="num">${money(Math.round(p.price*0.09))}</span></div>
-        <div class="linerow total"><span>Total</span><span class="num">${money(p.price+Math.round(p.price*0.09))}</span></div>
+        <div class="linerow"><span>Sporve's 12% (paid by the coach)</span><span class="num">−${money(Math.round(p.price*0.12))}</span></div>
+        <div class="linerow total"><span>Total</span><span class="num">${money(p.price)}</span></div>
       </div>
       ${spots>0
         ? `<button class="btn wide" data-book="${p.id}" style="margin-top:16px">Request to book</button>`
@@ -5104,7 +5104,7 @@ function dashboardHTML(){
     <section class="cardrow">
       <div class="panel">
         <h3>Earnings</h3>
-        ${(()=>{const g=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0),f=Math.round(g*0.09);
+        ${(()=>{const g=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0),f=Math.round(g*0.12);
           return `<div class="num" style="font-size:var(--text-2xl);font-weight:700;letter-spacing:-.03em;margin-top:6px">${money(g-f)}</div>
           <div class="num" style="color:var(--muted);font-size:var(--text-sm)">${money(g)} gross · ${money(f)} platform fee</div>
           <div class="payflow">
@@ -5488,7 +5488,7 @@ function coachBody(t){
   }
   if(t==="finances"){
     const gross=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0);
-    const fee=Math.round(gross*0.09), net=gross-fee;
+    const fee=Math.round(gross*0.12), net=gross-fee;
     return `<div class="sec-head" style="margin-top:18px"><h1>Finances</h1></div>
       <div class="stats">
         ${[["Gross",money(gross),"all bookings"],["Platform fee",money(fee),"itemized per booking"],
@@ -5500,8 +5500,8 @@ function coachBody(t){
           <thead><tr><th>Date</th><th>Program</th><th>Athlete</th><th>Gross</th><th>Fee</th><th>Net</th><th>Status</th></tr></thead>
           <tbody>${S.bookings.map(b=>`<tr>
             <td class="num">${fmtDate(b.createdAt)}</td><td>${esc(b.program)}</td><td>${esc(b.athlete)}</td>
-            <td class="num">${money(b.price)}</td><td class="num">${money(Math.round(b.price*0.09))}</td>
-            <td class="num"><b>${money(b.price-Math.round(b.price*0.09))}</b></td>
+            <td class="num">${money(b.price)}</td><td class="num">${money(Math.round(b.price*0.12))}</td>
+            <td class="num"><b>${money(b.price-Math.round(b.price*0.12))}</b></td>
             <td><span class="pill good">${esc(b.paymentStatus)}</span></td></tr>`).join("")}
           </tbody></table></div></div>`;
   }
@@ -5702,7 +5702,7 @@ function modalHTML(){
   if(m.type==="book"){
     const p=PROGRAMS.find(x=>x.id===m.programId);
     const slots=slotsFor(p.id);
-    const fee=Math.round(p.price*0.09);
+    const fee=Math.round(p.price*0.12);
     return wrap("Request to book",`
       <div style="display:flex;gap:14px;align-items:center;padding-bottom:17px;border-bottom:1px solid var(--rule)">
         <img src="${p.img}" alt="" style="width:70px;height:70px;border-radius:var(--r-m);object-fit:cover">
@@ -5721,8 +5721,8 @@ function modalHTML(){
           <select name="tier"><option>Standard</option><option>Premium (+$15)</option></select></div>
         <div style="border-top:1px solid var(--rule);margin-top:6px;padding-top:8px">
           <div class="linerow"><span>${esc(p.title)}</span><span class="num">${money(p.price)}</span></div>
-          <div class="linerow"><span>Service fee</span><span class="num">${money(fee)}</span></div>
-          <div class="linerow total"><span>Total</span><span class="num">${money(p.price+fee)}</span></div>
+          <div class="linerow"><span>Sporve's 12% (paid by the coach)</span><span class="num">−${money(fee)}</span></div>
+          <div class="linerow total"><span>Total</span><span class="num">${money(p.price)}</span></div>
         </div>
         <button class="btn wide" type="submit" style="margin-top:14px">Confirm booking</button>
         <p style="text-align:center;color:var(--faint);font-size:var(--text-sm);margin-top:11px">
