@@ -4994,16 +4994,14 @@ function dashboardHTML(){
       <form class="cmdinput ${S.cmdDraft?"has-value":""} ${S.cmdSending?"sending":""}" id="cmdForm">
         <input id="cmdField" value="${esc(S.cmdDraft||"")}" placeholder="Ask Sporve anything…"
           aria-label="Ask Sporve anything" aria-describedby="${S.cmdError?"cmdError":""}" autocomplete="off" ${S.cmdSending?"disabled":""}>
+        ${/* Single non-interactive Sporve AI chip. The multi-model picker was
+             removed (owner call 2026-08-09): the named competitor models were
+             wired to nothing, so selecting one changed no behaviour — a
+             fabricated-capability claim. Real per-model routing is a backend
+             concern; until then this is one honest, static label. */""}
         <span class="cmdmodelwrap">
-        <button type="button" class="cmdmodel" data-cmdmodel="1" aria-haspopup="listbox" aria-expanded="${!!S.cmdModelOpen}" aria-label="AI model: ${esc(S.aiModel||"Sporve AI")}" ${S.cmdSending?"disabled":""}>
-          ${PICON.spark}<span>${esc(S.aiModel||"Sporve AI")}</span>
-          <svg class="cmdchev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
-        ${S.cmdModelOpen?`<div class="cmdmodelmenu" role="listbox" aria-label="Choose an AI model">
-          ${AI_MODELS.map(([name,note])=>{const on=(S.aiModel||"Sporve AI")===name;return `<button type="button" class="cmdmodelopt${on?" on":""}" role="option" aria-selected="${on}" data-cmdmodelpick="${esc(name)}">
-            <span class="mm-txt"><span class="mm-name">${esc(name)}</span><span class="mm-note">${esc(note)}</span></span>
-            ${on?`<span class="mm-check" aria-hidden="true">${ICON.check}</span>`:""}</button>`;}).join("")}
-          <div class="mm-foot">Preview — the live product routes to the selected model server-side.</div>
-        </div>`:""}
+        <span class="cmdmodel cmdmodel-static" aria-label="Assistant: Sporve AI">
+          ${PICON.spark}<span>Sporve AI</span></span>
         </span>
         <button type="button" class="cmdicon" data-attach="1" aria-label="Attach a file" ${S.cmdSending?"disabled":""}>${PICON.doc}</button>
         <button type="button" class="cmdicon" data-voice="1" aria-label="Voice input" ${S.cmdSending?"disabled":""}>
