@@ -13695,7 +13695,7 @@ const TODAY_ISO = "2026-08-03";
    program price; this flat rate is a stand-in for the arithmetic only. No
    user-facing string states a percentage — see PART 8.7. Replace with the
    real tier table when it is exported here, then render the table. */
-const FEE_RATE = 0.09;
+const FEE_RATE = 0.12;   // flat 12% (owner decision 2026-08-06)
 const feeOn = n => Math.round(Number(n) * FEE_RATE);
 const netOf = n => Number(n) - feeOn(n);
 
@@ -18374,7 +18374,7 @@ const teamTotal = m => m.costs.reduce((a, r) => a + r[1], 0);
    The app pins "now" to 2026-08-03 (same constant MOD_PAYMENTS uses), so
    ages computed here agree with every other surface. */
 const TODAY = "2026-08-03";
-const PLATFORM_FEE = 0.09;   /* deducted from the coach, never added to the family */
+const PLATFORM_FEE = 0.12;   /* flat 12% (owner decision 2026-08-06), deducted from the coach, never added to the family */
 
 function athletes(){
   const s = H();

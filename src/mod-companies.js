@@ -290,7 +290,7 @@ const teamTotal = m => m.costs.reduce((a, r) => a + r[1], 0);
    The app pins "now" to 2026-08-03 (same constant MOD_PAYMENTS uses), so
    ages computed here agree with every other surface. */
 const TODAY = "2026-08-03";
-const PLATFORM_FEE = 0.09;   /* deducted from the coach, never added to the family */
+const PLATFORM_FEE = 0.12;   /* flat 12% (owner decision 2026-08-06), deducted from the coach, never added to the family */
 
 function athletes(){
   const s = H();
