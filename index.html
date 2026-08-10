@@ -5003,19 +5003,8 @@ function dashboardHTML(){
     ["Find teams",PICON.users],["Find coaches",PICON.search],["Find camps",PICON.calendar],
     ["Create an event",PICON.spark],["View all actions",PICON.list]
   ];
-  /* Model picker for the coach AI bar. Sporve AI is the grounded default; the
-     rest let a coach route the same prompt to an external model. In this demo
-     the choice is a real selection (persisted in S.aiModel); live routing to the
-     provider's API happens server-side, which the menu footer states plainly. */
-  const AI_MODELS=[
-    ["Sporve AI","Grounded on your calendar, roster, and listings"],
-    ["Opus 5","Anthropic · deepest reasoning"],
-    ["Sonnet 5","Anthropic · fast and capable"],
-    ["Fable 5","Anthropic · creative drafting"],
-    ["Haiku 4.5","Anthropic · quick replies"],
-    ["GPT-5.6 Sol","OpenAI · general purpose"],
-    ["Gemini 2.5 Pro","Google · long context"],
-  ];
+  /* The multi-model picker was removed (fabricated capability — the models were
+     wired to nothing). The bar is a single non-interactive "Sporve AI" chip. */
   const statusLine=live
     ? `${todays.length} session${todays.length===1?"":"s"} tomorrow, ${q.filter(x=>x.decide).length} awaiting your decision.`
     : `You're ${gs.total-gs.done} step${gs.total-gs.done===1?"":"s"} from going live.`;
@@ -7939,9 +7928,6 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const input=document.getElementById("cmdField");if(input) input.focus();
   });
   $("[data-attach]").forEach(b=>b.onclick=()=>toast("Attachments are available when a conversation has a family or session context"));
-  $("[data-cmdmodel]").forEach(b=>b.onclick=e=>{e.stopPropagation();S.cmdModelOpen=!S.cmdModelOpen;render();});
-  $("[data-cmdmodelpick]").forEach(b=>b.onclick=()=>{S.aiModel=b.dataset.cmdmodelpick;S.cmdModelOpen=false;render();
-    toast(S.aiModel==="Sporve AI"?"Using Sporve AI":"Switched to "+S.aiModel);});
   $("[data-cmdhist]").forEach(b=>b.onclick=()=>toast(S.cmdLog&&S.cmdLog.length?"Recent Sporve AI activity is shown below":"No Sporve AI activity yet"));
   $("[data-voice]").forEach(b=>b.onclick=()=>
     toast("Voice input needs a microphone permission this demo doesn't request"));
@@ -8238,7 +8224,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const id="prog_new_"+Date.now();
     PROGRAMS.push({id,biz:SEED.providerProfile.businessName,verified:true,sport:d.sport,
       title:d.title,desc:d.desc,price:+d.price,model:d.model,rating:0,reviews:0,
-      lng:-80.19,lat:25.76,featured:false,skill:"All Levels",ageGroup:"All Ages",
+      lng:-87.63,lat:41.88,featured:false,skill:"All Levels",ageGroup:"All Ages",
       minAge:+d.minAge,maxAge:+d.maxAge,cap:+d.cap,enrolled:0,
       img:phShot(d.sport),
       gallery:[phShot(d.sport),phShot(d.sport),phShot(d.sport)],
@@ -12657,7 +12643,7 @@ const TODAY="2026-08-03";
    it, so haversine distances stay correct); only labels are user-visible.
    placeholder in the host's location field. Distances below are measured
    from here with a real haversine against each listing's lat/lng. */
-const ORIGIN={lat:25.7617,lng:-80.1918,label:"Chicago, IL"};
+const ORIGIN={lat:41.8781,lng:-87.6298,label:"Chicago, IL"};
 const EARTH_MI=3958.7613;                 /* mean earth radius, miles */
 
 /* pricing-model wording (local copy — the host's modelLabel is not part

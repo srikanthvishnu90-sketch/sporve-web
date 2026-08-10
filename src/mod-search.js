@@ -25,7 +25,7 @@ const TODAY="2026-08-03";
    it, so haversine distances stay correct); only labels are user-visible.
    placeholder in the host's location field. Distances below are measured
    from here with a real haversine against each listing's lat/lng. */
-const ORIGIN={lat:25.7617,lng:-80.1918,label:"Chicago, IL"};
+const ORIGIN={lat:41.8781,lng:-87.6298,label:"Chicago, IL"};
 const EARTH_MI=3958.7613;                 /* mean earth radius, miles */
 
 /* pricing-model wording (local copy — the host's modelLabel is not part
