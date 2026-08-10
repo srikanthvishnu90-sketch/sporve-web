@@ -1457,6 +1457,13 @@ h2.ctr{margin-bottom:10px}
 .cmdspinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.38);border-top-color:#fff;border-radius:var(--r-pill);animation:cmdspin .7s linear infinite}
 @keyframes cmdspin{to{transform:rotate(360deg)}}
 .cmderror{padding:0 18px 12px;color:var(--danger);font-size:var(--text-sm);font-weight:600}
+/* Confirmation step for an AI-parsed action. Deliberately plain: it is a
+   read-back, not a call to action, so nothing here competes with the message. */
+.cmdconfirm{margin:0 18px 14px;border:1px solid var(--rule);border-radius:var(--r-m);
+  padding:13px 15px;background:var(--raise)}
+.cmdconfirm-line{font-size:var(--text-sm);font-weight:600;color:var(--ink)}
+.cmdconfirm-body{margin-top:7px;font-size:var(--text-sm);color:var(--ink-2)}
+.cmdconfirm-actions{display:flex;gap:8px;margin-top:13px}
 .cmdlog{border:1px solid var(--rule);border-radius:var(--r-m);padding:13px 15px;background:var(--raise)}
 .cmdlogrow{display:flex;justify-content:space-between;gap:14px;font-size:var(--text-sm);color:var(--ink-2);padding:5px 0}
 .cmdlogrow .num{color:var(--faint);flex:0 0 auto}
@@ -3167,6 +3174,9 @@ const S={
   aiModel:"Sporve AI",
   cmdModelOpen:false,
   cmdError:"",
+  /* A parsed action awaiting the coach's confirmation. Nothing the model
+     produces reaches a family until this is approved. */
+  cmdPending:null,
   waitlist:[],
   onboardStep:0,
   onboardSports:[],
@@ -5034,6 +5044,14 @@ function dashboardHTML(){
           ${S.cmdSending?`<span class="cmdspinner" aria-hidden="true"></span>`:ICON.send}</button>
       </form>
       ${S.cmdError?`<p class="cmderror" id="cmdError" role="alert">${esc(S.cmdError)}</p>`:""}
+      ${S.cmdPending?`<div class="cmdconfirm" role="group" aria-label="Confirm before sending">
+        <p class="cmdconfirm-line">${esc(S.cmdPending.restated)}</p>
+        ${S.cmdPending.body?`<p class="cmdconfirm-body">${esc(S.cmdPending.body)}</p>`:""}
+        <div class="cmdconfirm-actions">
+          <button class="btn sm" type="button" data-cmdok="1">Send it</button>
+          <button class="btn ghost sm" type="button" data-cmdno="1">Cancel</button>
+        </div>
+      </div>`:""}
     </section>
     ${S.cmdLog&&S.cmdLog.length?`<div class="cmdlog" aria-label="Recent Sporve AI activity">
         <div class="eyebrow">Activity log</div>
@@ -8025,6 +8043,8 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     if(first) S.activeConv=first.id;
     render();
   });
+  $("[data-cmdok]").forEach(b=>b.onclick=()=>confirmPending());
+  $("[data-cmdno]").forEach(b=>b.onclick=()=>{S.cmdPending=null;render();});
   $("[data-newgroup]").forEach(b=>b.onclick=()=>{S.modal={type:"newgroup"};render();});
   $("[data-addpeople]").forEach(b=>b.onclick=()=>{S.modal={type:"addpeople",id:b.dataset.addpeople};render();});
 
@@ -8464,10 +8484,108 @@ function wireExtras(){
 
 /* Coach command bar. Every action lands in an activity log — a trust
    requirement for automation that touches schedules and money. */
-function submitCommand(text){
+/* Normalised so "monday noon" resolves to a group named "Monday at noon".
+   Filler words are dropped rather than matched, because a coach naming a group
+   and a coach referring to it later rarely use the same connectives. */
+const cmdNorm=s=>String(s||"").toLowerCase()
+  .replace(/[^a-z0-9\s]/g," ")
+  .split(/\s+/)
+  .filter(w=>w&&!["at","the","a","an","on","of","group","chat"].includes(w))
+  .join(" ");
+
+/* Returns {group} on a single match, {ambiguous:[...]} when more than one group
+   matches, or {} when none do. Ambiguity is a first-class outcome: guessing
+   which of two groups the coach meant is how a message reaches the wrong
+   families. */
+function resolveGroup(name){
+  const want=cmdNorm(name);
+  if(!want) return {};
+  const groups=S.conversations.filter(c=>(c.kind||"direct")==="group");
+  const exact=groups.filter(c=>cmdNorm(c.name)===want);
+  if(exact.length===1) return {group:exact[0]};
+  if(exact.length>1) return {ambiguous:exact};
+  const partial=groups.filter(c=>{
+    const have=cmdNorm(c.name);
+    return have.includes(want)||want.includes(have);
+  });
+  if(partial.length===1) return {group:partial[0]};
+  if(partial.length>1) return {ambiguous:partial};
+  return {};
+}
+
+/* Parse on the server, decide on the client. The model returns an action; this
+   function judges whether it is runnable and, for anything that reaches a
+   family, parks it in S.cmdPending for the coach to approve. If /api/ai is
+   unreachable or has no key, we fall through to the built-in router so the
+   page behaves exactly as it did before. */
+async function submitCommand(text){
   if(S.cmdSending||!text||!text.trim())return;
-  S.cmdDraft=text.trim();S.cmdSending=true;S.cmdError="";render();
-  setTimeout(()=>{S.cmdSending=false;runCommand(text.trim());},650);
+  const q=text.trim();
+  S.cmdDraft=q;S.cmdSending=true;S.cmdError="";S.cmdPending=null;render();
+  let a=null;
+  try{
+    const r=await fetch("/api/ai",{
+      method:"POST",
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify({
+        text:q,
+        groups:S.conversations.filter(c=>(c.kind||"direct")==="group").map(c=>c.name),
+      }),
+    });
+    if(r.ok) a=await r.json();
+  }catch(_){ /* offline, blocked, or no function — handled below */ }
+  S.cmdSending=false;
+  if(!a||!a.action||a.action==="unknown"){ runCommand(q); return; }
+  applyAction(a,q);
+}
+
+function applyAction(a,original){
+  if(a.action==="open_tab"){
+    const tab=String(a.target||"").trim();
+    if(!tab){ runCommand(original); return; }
+    S.coachTab=tab;
+    S.cmdDraft="";S.cmdError="";
+    S.cmdLog=[{text:a.restated||("Opened "+tab),at:"just now"},...(S.cmdLog||[])].slice(0,8);
+    render();toast(a.restated||("Opened "+tab));return;
+  }
+  if(a.action==="create_group"){
+    S.cmdDraft="";S.cmdError="";S.modal={type:"newgroup",name:a.target||""};
+    render();return;
+  }
+  if(a.action==="send_group_message"){
+    const hit=resolveGroup(a.target);
+    if(hit.ambiguous){
+      S.cmdError="More than one group matches “"+a.target+"”: "+
+        hit.ambiguous.map(g=>g.name).join(", ")+". Name one exactly.";
+      render();return;
+    }
+    if(!hit.group){
+      S.cmdError="No group named “"+a.target+"”. Create it first, or name an existing group.";
+      render();return;
+    }
+    if(!String(a.body||"").trim()){
+      S.cmdError="I understood the group but not the message. Say what to send.";
+      render();return;
+    }
+    /* Parked, not sent. A misparse here reaches every family on the roster,
+       so the coach reads it back before it goes. */
+    S.cmdPending={convId:hit.group.id,body:String(a.body).trim(),
+      restated:a.restated||("Send this to "+hit.group.name+".")};
+    S.cmdError="";render();return;
+  }
+  runCommand(original);
+}
+
+function confirmPending(){
+  const p=S.cmdPending; if(!p) return;
+  const id=p.convId;
+  (S.messages[id]=S.messages[id]||[]).push(
+    {id:"msg_"+((S.messages[id]||[]).length+1),me:false,text:p.body,at:TODAY});
+  const c=S.conversations.find(x=>x.id===id); if(c) c.last=p.body;
+  if(S.unread) S.unread[id]=0;
+  S.cmdPending=null;S.cmdDraft="";
+  S.cmdLog=[{text:p.restated,at:"just now"},...(S.cmdLog||[])].slice(0,8);
+  render();toast("Sent");
 }
 function runCommand(text){
   const t=text.toLowerCase();

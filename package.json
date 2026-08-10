@@ -1,0 +1,9 @@
+{
+  "name": "the-sporve-web",
+  "private": true,
+  "type": "module",
+  "description": "Static Sporve web page. The only Node in this repo is api/ — the page itself is built by src/build.py and has no npm step.",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0"
+  }
+}
