@@ -3367,7 +3367,7 @@ function cardHTML(p){
     <div class="ttl">${esc(p.title)}</div>
     <div class="meta num">Ages ${p.minAge}–${p.maxAge} · ${esc(p.skill)}</div>
     ${p.verified
-      ? `<div class="verifline">${ICON.shield} Background-checked</div>`
+      ? `<div class="verifline">${ICON.shield} Verification pending</div>`
       : `<div class="pendline">${ICON.shield} Verification pending</div>`}
     <div class="price num"><b>${money(p.price)}</b> <span style="color:var(--muted)">${modelLabel(p.model)}</span></div>
   </div>`;
@@ -3395,7 +3395,7 @@ function featureCardHTML(p){
     <div class="featfoot">
       <span class="featloc">${ICON.pin}${esc(p.address)}</span>
       ${p.verified
-        ? `<span class="verifline" style="padding:0">${ICON.shield} Background-checked</span>`
+        ? `<span class="verifline" style="padding:0">${ICON.shield} Verification pending</span>`
         : `<span class="pendline" style="padding:0">${ICON.shield} Verification pending</span>`}
       <span class="featprice num">${money(p.price)} / ${esc(modelLabel(p.model).replace(/^per /,""))}</span>
     </div>
@@ -4447,7 +4447,7 @@ function detailHTML(id){
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:9px">
             <span class="pill" style="background:${sportColor(p.sport)}1A;color:${sportColor(p.sport)}">
               ${sportGlyph(p.sport)} ${esc(p.sport)}</span>
-            ${p.verified?`<span class="pill gold">${ICON.shield} Background-checked</span>`
+            ${p.verified?`<span class="pill gold">${ICON.shield} Verification pending</span>`
                         :`<span class="pill warn">${ICON.shield} Verification pending</span>`}
             ${p.featured?`<span class="pill slate">Featured</span>`:""}
           </div>
@@ -4768,7 +4768,7 @@ function mapHTML(){
               <span class="rate num">${ICON.star}&nbsp;${sel.rating}</span></div>
             <div class="ttl">${esc(sel.title)}</div>
             <div class="meta num">Ages ${sel.minAge}–${sel.maxAge} · ${esc(sel.address)}</div>
-            ${sel.verified?`<div class="verifline">${ICON.shield} Background-checked</div>`
+            ${sel.verified?`<div class="verifline">${ICON.shield} Verification pending</div>`
                           :`<div class="pendline">${ICON.shield} Verification pending</div>`}
             <div class="price num"><b>${money(sel.price)}</b> <span style="color:var(--muted)">${modelLabel(sel.model)}</span></div>
             <button class="btn wide sm" data-open="${sel.id}">View program</button>
@@ -4817,7 +4817,7 @@ function assistantHTML(){
                      <b>${esc(p.title)}</b>
                      <span class="num" style="color:var(--muted);font-size:var(--text-sm)">${esc(p.biz)} · ${money(p.price)} ${modelLabel(p.model)}</span>
                      <span class="num" style="font-size:var(--text-sm);color:var(--muted)">${ICON.star} ${p.rating} · ages ${p.minAge}–${p.maxAge}</span>
-                     ${p.verified?`<span class="pill gold" style="width:fit-content">${ICON.shield} Background-checked</span>`:""}
+                     ${p.verified?`<span class="pill gold" style="width:fit-content">${ICON.shield} Verification pending</span>`:""}
                    </span></button>`}).join("")}</div>`:""}
              </div>`).join("")
         :`<div style="margin:auto;text-align:center;max-width:420px;padding:20px">
@@ -5747,7 +5747,7 @@ function modalHTML(){
         <img src="${p.img}" alt="" style="width:70px;height:70px;border-radius:var(--r-m);object-fit:cover">
         <div><b>${esc(p.title)}</b>
           <div style="color:var(--muted);font-size:var(--text-sm)">${esc(p.biz)} · ${esc(p.sport)}</div>
-          ${p.verified?`<span class="pill gold" style="margin-top:5px">${ICON.shield} Background-checked</span>`:""}</div>
+          ${p.verified?`<span class="pill gold" style="margin-top:5px">${ICON.shield} Verification pending</span>`:""}</div>
       </div>
       <form id="bookForm" style="margin-top:18px">
         <div class="field"><label>Athlete</label>
@@ -5981,7 +5981,7 @@ Marcus Chen, marcus@example.com"></textarea></div>
             <b>${esc(p.biz)}</b><span class="num">${ICON.star} ${p.rating}</span></div>
           <div style="color:var(--muted);font-size:var(--text-base);margin-top:3px">${esc(p.title)}</div>
           <div class="num" style="color:var(--muted);font-size:var(--text-sm)">Ages ${p.minAge}–${p.maxAge} · ${esc(p.skill)}</div>
-          <span class="pill gold" style="margin-top:8px">${ICON.shield} Background-checked</span>
+          <span class="pill gold" style="margin-top:8px">${ICON.shield} Verification pending</span>
           <div class="num" style="font-weight:700;margin-top:9px">${money(p.price)} ${modelLabel(p.model)}</div>
         </div>
       </div>
@@ -8925,7 +8925,7 @@ document.addEventListener("click",e=>{
      policy is the proof behind the product's central claim, so it leads the
      page instead of sitting in the third panel down. */
   const POLICY = [
-    ["shield", "Each person clears their own", "Identity and criminal-record check before any booking."],
+    ["shield", "Each person clears their own", "A background check is required before a coach can be booked."],
     ["check",  "Sporve sets the badge",        "An organization cannot verify its own staff."],
     ["doc",    "Pending is shown",             "Uncleared listings read Verification pending, and stay bookable."],
     ["clock",  "Checks are re-run",            "A badge that stops being true stops showing."],
@@ -8992,7 +8992,7 @@ document.addEventListener("click",e=>{
     <section class="band alt sf-hero">
       <div class="shell" data-rev>
         <p class="eyebrow">Trust &amp; safety</p>
-        <h1>Every coach clears their own check.</h1>
+        <h1>Every coach must clear their own check.</h1>
         <p class="lede">A check belongs to a person, not a logo.</p>
 
         <div class="sf-actions">
@@ -9031,7 +9031,7 @@ document.addEventListener("click",e=>{
         </div>
         <div class="sf-states" data-rev>
           <div class="prodcard sf-static">
-            <span class="pill gold">${ICON.shield} Background-checked</span>
+            <span class="pill gold">${ICON.shield} Verification pending</span>
             <span>Check passed, and re-run on schedule.</span>
           </div>
           <div class="prodcard sf-static">
@@ -9889,7 +9889,7 @@ function planCard(g){
             <b>${esc(p.title)}</b>
             <div class="num rv-sub">${esc(p.biz)} · ${ICON.star} ${p.rating} · ages ${p.minAge}–${p.maxAge} · ${esc(p.skill)}</div>
             <div class="num rv-sub">${money(p.price)} ${esc(MODEL_LABEL[p.model]||p.model)} · ${esc(costLine(p,weeks,sessions))}</div>
-            <span class="pill gold" style="margin-top:6px">${ICON.shield} Background-checked</span>
+            <span class="pill gold" style="margin-top:6px">${ICON.shield} Verification pending</span>
           </div>
           <button class="btn ghost sm" data-open="${esc(p.id)}">View</button>
         </div>`).join("")}
@@ -9907,14 +9907,14 @@ function goalsView(){
   const goals=allGoals();
   return `${nav()}<main class="shell" style="padding-bottom:72px">
     <div class="sec-head"><div><h1>Goals</h1>
-      <p class="rv-sub">State the outcome. We'll split the time you have into phases and match it to real, background-checked listings.</p></div>
+      <p class="rv-sub">State the outcome. We'll split the time you have into phases and match it to real listings that meet our verification requirements.</p></div>
       ${goals.length?`<button class="btn ghost sm" data-goalintake="1">New goal</button>`:""}</div>
     <div class="rv-goalgrid">
       <section class="panel">
         <span class="eyebrow">New goal</span>
         <h3 style="margin:6px 0 16px">What are you training toward?</h3>
         ${goalForm("goalForm")}
-        <p class="rv-fine">Plans only ever cite listings that exist on Sporve and have cleared a background check.</p>
+        <p class="rv-fine">Plans only ever cite listings that exist on Sporve and meet our verification requirements.</p>
       </section>
       <div class="rv-goals">
         ${goals.length?goals.map(planCard).join("")
@@ -13697,7 +13697,7 @@ const STEPS = [
   ["Services",        "Services & capacity",      "A service is one thing a family can book. Capacity is the honest ceiling — how many athletes you can coach at once without the session getting worse."],
   ["Pricing",         "Pricing",                  "You set the price. Sporve's platform fee comes out at checkout; the take-home figure beside each service is what actually reaches your account."],
   ["Availability",    "Availability",             "The days and the window you can coach. Exact session times come later, from your schedule — this is the outer boundary."],
-  ["Background check","Background check",         "Every person who coaches on Sporve clears their own check. This step collects consent and the identifiers the screening partner needs."],
+  ["Background check","Background check",         "Every person who coaches on Sporve must clear their own check before listings go live. This step collects your consent and the identifiers needed for screening."],
   ["Review",          "Review & submit",          "Everything you entered, read back. Fix anything that is wrong before it goes in."],
 ];
 const LAST = STEPS.length - 1;
@@ -14293,7 +14293,7 @@ function backgroundStep(d, err){
       an identity match, then criminal and sex-offender registry records.</p>
     <p><b>An approved business never vouches for an individual.</b>
       ${esc(SEED.providerProfile.businessName)} is an approved business on Sporve, and every single coach working
-      under it still clears their own check. Being invited by an approved academy grants nothing.</p>
+      under it must still clear their own check. Being invited by an approved academy grants nothing.</p>
     <p><b>You cannot mark yourself as checked.</b> This form collects consent and identifiers.
       The result is written by the screening partner, and nothing you enter here can set it.</p>
   </div>
@@ -18722,7 +18722,7 @@ function mixOf(company){
 
 function trustLine(company){
   return company.verified
-    ? `<span class="co-trust ok">${(typeof ICON !== "undefined" && ICON.shield) || "✓"} Background-checked staff</span>`
+    ? `<span class="co-trust ok">${(typeof ICON !== "undefined" && ICON.shield) || "✓"} Verification pending</span>`
     : `<span class="co-trust no">Verification pending</span>`;
 }
 
@@ -18784,7 +18784,7 @@ function companiesView(){
       <div class="eyebrow" data-rev>Examples</div>
       <h1 style="margin-top:16px;max-width:18ch" data-rev>Six sample businesses in Chicago.</h1>
       <p class="lede" style="margin:16px 0 0;max-width:56ch;text-align:left" data-rev>${nProg} programmes,
-        ${nSport} sports, ${nBiz} operators — ${nChecked} background-checked, ${nBiz - nChecked} still pending.</p>
+        ${nSport} sports across ${nBiz} operators. Verification is pending across the roster.</p>
     </div>
   </section>
 
@@ -19019,7 +19019,7 @@ function campSheet(p, m){
   ${fg("A day at this camp", meta.daily.length + " blocks", `<div class="co-sched">
     ${meta.daily.map(([tm, what]) => `<div class="co-schedrow"><span class="t">${esc(tm)}</span><span>${esc(what)}</span></div>`).join("")}
   </div>
-  <div class="co-note plain">Supervision is <b>${esc(meta.ratio)}</b>. Every staff member on site has cleared their own background check.</div>`)}
+  <div class="co-note plain">Supervision is <b>${esc(meta.ratio)}</b>. Every staff member on site must clear their own background check.</div>`)}
 
   ${fg("Extended care", "2 add-ons", `<div class="co-opts">
     <button class="co-opt ${care.before ? "on" : ""}" data-cocare="before">Before care from ${esc(meta.beforeCare.from)} · +${usd(meta.beforeCare.fee)}</button>

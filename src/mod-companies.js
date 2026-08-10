@@ -647,7 +647,7 @@ function mixOf(company){
 
 function trustLine(company){
   return company.verified
-    ? `<span class="co-trust ok">${(typeof ICON !== "undefined" && ICON.shield) || "✓"} Background-checked staff</span>`
+    ? `<span class="co-trust ok">${(typeof ICON !== "undefined" && ICON.shield) || "✓"} Verification pending</span>`
     : `<span class="co-trust no">Verification pending</span>`;
 }
 
@@ -709,7 +709,7 @@ function companiesView(){
       <div class="eyebrow" data-rev>Examples</div>
       <h1 style="margin-top:16px;max-width:18ch" data-rev>Six sample businesses in Chicago.</h1>
       <p class="lede" style="margin:16px 0 0;max-width:56ch;text-align:left" data-rev>${nProg} programmes,
-        ${nSport} sports, ${nBiz} operators — ${nChecked} background-checked, ${nBiz - nChecked} still pending.</p>
+        ${nSport} sports across ${nBiz} operators. Verification is pending across the roster.</p>
     </div>
   </section>
 
@@ -944,7 +944,7 @@ function campSheet(p, m){
   ${fg("A day at this camp", meta.daily.length + " blocks", `<div class="co-sched">
     ${meta.daily.map(([tm, what]) => `<div class="co-schedrow"><span class="t">${esc(tm)}</span><span>${esc(what)}</span></div>`).join("")}
   </div>
-  <div class="co-note plain">Supervision is <b>${esc(meta.ratio)}</b>. Every staff member on site has cleared their own background check.</div>`)}
+  <div class="co-note plain">Supervision is <b>${esc(meta.ratio)}</b>. Every staff member on site must clear their own background check.</div>`)}
 
   ${fg("Extended care", "2 add-ons", `<div class="co-opts">
     <button class="co-opt ${care.before ? "on" : ""}" data-cocare="before">Before care from ${esc(meta.beforeCare.from)} · +${usd(meta.beforeCare.fee)}</button>

@@ -513,7 +513,7 @@ function planCard(g){
             <b>${esc(p.title)}</b>
             <div class="num rv-sub">${esc(p.biz)} · ${ICON.star} ${p.rating} · ages ${p.minAge}–${p.maxAge} · ${esc(p.skill)}</div>
             <div class="num rv-sub">${money(p.price)} ${esc(MODEL_LABEL[p.model]||p.model)} · ${esc(costLine(p,weeks,sessions))}</div>
-            <span class="pill gold" style="margin-top:6px">${ICON.shield} Background-checked</span>
+            <span class="pill gold" style="margin-top:6px">${ICON.shield} Verification pending</span>
           </div>
           <button class="btn ghost sm" data-open="${esc(p.id)}">View</button>
         </div>`).join("")}
@@ -531,14 +531,14 @@ function goalsView(){
   const goals=allGoals();
   return `${nav()}<main class="shell" style="padding-bottom:72px">
     <div class="sec-head"><div><h1>Goals</h1>
-      <p class="rv-sub">State the outcome. We'll split the time you have into phases and match it to real, background-checked listings.</p></div>
+      <p class="rv-sub">State the outcome. We'll split the time you have into phases and match it to real listings that meet our verification requirements.</p></div>
       ${goals.length?`<button class="btn ghost sm" data-goalintake="1">New goal</button>`:""}</div>
     <div class="rv-goalgrid">
       <section class="panel">
         <span class="eyebrow">New goal</span>
         <h3 style="margin:6px 0 16px">What are you training toward?</h3>
         ${goalForm("goalForm")}
-        <p class="rv-fine">Plans only ever cite listings that exist on Sporve and have cleared a background check.</p>
+        <p class="rv-fine">Plans only ever cite listings that exist on Sporve and meet our verification requirements.</p>
       </section>
       <div class="rv-goals">
         ${goals.length?goals.map(planCard).join("")

@@ -41,7 +41,7 @@ const STEPS = [
   ["Services",        "Services & capacity",      "A service is one thing a family can book. Capacity is the honest ceiling — how many athletes you can coach at once without the session getting worse."],
   ["Pricing",         "Pricing",                  "You set the price. Sporve's platform fee comes out at checkout; the take-home figure beside each service is what actually reaches your account."],
   ["Availability",    "Availability",             "The days and the window you can coach. Exact session times come later, from your schedule — this is the outer boundary."],
-  ["Background check","Background check",         "Every person who coaches on Sporve clears their own check. This step collects consent and the identifiers the screening partner needs."],
+  ["Background check","Background check",         "Every person who coaches on Sporve must clear their own check before listings go live. This step collects your consent and the identifiers needed for screening."],
   ["Review",          "Review & submit",          "Everything you entered, read back. Fix anything that is wrong before it goes in."],
 ];
 const LAST = STEPS.length - 1;
@@ -637,7 +637,7 @@ function backgroundStep(d, err){
       an identity match, then criminal and sex-offender registry records.</p>
     <p><b>An approved business never vouches for an individual.</b>
       ${esc(SEED.providerProfile.businessName)} is an approved business on Sporve, and every single coach working
-      under it still clears their own check. Being invited by an approved academy grants nothing.</p>
+      under it must still clear their own check. Being invited by an approved academy grants nothing.</p>
     <p><b>You cannot mark yourself as checked.</b> This form collects consent and identifiers.
       The result is written by the screening partner, and nothing you enter here can set it.</p>
   </div>

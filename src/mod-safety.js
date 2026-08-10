@@ -325,7 +325,7 @@
      policy is the proof behind the product's central claim, so it leads the
      page instead of sitting in the third panel down. */
   const POLICY = [
-    ["shield", "Each person clears their own", "Identity and criminal-record check before any booking."],
+    ["shield", "Each person clears their own", "A background check is required before a coach can be booked."],
     ["check",  "Sporve sets the badge",        "An organization cannot verify its own staff."],
     ["doc",    "Pending is shown",             "Uncleared listings read Verification pending, and stay bookable."],
     ["clock",  "Checks are re-run",            "A badge that stops being true stops showing."],
@@ -392,7 +392,7 @@
     <section class="band alt sf-hero">
       <div class="shell" data-rev>
         <p class="eyebrow">Trust &amp; safety</p>
-        <h1>Every coach clears their own check.</h1>
+        <h1>Every coach must clear their own check.</h1>
         <p class="lede">A check belongs to a person, not a logo.</p>
 
         <div class="sf-actions">
@@ -431,7 +431,7 @@
         </div>
         <div class="sf-states" data-rev>
           <div class="prodcard sf-static">
-            <span class="pill gold">${ICON.shield} Background-checked</span>
+            <span class="pill gold">${ICON.shield} Verification pending</span>
             <span>Check passed, and re-run on schedule.</span>
           </div>
           <div class="prodcard sf-static">
