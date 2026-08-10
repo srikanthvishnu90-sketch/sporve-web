@@ -5576,6 +5576,12 @@ function providerPeople(){
   };
   (SEED.teams||[]).forEach(t=>(t.roster||[]).forEach(r=>add(r.id,r.name,t.name)));
   (S.trainers||[]).forEach(t=>add(t.id,t.name,t.specialty));
+  /* The families who actually booked this coach. Without them a coach setting up a
+     group for Monday's session can't add the people attending it — they only appear
+     here if they happened to DM him first. Labelled with the program so two athletes
+     with the same first name stay distinguishable in the picker. */
+  (S.bookings||[]).filter(b=>S.listings.includes(b.programId))
+    .forEach(b=>add(b.id,b.athlete,b.program));
   S.conversations.filter(c=>(c.kind||"direct")==="direct").forEach(c=>add(c.id,c.with,"Direct message"));
   return out;
 }
