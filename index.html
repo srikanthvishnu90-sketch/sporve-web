@@ -712,7 +712,8 @@ img{max-width:100%;display:block}
 .cg-left{position:relative;display:flex;flex-direction:column;justify-content:center;padding:56px clamp(28px,6vw,84px);min-height:100vh}
 .cg-back{position:absolute;top:24px;left:24px;background:none;border:0;color:#8FA3BC;font-family:var(--sans);font-size:var(--text-base);cursor:pointer}
 .cg-back:hover{color:#F7F9FF}
-.cg-wordmark{font-family:var(--display);font-size:var(--text-xl);color:#F7F9FF;letter-spacing:-.01em;margin-bottom:40px}
+.cg-wordmark{font-family:var(--display);font-size:var(--text-xl);color:#F7F9FF;letter-spacing:-.01em;margin-bottom:40px;display:inline-flex;align-items:center;gap:10px}
+.cg-logomark{flex:none;border-radius:7px}
 .cg-h1{font-family:var(--display);font-size:var(--text-2xl);color:#F7F9FF;letter-spacing:-.02em;line-height:1.1;margin:0}
 .cg-sub{font-family:var(--sans);color:#8FA3BC;font-size:var(--text-base);margin-top:12px;max-width:44ch;line-height:1.55}
 .cg-form{margin-top:26px;max-width:400px;display:flex;flex-direction:column;gap:14px}
@@ -726,6 +727,8 @@ img{max-width:100%;display:block}
 .cg-oauth{display:flex;flex-direction:column;gap:12px;max-width:400px}
 .cg-social{height:54px;border-radius:12px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;display:flex;align-items:center;justify-content:center;gap:10px;position:relative;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:var(--text-base);transition:background .15s}
 .cg-social:hover{background:#1B2027}
+.cg-social--light{background:#FFFFFF;color:#0A0C0F;border-color:#FFFFFF}
+.cg-social--light:hover{background:#E9EEF4}
 .cg-social-ic{position:absolute;left:16px;display:grid;place-items:center}
 .cg-sq{width:54px;height:54px;border-radius:12px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;display:grid;place-items:center;cursor:pointer;transition:background .15s}
 .cg-sq:hover{background:#1B2027}
@@ -7500,14 +7503,14 @@ function coachGateHTML(){
       </form>
       <div class="cg-or">or</div>
       <div class="cg-oauth">
-        <button class="cg-social" type="button" data-cg-google="1" aria-label="Continue with Google"><span class="cg-social-ic">${ICON.google}</span>Continue with Google</button>
+        <button class="cg-social cg-social--light" type="button" data-cg-google="1" aria-label="Continue with Google"><span class="cg-social-ic">${ICON.google}</span>Continue with Google</button>
         <button class="cg-social" type="button" data-cg-apple="1" aria-label="Continue with Apple"><span class="cg-social-ic">${APPLE}</span>Continue with Apple</button>
       </div>
       <p class="cg-fine">Just exploring? <button type="button" data-cg-demo="1">Use the demo account</button></p>`;
   return `<div class="coachgate">
     <div class="cg-left">
       <button class="cg-back" type="button" data-cg-back="1">&larr; Back</button>
-      <div class="cg-wordmark">Sporve</div>
+      <div class="cg-wordmark"><svg class="cg-logomark" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#14181D"/><circle cx="16" cy="16" r="6" fill="#F7F9FF"/></svg>Sporve</div>
       ${left}
     </div>
     <div class="cg-right">
