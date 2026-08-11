@@ -189,11 +189,32 @@ persist=$($B js "
   const snap=JSON.parse(raw);
   const dataKept = snap.messages && snap.messages['__smoke'] && snap.messages['__smoke'][0].text==='persisted';
   const ephemeralDropped = !('cmdPending' in snap) && !('modal' in snap);
+  /* Round-trip, not just write. A regression that drops data on RESTORE would
+     leave the snapshot perfect and still lose the user's work, so wipe the
+     in-memory value and prove loadState puts it back. */
+  delete S.messages['__smoke'];
+  loadState();
+  const restored = !!(S.messages['__smoke'] && S.messages['__smoke'][0].text==='persisted');
+  /* A hostile snapshot must not be able to replace S prototype: JSON.parse
+     makes __proto__ an own key, and an in-operator guard is true by
+     inheritance, so the naive loop would assign it.
+     NOTE: no backticks anywhere in this block. It is interpolated inside a
+     double-quoted shell string, where a backtick is command substitution --
+     bash runs it and splices the output into the JavaScript. */
+  /* The payload MUST be a raw JSON string. Writing {__proto__:{...}} as an
+     object literal sets the prototype instead of creating an own key, so
+     JSON.stringify drops it entirely and the test becomes vacuous — it passed
+     against a knowingly vulnerable loader before this was fixed. */
+  sessionStorage.setItem('sporve:state:v1', '{\"__proto__\":{\"PWN\":1},\"portal\":\"coach\"}');
+  loadState();
+  const protoSafe = Object.getPrototypeOf(S)===Object.prototype && S.PWN===undefined;
   delete S.messages['__smoke'];S.cmdPending=null;
   S.portal=_p;S.coachTab=_t;S.route=_r;
   try{sessionStorage.removeItem('sporve:state:v1')}catch(_){}
   render();
   if(!dataKept)return 'DATALOST';
+  if(!restored)return 'RESTOREFAILED';
+  if(!protoSafe)return 'PROTO_POLLUTION';
   if(!ephemeralDropped)return 'EPHEMERAL_PERSISTED';
   return 'OK';
 }catch(e){return 'THREW:'+e.message}})()" 2>/dev/null | tr -d '"\r')
@@ -202,6 +223,8 @@ case "$persist" in
   NOAPI)               fail "persistence: saveState/loadState missing" ;;
   NOWRITE)             fail "persistence: nothing written to sessionStorage" ;;
   DATALOST)            fail "persistence: data did not survive the snapshot" ;;
+  RESTOREFAILED)       fail "persistence: snapshot written but loadState did not restore it — work is still lost" ;;
+  PROTO_POLLUTION)     fail "persistence: a hostile snapshot replaced S's prototype or widened S" ;;
   EPHEMERAL_PERSISTED) fail "persistence: cmdPending or modal was persisted — an unconfirmed broadcast can resurrect" ;;
   *)                   fail "persistence: $persist" ;;
 esac

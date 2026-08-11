@@ -8840,9 +8840,23 @@ function loadState(){
     if(!raw) return false;
     const saved = JSON.parse(raw);
     if(!saved || typeof saved !== "object" || Array.isArray(saved)) return false;
-    for(const k of Object.keys(saved)){
+    /* Iterate the keys S ALREADY has, not the keys storage offers. The
+       inverted form is not a style preference — it closes a real hole.
+       JSON.parse creates `__proto__` as an OWN property, so it survives
+       Object.keys(saved); and `'__proto__' in S` is true by inheritance, so a
+       `k in S` guard lets it through and `S[k] = ...` then replaces S's
+       prototype. Driving the loop from Object.keys(S) means a key S does not
+       already own can never be assigned, whatever storage contains.
+
+       Types are checked too: a snapshot whose `messages` is a string, or whose
+       `bookings` is an object, would render into exceptions all over the app.
+       Shape mismatch means the snapshot is not ours — skip that key and keep
+       the default rather than trusting it. */
+    const kind = v => Array.isArray(v) ? "array" : v === null ? "null" : typeof v;
+    for(const k of Object.keys(S)){
       if(EPHEMERAL.has(k)) continue;
-      if(!(k in S)) continue;          /* never widen S from storage */
+      if(!Object.prototype.hasOwnProperty.call(saved, k)) continue;
+      if(kind(saved[k]) !== kind(S[k])) continue;
       S[k] = saved[k];
     }
     return true;

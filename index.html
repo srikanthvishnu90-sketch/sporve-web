@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="11a32213cb3301de">
+<meta name="sporve-build" content="d88dab1733e3eece">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -19566,9 +19566,23 @@ function loadState(){
     if(!raw) return false;
     const saved = JSON.parse(raw);
     if(!saved || typeof saved !== "object" || Array.isArray(saved)) return false;
-    for(const k of Object.keys(saved)){
+    /* Iterate the keys S ALREADY has, not the keys storage offers. The
+       inverted form is not a style preference — it closes a real hole.
+       JSON.parse creates `__proto__` as an OWN property, so it survives
+       Object.keys(saved); and `'__proto__' in S` is true by inheritance, so a
+       `k in S` guard lets it through and `S[k] = ...` then replaces S's
+       prototype. Driving the loop from Object.keys(S) means a key S does not
+       already own can never be assigned, whatever storage contains.
+
+       Types are checked too: a snapshot whose `messages` is a string, or whose
+       `bookings` is an object, would render into exceptions all over the app.
+       Shape mismatch means the snapshot is not ours — skip that key and keep
+       the default rather than trusting it. */
+    const kind = v => Array.isArray(v) ? "array" : v === null ? "null" : typeof v;
+    for(const k of Object.keys(S)){
       if(EPHEMERAL.has(k)) continue;
-      if(!(k in S)) continue;          /* never widen S from storage */
+      if(!Object.prototype.hasOwnProperty.call(saved, k)) continue;
+      if(kind(saved[k]) !== kind(S[k])) continue;
       S[k] = saved[k];
     }
     return true;
