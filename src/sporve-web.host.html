@@ -7887,7 +7887,16 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     S.portal=b.dataset.portal;S.modal=null;S.sportOpen=false;
     S.route=S.portal==="coach"?{name:"dashboard",arg:null}:{name:"explore",arg:null};
     window.scrollTo(0,0);render();});
-  $("[data-ctab]").forEach(b=>b.onclick=()=>{S.coachTab=b.dataset.ctab;window.scrollTo(0,0);render();});
+  /* Leaving the tab drops any unconfirmed AI action with it. The command bar
+     renders only inside dashboardHTML(), so a pending send survives navigation
+     with no UI to approve or cancel it — the coach returns to the dashboard
+     minutes later and is offered a confirmation for a sentence they have
+     forgotten typing. Same reasoning as the deferred-booking drop below: a
+     stale intent that ambushes the user is worse than making them retype, and
+     this one broadcasts to every family on a roster. */
+  $("[data-ctab]").forEach(b=>b.onclick=()=>{
+    S.coachTab=b.dataset.ctab;S.cmdPending=null;S.cmdError="";
+    window.scrollTo(0,0);render();});
   $("[data-conv]").forEach(b=>b.onclick=()=>{S.activeConv=b.dataset.conv;render();});
   /* Dropping the sheet drops the deferred action with it. Otherwise a stale
      "book this" intent survives and ambushes the user after an unrelated
