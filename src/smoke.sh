@@ -286,11 +286,18 @@ for vp in 1440x900 768x1024 390x844; do
  // harmless; reporting it buries the element that actually scrolls the page.
  const clipped=el=>{for(let n=el.parentElement;n&&n!==b;n=n.parentElement){
    const o=getComputedStyle(n).overflowX; if(o!=='visible')return true} return false};
- let worst='',w=0;document.querySelectorAll('#app *').forEach(el=>{
+ const hits=[];document.querySelectorAll('#app *').forEach(el=>{
    if(clipped(el))return;
    const r=el.getBoundingClientRect();const x=Math.round(r.right-b.clientWidth);
-   if(x>w){w=x;worst=(el.className||el.tagName)+'(+'+x+'px)'}});
- return 'OVER:'+over+' '+(worst||'no unclipped culprit — sub-pixel accumulation')})()" 2>/dev/null | tr -d '\r')
+   if(x>0)hits.push({x,el})});
+ hits.sort((a,c)=>c.x-a.x);
+ const id=h=>{const e=h.el,p=e.parentElement;
+   return '+'+h.x+'px '+e.tagName+(e.className?'.'+String(e.className).split(' ')[0]:'')
+     +' w='+Math.round(e.getBoundingClientRect().width)
+     +' in '+(p?p.tagName+(p.className?'.'+String(p.className).split(' ')[0]:''):'?')
+     +' ['+e.outerHTML.slice(0,60).replace(/\s+/g,' ')+']'};
+ return 'OVER:'+over+' '+(hits.length?hits.slice(0,2).map(id).join(' || ')
+   :'no unclipped culprit — sub-pixel accumulation')})()" 2>/dev/null | tr -d '\r')
   case "$(printf '%s' "$o" | tr -d '"')" in
     CLEAN*) pass "no horizontal overflow at $vp" ;;
     *)      fail "horizontal overflow at $vp — $o" ;;
