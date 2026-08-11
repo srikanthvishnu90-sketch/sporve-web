@@ -346,7 +346,11 @@ esac
 # runtime check could not catch it either: that surface renders "$45 gross ·
 # $5 platform fee", a dollar figure with no percent sign for the scan to find.
 redecl=$(grep -cE "^\s*const (FEE_RATE|FEE_PCT|PLATFORM_FEE)\s*=" src/mod-*.js 2>/dev/null | awk -F: '{s+=$2} END{print s+0}')
-hardcoded=$(grep -oE "\*\s*0\.12\b" src/sporve-web.host.html src/mod-*.js 2>/dev/null | wc -l | tr -d ' ')
+# Geometry and style also multiply by 0.12 -- an SVG circle radius at
+# mod-companies.js:149 is not a platform fee -- so those lines are excluded by
+# shape rather than by line number, which would rot on the next edit.
+hardcoded=$(grep -nE "\*\s*0\.12\b" src/sporve-web.html src/sporve-web.host.html src/mod-*.js 2>/dev/null \
+  | grep -vE "Math\.(min|max)\(|opacity|circle|rgba|scale\(|translate" | wc -l | tr -d ' ')
 [ "$hardcoded" -eq 0 ] || fail "fee: $hardcoded hardcoded 0.12 literal(s) in source — use FEE_RATE"
 [ "$redecl" -eq 0 ] && pass "fee: no module re-declares the rate" \
   || fail "fee: a module re-declares the rate — it shadows the host and will drift"
