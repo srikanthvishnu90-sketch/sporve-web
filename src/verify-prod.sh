@@ -56,6 +56,36 @@ API_CORS=$(curl -sI -X POST "$URL/api/ai" | grep -ci "^access-control-allow-orig
 [ "$API_CORS" -eq 0 ] && pass "/api/ai emits no CORS headers" \
   || fail "/api/ai is emitting CORS headers — cross-origin callers can read it"
 
+# The CSP authorises inline scripts by hash. If the policy production sends
+# does not match the scripts production serves, every script is blocked and the
+# site is blank — with a 200 and all the right headers, so every other check
+# here would still pass. Compare the two as production actually serves them.
+csp_live=$(python3 - "$URL" <<'PY'
+import base64, hashlib, re, subprocess, sys
+url = sys.argv[1]
+page = subprocess.run(["curl", "-sL", "--compressed", url],
+                      capture_output=True, text=True).stdout
+head = subprocess.run(["curl", "-sI", url], capture_output=True, text=True).stdout
+m = re.search(r"(?im)^content-security-policy:\s*(.*)$", head)
+if not m:
+    print("NOCSP"); sys.exit()
+policy = m.group(1)
+scripts = re.findall(r"<script>(.*?)</script>", page, re.S)
+if not scripts:
+    print("NOSCRIPTS"); sys.exit()
+missing = [s for s in scripts
+           if "'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'"
+           not in policy]
+print("MISMATCH:%d/%d" % (len(missing), len(scripts)) if missing else "OK:%d" % len(scripts))
+PY
+)
+case "$csp_live" in
+  OK:*)       pass "csp: all ${csp_live#OK:} live scripts authorised by the live policy" ;;
+  NOCSP)      fail "csp: production is serving no Content-Security-Policy" ;;
+  NOSCRIPTS)  fail "csp: no inline scripts in the live page — check has gone blind" ;;
+  *)          fail "csp: ${csp_live#MISMATCH:} live scripts are BLOCKED by the live policy — the site is blank" ;;
+esac
+
 echo "── /api/ai gates ───────────────────────────────────"
 code(){ curl -s -o /dev/null -w "%{http_code}" "$@"; }
 A="$URL/api/ai"
