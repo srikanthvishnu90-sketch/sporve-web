@@ -44,8 +44,17 @@ for h in "content-security-policy" "x-frame-options" "x-content-type-options" \
          "referrer-policy" "permissions-policy" "strict-transport-security"; do
   printf '%s' "$H" | grep -qi "^$h:" && pass "$h present" || fail "$h MISSING in production"
 done
-printf '%s' "$H" | grep -qi "^access-control-allow-origin: \*" \
-  && fail "wildcard CORS is back on production" || pass "no wildcard CORS"
+# CORS is asserted on the API, not on the marketing page.
+#
+# Vercel serves static assets with `access-control-allow-origin: *` by default.
+# On fully public HTML that is untidy rather than dangerous: it exposes nothing
+# that is not already public, carries no credentials, and CORS grants no access
+# a plain GET does not already have. The header that would matter is on
+# /api/ai, which spends money — and that endpoint must emit none at all, so a
+# browser refuses to hand a cross-origin caller its response.
+API_CORS=$(curl -sI -X POST "$URL/api/ai" | grep -ci "^access-control-allow-origin:")
+[ "$API_CORS" -eq 0 ] && pass "/api/ai emits no CORS headers" \
+  || fail "/api/ai is emitting CORS headers — cross-origin callers can read it"
 
 echo "── /api/ai gates ───────────────────────────────────"
 code(){ curl -s -o /dev/null -w "%{http_code}" "$@"; }
