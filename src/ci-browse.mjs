@@ -70,9 +70,15 @@ async function serve() {
           await page.setViewportSize({ width: w, height: h });
           out = "ok";
         } else if (op === "js") {
-          /* Wrapped in an IIFE so a bare statement list behaves the way the
-             gstack tool does — the last expression is the value. */
-          const v = await page.evaluate(`(()=>{ return (${arg}) })()`);
+          /* eval, deliberately. smoke.sh passes multi-statement programs
+             ("S.portal='coach';render();'ok'"), and the gstack tool returns the
+             program's completion value — the last expression — which is exactly
+             eval's semantics. Wrapping in `return (...)` instead makes those
+             semicolons a syntax error, so every state-setting call fails
+             silently and later assertions measure the wrong page. That is not
+             hypothetical: it is what this file did on its first CI run.
+             Safe here because smoke drives a file:// page with no CSP. */
+          const v = await page.evaluate((c) => eval(c), arg);
           out = typeof v === "string" ? v : JSON.stringify(v);
         } else if (op === "eval") {
           const src = fs.readFileSync(arg, "utf8");

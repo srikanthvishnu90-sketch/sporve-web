@@ -35,10 +35,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-1.49.1
+          key: playwright-chromium-1.62.1
 
       - name: Install Playwright
-        run: npm install --no-save --no-audit --no-fund playwright@1.49.1
+        run: npm install --no-save --no-audit --no-fund playwright@1.62.1
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
