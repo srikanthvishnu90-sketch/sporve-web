@@ -64,7 +64,15 @@
       .join(" ");
     if (!t) return;
     const cs = getComputedStyle(el);
-    if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") return;
+    /* getComputedStyle reports the element's OWN display, so a child of a
+       display:none ancestor still reads "block" and would be audited despite
+       never being painted — a source of false failures. getClientRects() is the
+       reliable test: empty means the box is not laid out for any reason,
+       including a hidden ancestor. It is used in preference to offsetParent,
+       which is null for position:fixed elements and would skip the command bar,
+       the exact surface a contrast bug was just found on. */
+    if (el.getClientRects().length === 0) return;
+    if (cs.visibility === "hidden" || cs.opacity === "0") return;
     const bg = bgOf(el);
     const fgRaw = parse(cs.color);
     if (!fgRaw) return;

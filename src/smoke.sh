@@ -80,7 +80,11 @@ done
 # entire coach dashboard — roughly half the product — was never rendered by
 # this script at all. Three real contrast defects shipped through a green
 # smoke run because of that. The coach surface gets the same treatment.
-COACHTABS="dashboard schedule bookings roster inbox listings finances reviews"
+# Core rail tabs plus every tab contributed by a module (modCoachTabs()):
+# mod-notes, mod-media, mod-insights and mod-coachops each register their own.
+# Omitting them left 7 of 15 coach surfaces unchecked.
+COACHTABS="dashboard schedule bookings roster inbox listings finances reviews \
+notes media insights policies waitlist slots messages"
 CFAIL=0
 for t in $COACHTABS; do
   $B console --clear >/dev/null 2>&1
