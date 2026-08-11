@@ -178,12 +178,12 @@ function seedSlots(){
   const at = i => (mine[i] || PROGRAMS[i] || PROGRAMS[0]).id;
   const capOf = i => (mine[i] || PROGRAMS[i] || PROGRAMS[0]).cap;
   return [
-    { id: "rs_1", programId: at(0), weekday: 1, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
-    { id: "rs_2", programId: at(0), weekday: 3, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
-    { id: "rs_3", programId: at(1), weekday: 2, start: "16:00", end: "17:30", capacity: capOf(1), effectiveFrom: "2026-08-03", effectiveUntil: "2026-12-18" },
+    { id: "rs_1", name: "Monday evening squad", programId: at(0), weekday: 1, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
+    { id: "rs_2", name: "Midweek evening squad", programId: at(0), weekday: 3, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
+    { id: "rs_3", name: "Tuesday skills block", programId: at(1), weekday: 2, start: "16:00", end: "17:30", capacity: capOf(1), effectiveFrom: "2026-08-03", effectiveUntil: "2026-12-18" },
     /* deliberately overlaps rs_1 by 30 minutes so the conflict check has something honest to find */
-    { id: "rs_4", programId: at(2), weekday: 1, start: "18:00", end: "19:30", capacity: capOf(2), effectiveFrom: "2026-08-10", effectiveUntil: "2026-11-27" },
-    { id: "rs_5", programId: at(4), weekday: 6, start: "10:00", end: "11:00", capacity: capOf(4), effectiveFrom: "2026-08-08", effectiveUntil: "2026-12-19" },
+    { id: "rs_4", name: "Monday late session", programId: at(2), weekday: 1, start: "18:00", end: "19:30", capacity: capOf(2), effectiveFrom: "2026-08-10", effectiveUntil: "2026-11-27" },
+    { id: "rs_5", name: "Saturday morning club", programId: at(4), weekday: 6, start: "10:00", end: "11:00", capacity: capOf(4), effectiveFrom: "2026-08-08", effectiveUntil: "2026-12-19" },
   ];
 }
 
@@ -226,6 +226,10 @@ const state = {
   },
   waitlistEntries: seedWaitlist(),
   recurringSlots: seedSlots(),
+  /* Range drawn on the grid, held between pointerup and the naming modal being
+     submitted. Nothing is written to recurringSlots until the coach names it,
+     so an abandoned modal leaves no half-made rule behind. */
+  pendingSlot: null,
   autoMessages: seedMessages(),
 };
 
@@ -288,6 +292,20 @@ function clashAt(weekday, hour){
 }
 const GRID_START = 7, GRID_END = 21;                       // 7am → 9pm rows
 
+/* Quarter-hour resolution. The grid used to be one row per hour, so a block
+   could only ever start and end on the hour; a session finishing at 9:15 was
+   unrepresentable. Rows are now 15 minutes, which makes quarter / half /
+   three-quarter fills fall out of the same mechanism as a full hour — a block
+   is just a run of consecutive rows. */
+const SLOT_MIN = 15;
+const coversMin = (r, weekday, mn) =>
+  r.weekday === weekday && toMin(r.start) < mn + SLOT_MIN && toMin(r.end) > mn;
+function rulesAtMin(weekday, mn){ return state.recurringSlots.filter(r => coversMin(r, weekday, mn)); }
+function clashAtMin(weekday, mn){
+  return conflicts().some(c =>
+    c.a.weekday === weekday && toMin(c.start) < mn + SLOT_MIN && toMin(c.end) > mn);
+}
+
 /* ═══════════════════ CSS ═══════════════════ */
 const CSS = `
 .co-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin:18px 0 6px;flex-wrap:wrap}
@@ -314,15 +332,23 @@ const CSS = `
   background:var(--raise2);color:var(--ink-2);font-size:var(--text-sm);font-weight:700}
 .co-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 4px}
 .co-gridwrap{border:1px solid var(--rule);border-radius:var(--r-l);padding:14px;background:var(--paper);margin-top:14px}
-.co-week{display:grid;grid-template-columns:64px repeat(7,minmax(74px,1fr));gap:4px;min-width:620px}
+.co-week{display:grid;grid-template-columns:64px repeat(7,minmax(74px,1fr));gap:0 4px;min-width:620px}
 .co-day{font-size:var(--text-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
   text-align:center;padding-bottom:4px}
-.co-hh{font-size:var(--text-xs);color:var(--faint);text-align:right;padding-right:8px;line-height:30px}
-.co-cell{height:30px;border:1px solid var(--rule);border-radius:var(--r-s);background:var(--paper);
-  padding:0;width:100%;transition:background .12s,border-color .12s}
-.co-cell:hover{border-color:var(--ink-2);background:var(--raise)}
+/* One row per quarter hour: only the :00 row is labelled, and only it carries a
+   visible top rule, so an hour still reads as one band of four cells. */
+.co-hh{font-size:var(--text-xs);color:var(--faint);text-align:right;padding-right:8px;line-height:15px}
+.co-cell{height:15px;border:1px solid transparent;border-top:1px solid var(--rule-soft,rgba(0,0,0,.06));
+  background:var(--paper);padding:0;width:100%;
+  transition:background .1s,border-color .1s;touch-action:none}
+.co-cell.co-hourtop{border-top:1px solid var(--rule)}
+.co-cell:hover{background:var(--raise)}
 .co-cell.on{border-color:transparent;background:var(--cc);box-shadow:inset 0 0 0 1px var(--rule)}
+.co-cell.on.co-hourtop{border-top-color:transparent}
 .co-cell.clash{box-shadow:inset 0 0 0 2px var(--danger)}
+/* live drag preview — painted directly, without a re-render per pointer move */
+.co-cell.sel{background:var(--slate-tint,rgba(83,104,120,.22));box-shadow:inset 0 0 0 1px var(--slate)}
+.co-draghint{font-size:var(--text-sm);color:var(--muted);margin-top:10px}
 .co-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:var(--text-sm);color:var(--muted)}
 .co-legend i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:6px}
 .co-alert{border:1px solid var(--danger);border-radius:var(--r-m);padding:14px 16px;margin-top:16px;
@@ -360,11 +386,15 @@ const CSS = `
 
 /* ═══════════════════ VIEWS ═══════════════════ */
 
+/* The Policies/Automated-messages wrapper that briefly lived here was
+   superseded by the host-owned Operations tab, which also folds in Reviews
+   and Insights. Both views below are still exported and rendered there. */
+
 function policiesView(){
   const p = state.policies;
   const wr = weatherRow(p.weather), cr = cancelRow(p.cancellation);
   return `<div class="co-head"><div>
-      <h1>Policies</h1>
+      <h2>Policies</h2>
       <p class="co-lede">These terms attach to every listing you publish. Families see them before they pay,
         and refunds are calculated from them — so the wording here is the wording that binds.</p></div>
     <button class="btn ghost sm" data-modal="editpolicy">Quick edit</button></div>
@@ -435,6 +465,15 @@ function policiesView(){
 }
 
 function waitlistView(){
+  /* Third instance of the same gap: the dashboard's waitlist widget was
+     withheld from guests, but this tab view -- which lists the same families
+     by name, plus their parents -- was not. S.coachTab persists, so a guest can
+     be restored directly onto it. Gate the view, not the route to it. */
+  if (typeof isCoachGuest === "function" && isCoachGuest()) {
+    return typeof coachLockHTML === "function"
+      ? coachLockHTML("Waitlist", "who is waiting on a seat, and the families to contact")
+      : `<div class="empty" style="margin-top:18px"><h3>Sign in to see the waitlist</h3></div>`;
+  }
   const c = statusCounts();
   const rows = state.waitlistEntries.slice().sort((a, b) => {
     const pa = prog(a.programId), pb = prog(b.programId);
@@ -447,8 +486,10 @@ function waitlistView(){
     ["Accepted", c.accepted, "converted to a booking"],
     ["Expired", c.expired, "offer window closed"],
   ];
+  /* h2, not h1: the waitlist is now a section inside the Listings tab, which
+     owns the page's single h1. Two h1s on one page is a document-outline bug. */
   return `<div class="co-head"><div>
-      <h1>Waitlist</h1>
+      <h2>Waitlist</h2>
       <p class="co-lede">Every athlete queued on a program that has reached capacity. Offers are held for
         24 hours — if the family does not accept, the spot passes to the next athlete in line.</p></div></div>
 
@@ -500,13 +541,16 @@ function slotsView(){
   const cl = conflicts();
   const rules = state.recurringSlots.slice().sort((a, b) =>
     a.weekday - b.weekday || toMin(a.start) - toMin(b.start));
-  const hours = [];
-  for (let h = GRID_START; h < GRID_END; h++) hours.push(h);
+  const steps = [];
+  for (let mn = GRID_START * 60; mn < GRID_END * 60; mn += SLOT_MIN) steps.push(mn);
 
+  /* h2: this view is now a panel inside the Schedule tab, which owns the h1. */
   return `<div class="co-head"><div>
-      <h1>Recurring slots</h1>
-      <p class="co-lede">Blocks you hold open week after week. Click a cell to open or clear an hour —
-        the rules list below is the same data, written out in full.</p></div>
+      <h2>Recurring slots</h2>
+      <p class="co-lede">Blocks you hold open week after week. Each row is 15 minutes — click one for a
+        quarter hour, or press and drag down a column to hold any run of them, so a block can end at
+        9:15 as easily as 10:00. Drag from a held cell to clear a stretch. The rules list below is the
+        same data, written out in full.</p></div>
     <button class="btn" data-modal="addslot">+ Add recurring block</button></div>
 
   ${cl.length ? `<div class="co-alert" role="alert">
@@ -525,19 +569,23 @@ function slotsView(){
       <div class="co-week" role="group" aria-label="Weekly recurring availability">
         <div></div>
         ${WD.map(w => `<div class="co-day">${w.s}</div>`).join("")}
-        ${hours.map(h => `
-          <div class="co-hh num">${esc(t12(fromMin(h * 60)))}</div>
+        ${steps.map(mn => {
+          const onHour = mn % 60 === 0;
+          return `
+          <div class="co-hh num">${onHour ? esc(t12(fromMin(mn))) : ""}</div>
           ${WD.map(w => {
-            const rs = rulesAt(w.n, h), on = rs.length > 0, clash = on && clashAt(w.n, h);
+            const rs = rulesAtMin(w.n, mn), on = rs.length > 0, clash = on && clashAtMin(w.n, mn);
             const p = on ? prog(rs[0].programId) : null;
             const tint = p ? `color-mix(in srgb,${sportColor(p.sport)} 22%,transparent)` : "transparent";
+            const span = t12(fromMin(mn)) + "–" + t12(fromMin(mn + SLOT_MIN));
             const label = on
-              ? `${w.l} ${t12(fromMin(h * 60))} — ${rs.map(r => (prog(r.programId) || {}).title || r.programId).join(", ")}. Clear this block.`
-              : `${w.l} ${t12(fromMin(h * 60))} — open. Hold this hour.`;
-            return `<button class="co-cell ${on ? "on" : ""} ${clash ? "clash" : ""}"
-              style="--cc:${tint}" data-co-cell="${w.n}-${h}" aria-pressed="${on}"
+              ? `${w.l} ${span} — ${rs.map(r => (prog(r.programId) || {}).title || r.programId).join(", ")}. Drag to clear.`
+              : `${w.l} ${span} — open. Click or drag to hold.`;
+            return `<button class="co-cell${on ? " on" : ""}${clash ? " clash" : ""}${onHour ? " co-hourtop" : ""}"
+              style="--cc:${tint}" data-co-cell="${w.n}-${mn}" aria-pressed="${on}"
               aria-label="${esc(label)}" title="${esc(label)}"></button>`;
-          }).join("")}`).join("")}
+          }).join("")}`;
+        }).join("")}
       </div>
     </div>
     <div class="co-legend">
@@ -548,17 +596,22 @@ function slotsView(){
       }).join("")}
       <span><i style="background:transparent;box-shadow:inset 0 0 0 2px var(--danger)"></i>Conflict</span>
     </div>
+    <p class="co-draghint">Each row is 15 minutes. Press and drag down a day to hold a longer block —
+      two rows is a half hour, three is 45 minutes, four is a full hour.</p>
   </div>
 
   <div class="sec-head" style="margin:26px 0 12px"><h3>Recurring rules</h3>
     <span class="num" style="color:var(--muted);font-size:var(--text-sm)">${rules.length} rule${rules.length === 1 ? "" : "s"}</span></div>
 
   ${rules.length ? `<div class="tblwrap panel" style="padding:18px"><table class="tbl">
-    <thead><tr><th>Program</th><th>Day</th><th>Time</th><th>Capacity</th><th>Effective</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Block</th><th>Program</th><th>Day</th><th>Time</th><th>Capacity</th><th>Effective</th><th>Status</th><th></th></tr></thead>
     <tbody>${rules.map(r => {
       const p = prog(r.programId);
       const bad = cl.some(c => c.a.id === r.id || c.b.id === r.id);
       return `<tr>
+        ${/* rules seeded before names existed fall back to the day + time, so a
+             nameless row still reads as something rather than an empty cell */""}
+        <td><b style="font-weight:700">${esc(r.name || (wdShort(r.weekday) + " " + t12(r.start)))}</b></td>
         <td>${p ? `<b style="font-weight:600">${esc(p.title)}</b>
           <div style="margin-top:4px"><span class="pill" style="background:${sportColor(p.sport)}1A;color:${sportColor(p.sport)}">${esc(p.sport)}</span></div>`
           : `<span style="color:var(--muted)">${esc(r.programId)}</span>`}</td>
@@ -581,7 +634,7 @@ function messagesView(){
   const v = sampleValues();
   const onCount = state.autoMessages.filter(m => m.enabled).length;
   return `<div class="co-head"><div>
-      <h1>Automated messages</h1>
+      <h2>Automated messages</h2>
       <p class="co-lede">One template per trigger. Placeholders are filled from the real booking at send time —
         the preview below uses ${esc(v.athlete_first_name)}'s ${esc(v.program_title)} booking.</p></div>
     <span class="pill slate num">${onCount} of ${state.autoMessages.length} on</span></div>
@@ -663,11 +716,38 @@ function editPolicyModal(){
     </form>`);
 }
 
+/* Asks what the block drawn on the grid should be called. The range and the
+   program are already decided by the gesture, so this is a single field plus a
+   read-back of what was drawn — a coach should be able to confirm they selected
+   the hours they meant before it is committed. */
+function nameSlotModal(){
+  const d = state.pendingSlot;
+  if (!d) return wrap("Name this block", `<p style="color:var(--muted)">That selection has expired — draw it again on the grid.</p>`);
+  const mine = myListings();
+  const list = mine.length ? mine : PROGRAMS.slice(0, 5);
+  const mins = toMin(d.end) - toMin(d.start);
+  return wrap("Name this block", `
+    <p style="color:var(--muted);margin-bottom:16px;font-size:var(--text-sm)">
+      <b>${esc(wdName(d.weekday))} ${esc(t12(d.start))}–${esc(t12(d.end))}</b> · ${esc(durLabel(mins))}</p>
+    <form id="coNameForm">
+      <div class="field"><label for="coNameField">Block name</label>
+        <input id="coNameField" name="name" placeholder="Monday evening squad" autocomplete="off" required></div>
+      <div class="field"><label for="coNameProg">Program</label>
+        <select id="coNameProg" name="programId">
+          ${list.map(p => `<option value="${esc(p.id)}"${p.id === d.programId ? " selected" : ""}>${esc(p.title)}</option>`).join("")}
+        </select></div>
+      <div id="coNameErr" class="err hide" style="margin:8px 0"></div>
+      <button class="btn wide" type="submit" style="margin-top:6px">Save block</button>
+    </form>`);
+}
+
 function addSlotModal(){
   const mine = myListings();
   const list = mine.length ? mine : PROGRAMS.slice(0, 5);
   return wrap("Add a recurring block", `
     <form id="coSlotForm">
+      <div class="field"><label for="coSlotName">Block name</label>
+        <input id="coSlotName" name="name" placeholder="Monday evening squad" autocomplete="off" required></div>
       <div class="field"><label for="coSlotProg">Program</label>
         <select id="coSlotProg" name="programId">
           ${list.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("")}
@@ -807,7 +887,8 @@ function wire(){
   if (qf) qf.onsubmit = ev => {
     ev.preventDefault();
     if (readPolicy(qf, "coQuickErr", true)){
-      S.modal = null; S.coachTab = "policies"; render(); toast("Policy updated");
+      /* via the host normalizer, so "policies" resolves to its new home */
+      S.modal = null; setCoachTab("policies"); render(); toast("Policy updated");
     }
   };
 
@@ -843,32 +924,79 @@ function wire(){
   };
 
   /* ── recurring slots ──────────────────────────────────────────── */
-  q("[data-co-cell]").forEach(b => b.onclick = () => {
-    const parts = String(b.dataset.coCell).split("-");
-    const wd = Number(parts[0]), h = Number(parts[1]);
-    const hit = rulesAt(wd, h);
-    if (hit.length){
-      const r = hit[0], p = prog(r.programId);
-      state.recurringSlots = state.recurringSlots.filter(x => x.id !== r.id);
-      render();
-      toast("Cleared " + wdShort(wd) + " " + t12(r.start) + "–" + t12(r.end) +
-        (p ? " · " + p.title : ""));
-      return;
+  /* Drag-selection over the quarter-hour grid.
+     A click is just a drag of length one, so both gestures share one code path.
+     The preview is painted by toggling a class on the cells rather than calling
+     render() per pointermove — a re-render would rebuild the grid and destroy
+     the element the pointer is currently captured on, ending the drag.
+     Direction is intent-preserving: a gesture that STARTS on a held cell clears
+     the range it covers, one that starts on an open cell holds it. */
+  const cells = [].slice.call(document.querySelectorAll("[data-co-cell]"));
+  const parseCell = el => {
+    const p = String(el.dataset.coCell).split("-");
+    return { wd: Number(p[0]), mn: Number(p[1]) };
+  };
+  let drag = null;
+  const paint = () => {
+    cells.forEach(el => {
+      const c = parseCell(el);
+      let inSel = false;
+      if (drag && c.wd === drag.wd){
+        inSel = c.mn >= Math.min(drag.a, drag.b) && c.mn <= Math.max(drag.a, drag.b);
+      }
+      el.classList.toggle("sel", inSel);
+    });
+  };
+  cells.forEach(el => {
+    el.addEventListener("pointerdown", e => {
+      e.preventDefault();                       // don't start a text selection
+      const c = parseCell(el);
+      drag = { wd: c.wd, a: c.mn, b: c.mn, clearing: rulesAtMin(c.wd, c.mn).length > 0 };
+      paint();
+    });
+    /* pointerenter, not pointerover: fires once per cell and doesn't bubble */
+    el.addEventListener("pointerenter", () => {
+      if (!drag) return;
+      const c = parseCell(el);
+      if (c.wd !== drag.wd) return;             // a block belongs to one weekday
+      drag.b = c.mn;
+      paint();
+    });
+  });
+  /* Assigned, not addEventListener: wire() runs on every render, and assignment
+     replaces the previous handler instead of stacking a new one each time. */
+  document.onpointerup = () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    const lo = Math.min(d.a, d.b), hi = Math.max(d.a, d.b) + SLOT_MIN;
+    if (d.clearing){
+      const hit = state.recurringSlots.filter(r =>
+        r.weekday === d.wd && toMin(r.start) < hi && toMin(r.end) > lo);
+      if (hit.length){
+        state.recurringSlots = state.recurringSlots.filter(r => hit.indexOf(r) < 0);
+        render();
+        toast("Cleared " + hit.length + " block" + (hit.length > 1 ? "s" : "") +
+          " on " + wdShort(d.wd));
+        return;
+      }
     }
     const base = myListings()[0] || PROGRAMS[0];
-    state.recurringSlots = state.recurringSlots.concat([{
-      id: "rs_" + Date.now(),
+    if (!base){ render(); return; }
+    /* Holding availability writes to the coach's real schedule — a guest gets
+       the sheet instead, and the drawn range is discarded rather than half-kept. */
+    if (typeof isVerified === "function" && !isVerified()){ requireAuth(function(){}); return; }
+    /* Hold the range and ask for a name — nothing is written until the coach
+       confirms, so cancelling the modal leaves the grid exactly as it was. */
+    state.pendingSlot = {
+      weekday: d.wd,
+      start: fromMin(lo),
+      end: fromMin(hi),
       programId: base.id,
-      weekday: wd,
-      start: fromMin(h * 60),
-      end: fromMin(h * 60 + 60),
       capacity: base.cap,
-      effectiveFrom: TODAY,
-      effectiveUntil: "2026-12-18",
-    }]);
+    };
+    S.modal = { type: "nameslot" };
     render();
-    toast("Holding " + wdShort(wd) + " " + t12(fromMin(h * 60)) + " for " + base.title);
-  });
+  };
   q("[data-co-delslot]").forEach(b => b.onclick = () => {
     const r = state.recurringSlots.find(x => x.id === b.dataset.coDelslot);
     if (!r) return;
@@ -876,6 +1004,38 @@ function wire(){
     render();
     toast("Removed the " + wdShort(r.weekday) + " " + t12(r.start) + " block");
   });
+  /* Commits the drawn range once it has a name. Absorbs any rule wholly inside
+     the range so redrawing over a block replaces it rather than stacking. */
+  const nf2 = document.getElementById("coNameForm");
+  if (nf2) nf2.onsubmit = ev => {
+    ev.preventDefault();
+    const d = state.pendingSlot;
+    if (!d){ S.modal = null; render(); return; }
+    const f = Object.fromEntries(new FormData(nf2));
+    const name = String(f.name || "").trim();
+    const err = document.getElementById("coNameErr");
+    if (!name){ err.textContent = "Give this block a name."; err.classList.remove("hide"); return; }
+    const lo = toMin(d.start), hi = toMin(d.end);
+    const p = prog(f.programId) || prog(d.programId);
+    state.recurringSlots = state.recurringSlots
+      .filter(r => !(r.weekday === d.weekday && toMin(r.start) >= lo && toMin(r.end) <= hi))
+      .concat([{
+        id: "rs_" + Date.now(),
+        name: name,
+        programId: f.programId || d.programId,
+        weekday: d.weekday,
+        start: d.start,
+        end: d.end,
+        capacity: (p && p.cap) || d.capacity,
+        effectiveFrom: TODAY,
+        effectiveUntil: "2026-12-18",
+      }]);
+    state.pendingSlot = null;
+    S.modal = null;
+    render();
+    toast('"' + name + '" held ' + wdShort(d.weekday) + " " + t12(d.start) + "–" + t12(d.end));
+  };
+
   const sf = document.getElementById("coSlotForm");
   if (sf) sf.onsubmit = ev => {
     ev.preventDefault();
@@ -888,8 +1048,11 @@ function wire(){
     const cap = Number(d.capacity);
     if (!isFinite(cap) || cap < 1) return show("Capacity must be at least 1.");
     if (d.effectiveUntil && d.effectiveUntil < d.effectiveFrom) return show("The end date falls before the start date.");
+    const nm = String(d.name || "").trim();
+    if (!nm) return show("Give this block a name.");
     const rule = {
       id: "rs_" + Date.now(),
+      name: nm,
       programId: d.programId,
       weekday: Number(d.weekday),
       start: fromMin(s),
@@ -961,9 +1124,20 @@ function wire(){
 /* ═══════════════════ EXPORT ═══════════════════ */
 window.MOD_COACHOPS = {
   css: CSS,
-  tabs: { policies: "Policies", waitlist: "Waitlist", slots: "Recurring slots", messages: "Automated messages" },
-  views: { policies: policiesView, waitlist: waitlistView, slots: slotsView, messages: messagesView },
-  modals: { editpolicy: editPolicyModal, addslot: addSlotModal, offerspot: offerSpotModal },
+  /* `waitlist` is deliberately absent from `tabs` but present in `views`: the
+     tab button is gone, while the view is still resolvable via modView() so the
+     Listings tab can render it inline. */
+  /* `slots` joins `waitlist` as view-only: the rail button is gone because the
+     grid now lives as a sub-tab of Schedule, but modView("slots") still
+     resolves so that tab can render it. */
+  /* No rail tabs of its own any more: policies + messages live under the host
+     Operations tab, waitlist under Listings, slots under Schedule. Views stay
+     exported so those hosts can render them. */
+  tabs: {},
+  views: { policies: policiesView, waitlist: waitlistView,
+           slots: slotsView, messages: messagesView },
+  modals: { editpolicy: editPolicyModal, addslot: addSlotModal, offerspot: offerSpotModal,
+            nameslot: nameSlotModal },
   wire: wire,
   state: state,
 };

@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="514e0bd9c0ba0c42">
+<meta name="sporve-build" content="83191b1df2a77db7">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -178,6 +178,16 @@ body{
   background:
     radial-gradient(1100px 520px at 88% 4%,rgba(99,124,180,.10),transparent 62%),
     linear-gradient(180deg,var(--paper) 0%,var(--paper) 12%,rgba(238,241,251,.72) 100%);
+  /* #app carries the page ground — this gradient, #0B0C0E under .coachdark, or
+     --raise under .reg-serious — while <body> is white. A route whose content is
+     shorter than the viewport therefore ended mid-screen and let the white body
+     show beneath it as a band: 423px on Schedule, 360px on Bookings, 258px on
+     the coach Earnings tab. Removing the footer made short routes shorter and
+     made it obvious. Holding #app to the viewport keeps whichever ground the
+     route uses running to the bottom edge. dvh second, so browsers that have it
+     exclude mobile URL chrome and those that don't still get vh. */
+  min-height:100vh;
+  min-height:100dvh;
 }
 /* ── TYPE CONTRACT ───────────────────────────────────────────────────
    Display (Syne) takes EVERY heading level and every numeral. Body face (Plus
@@ -291,9 +301,6 @@ img{max-width:100%;display:block}
 .navlogo{height:28px;width:auto;flex:0 0 auto;display:block;opacity:.95}
 .navlogo:hover{opacity:1}
 @media(max-width:900px){.navlogo{height:24px}}
-.footbase .wordmark,.footbrand .wordmark{
-  text-transform:uppercase;color:var(--slate);font-size:var(--text-lg);
-}
 .searchpill{
   flex:1;max-width:520px;display:flex;align-items:center;gap:0;
   border:1px solid var(--rule-strong);border-radius:999px;box-shadow:var(--shadow);
@@ -1032,6 +1039,60 @@ img{max-width:100%;display:block}
   position:fixed;inset:0;background:rgba(11,12,14,.5);backdrop-filter:blur(3px);
   z-index:100;display:grid;place-items:center;padding:24px;animation:fade .16s ease;
 }
+
+/* The waitlist, now a section of the Listings tab rather than its own tab. The
+   rule separates it from the "Fully booked" panel above; its first child carries
+   the module's own .co-head margin, so no extra top padding is added here. */
+.lst-waitlist{margin-top:30px;padding-top:24px;border-top:1px solid var(--rule)}
+.lst-waitlist .co-head{margin-top:0}
+
+/* ── AI dock — the coach finder, collapsed to a button ───────────────
+   Rendered into #layer, not #app, so it survives every route change and is
+   unaffected by the coach portal's dark ground. z-index 85 is deliberate: above
+   the coach .cmdbar (80) so it is never buried, below .scrim (100) so an open
+   modal still covers it. It drives the same S.chat / askCoach() pipeline as the
+   full Coach finder page — one conversation, two entry points. */
+.aidock{position:fixed;right:22px;bottom:22px;z-index:85;
+  display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+/* The button was --ink, which is #000 — invisible against the coach portal's
+   #0B0C0E ground and flat against the topbar elsewhere. Accent is the only
+   non-frozen colour in the system, and a filled shape clears the 3:1 non-text
+   contrast bar on both grounds. §3 bans #C2410C on black for TEXT, so the dark
+   portal swaps to --accent-on-dark (#F08A62, 8.52:1) rather than reusing it. */
+.aidock-fab{width:58px;height:58px;border-radius:999px;background:var(--accent);color:#FFFFFF;
+  display:grid;place-items:center;border:0;cursor:pointer;
+  box-shadow:0 6px 8px rgba(11,12,14,.14),0 18px 48px rgba(194,65,12,.30);
+  transition:transform .18s,box-shadow .18s,background .18s}
+.aidock-fab:hover{transform:translateY(-2px);background:var(--accent-ink);
+  box-shadow:0 8px 12px rgba(11,12,14,.18),0 22px 56px rgba(194,65,12,.38)}
+#app.coachdark + #layer .aidock-fab{background:var(--accent-on-dark);color:#0B0C0E;
+  box-shadow:0 6px 8px rgba(0,0,0,.34),0 18px 48px rgba(240,138,98,.26)}
+#app.coachdark + #layer .aidock-fab:hover{background:#F7A583}
+.aidock-fab-mark{font-family:var(--display);font-weight:700;font-size:var(--text-xl);line-height:1;letter-spacing:-.04em}
+.aidock-panel{width:min(380px,calc(100vw - 32px));height:min(520px,calc(100vh - 130px));
+  display:flex;flex-direction:column;background:var(--paper);
+  border:1px solid var(--rule-strong);border-radius:18px;overflow:hidden;
+  box-shadow:0 10px 16px rgba(11,12,14,.08),0 28px 64px rgba(11,12,14,.22)}
+.aidock-head{display:flex;align-items:center;gap:10px;padding:11px 11px 11px 13px;
+  border-bottom:1px solid var(--rule);background:var(--raise)}
+.aidock-head b{font-size:var(--text-base);display:block}
+.aidock-sub{color:var(--muted);font-size:var(--text-xs)}
+.aidock-head .x{margin-left:auto;flex:none}
+.aidock-scroll{flex:1;overflow-y:auto;padding:15px;display:flex;flex-direction:column;gap:10px}
+.aidock-empty{margin:auto;text-align:center;padding:6px}
+.aidock-empty h3{font-size:var(--text-lg)}
+.aidock-pick{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:8px 9px;
+  border:1px solid var(--rule);border-radius:var(--r-m);background:var(--paper);transition:.14s}
+.aidock-pick:hover{background:var(--raise2);border-color:var(--rule-strong)}
+.aidock-pick img{width:38px;height:38px;border-radius:8px;object-fit:cover;flex:none}
+.aidock-pick b{display:block;font-size:var(--text-sm)}
+.aidock-pick em{display:block;font-style:normal;color:var(--muted);font-size:var(--text-xs)}
+@media(max-width:560px){
+  .aidock{right:14px;bottom:14px}
+  .aidock-panel{height:min(70vh,calc(100vh - 116px))}
+}
+/* The .hascmd offset that used to lift the dock clear of the coach command bar
+   went with the bar itself — nothing sits at the bottom of the viewport now. */
 @keyframes fade{from{opacity:0}}
 .modal{
   background:var(--paper);border-radius:var(--r-xl);width:100%;max-width:452px;
@@ -1621,30 +1682,59 @@ h2.ctr{margin-bottom:10px}
 }
 
 /* ── site footer ─────────────────────────────────────────────────── */
-.sitefoot{border-top:1px solid var(--rule);padding:56px 0 30px;background:#EEF1FB}
-:root[data-theme="dark"] .sitefoot{background:var(--raise)}
-.footgrid{display:grid;grid-template-columns:1.5fr repeat(4,1fr);gap:30px}
-.footbrand{display:flex;flex-direction:column;gap:12px;align-items:flex-start;padding-right:20px}
-.footbrand .wordmark{
-  text-transform:uppercase;color:var(--ink);font-size:var(--text-xl);
-}
-.footbrand p{color:var(--muted);font-size:var(--text-base);line-height:1.5;max-width:250px}
-.footcol{display:flex;flex-direction:column;align-items:flex-start;gap:9px}
-.footcol .eyebrow{margin-bottom:3px}
-.footcol button,.footcol a{
-  font-size:var(--text-base);color:var(--muted);text-align:left;text-decoration:none;transition:color .14s;
-}
-.footcol button:hover,.footcol a:hover{color:var(--ink)}
-.footbase{
-  display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
-  margin-top:38px;padding-top:24px;border-top:1px solid var(--rule);
-}
-.footlegal{display:flex;gap:18px;flex-wrap:wrap;color:var(--faint);font-size:var(--text-sm)}
-.footbase{justify-content:center;text-align:center;border-top-color:var(--rule-strong)}
-.footbase .footlegal{justify-content:center}
-@media(max-width:1000px){.footgrid{grid-template-columns:repeat(3,1fr);gap:28px}
-  .footbrand{grid-column:1/-1;padding-right:0}}
-@media(max-width:760px){.footgrid{grid-template-columns:repeat(2,1fr);gap:26px}}
+/* .sitefoot / .footgrid / .footbrand / .footbase / .footlegal deleted with the
+   light footer band itself — no route renders it any more. */
+
+/* ── coach search ───────────────────────────────────────────────────── */
+.cs-bar{display:flex;align-items:center;gap:10px;margin-top:14px;padding:0 14px;
+  border:1px solid var(--rule-strong);border-radius:var(--r-pill);background:var(--paper);
+  transition:border-color .14s,box-shadow .14s}
+.cs-bar:focus-within{border-color:var(--slate);box-shadow:0 0 0 4px var(--slate-ring)}
+.cs-icon{display:grid;place-items:center;color:var(--muted);flex:none}
+.cs-bar input{flex:1;border:0;outline:none;background:none;padding:14px 0;
+  font:inherit;font-size:var(--text-base);color:var(--ink)}
+.cs-clear{width:30px;height:30px;border-radius:var(--r-pill);display:grid;place-items:center;
+  color:var(--muted);flex:none}
+.cs-clear:hover{background:var(--raise2);color:var(--ink)}
+.cs-list{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.cs-row{display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:12px 14px;
+  border:1px solid var(--rule);border-radius:var(--r-m);background:var(--paper);transition:.14s}
+.cs-row:hover{background:var(--raise2);border-color:var(--rule-strong)}
+/* the type badge is the scanning cue — one glance tells you what a row IS */
+.cs-kind{flex:none;min-width:62px;text-align:center;padding:4px 8px;border-radius:var(--r-chip,6px);
+  font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  background:var(--raise2);color:var(--muted)}
+.cs-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cs-main b{font-size:var(--text-base);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-main span{color:var(--muted);font-size:var(--t-small);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-meta{color:var(--muted);font-size:var(--t-small);flex:none}
+@media(max-width:700px){.cs-meta{display:none}.cs-kind{min-width:0}}
+
+/* ── About & Support ─────────────────────────────────────────────────
+   The four footer columns, relocated into one account entry. Built on native
+   <details> rather than the .acc component: .acc is wired inside wireLanding(),
+   which only runs on the landing route, so an .acc accordion on an account page
+   would render permanently collapsed. <details> needs no JS at all. */
+.abt{border-top:1px solid var(--rule);max-width:760px}
+.abt-grp{border-bottom:1px solid var(--rule)}
+.abt-sum{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+  gap:20px;padding:20px 2px;font-size:var(--text-lg);font-weight:700;
+  letter-spacing:-.015em;color:var(--ink);transition:color .16s}
+.abt-sum::-webkit-details-marker{display:none}
+.abt-sum:hover{color:var(--slate)}
+.abt-grp[open] .abt-sum{color:var(--slate)}
+/* plus that rotates to a cross — same affordance the FAQ accordion uses */
+.abt-cue{position:relative;width:15px;height:15px;flex:0 0 auto;
+  transition:transform .26s cubic-bezier(.22,1,.36,1)}
+.abt-cue::before,.abt-cue::after{content:"";position:absolute;left:50%;top:50%;
+  background:currentColor;border-radius:1px}
+.abt-cue::before{width:13px;height:2px;transform:translate(-50%,-50%)}
+.abt-cue::after{width:2px;height:13px;transform:translate(-50%,-50%)}
+.abt-grp[open] .abt-cue{transform:rotate(45deg)}
+.abt-links{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:0 2px 18px}
+.abt-links button,.abt-links a{font-size:var(--text-base);color:var(--muted);
+  text-align:left;text-decoration:none;padding:8px 0;transition:color .14s}
+.abt-links button:hover,.abt-links a:hover{color:var(--ink)}
 
 /* ── T5 close-zone: Amboras-style dark closer fused with the footer ──
    Obsidian ground (#0B0C0E, already the hero base) with a top hairline; all
@@ -1652,29 +1742,25 @@ h2.ctr{margin-bottom:10px}
    Serif via --display; its clamp caps at 54px (an on-scale --text-hero max)
    because 64px is off the 8-step type scale the smoke test enforces. */
 .close-zone{background:#0B0C0E;border-top:1px solid #1C222B;padding:74px 0 34px}
-.closer{display:grid;grid-template-columns:1.1fr 1.4fr;gap:56px;align-items:start}
-.closer-left{display:flex;flex-direction:column;align-items:flex-start;gap:18px}
-.close-zone .wordmark{color:#fff;text-transform:uppercase;font-size:var(--text-xl)}
+/* The 1.4fr track held the four link columns; with those gone the closer is a
+   single full-width column. The title's clamp floor rises so it fills the band
+   at narrower viewports — the 54px ceiling stays, because smoke.sh rejects any
+   rendered size above it. */
+.closer{display:grid;grid-template-columns:1fr;gap:56px;align-items:start}
+.closer-left{display:flex;flex-direction:column;align-items:flex-start;gap:20px;max-width:900px}
+.close-zone .wordmark{color:#fff;text-transform:uppercase;font-size:var(--text-2xl)}
 .closer-title{font-family:var(--display);font-weight:400;color:#F5F7F9;
-  font-size:clamp(44px,4.6vw,54px);line-height:1.02;letter-spacing:-.01em}
+  font-size:clamp(52px,6.2vw,54px);line-height:1.04;letter-spacing:-.01em}
 .closer-title em{font-style:italic}
 .closer-link{display:inline-flex;align-items:center;gap:9px;cursor:pointer;
-  color:#F5F7F9;font-family:var(--sans);font-weight:600;font-size:var(--text-base)}
+  color:#F5F7F9;font-family:var(--sans);font-weight:600;font-size:var(--text-lg)}
 .closer-link svg{width:15px;height:15px;flex:0 0 auto}
 .closer-link:hover{color:#fff;text-decoration:underline}
-.closer-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:28px}
-.closer-col{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
-.closer-col h5{font-family:var(--sans);text-transform:uppercase;letter-spacing:.14em;
-  font-size:var(--text-xs);font-weight:700;color:rgba(245,247,249,.5);margin-bottom:4px}
-.closer-col button,.closer-col a{font-family:var(--sans);font-size:var(--text-base);
-  color:rgba(245,247,249,.72);text-align:left;text-decoration:none;transition:color .14s}
-.closer-col button:hover,.closer-col a:hover{color:#F5F7F9}
 .closer-base{margin-top:42px;padding-top:24px;border-top:1px solid #1C222B;
   display:flex;flex-direction:column;gap:6px}
-.closer-base span{color:rgba(245,247,249,.5);font-size:var(--text-sm)}
+.closer-base span{color:rgba(245,247,249,.5);font-size:var(--text-base)}
 @media(max-width:900px){
-  .closer{grid-template-columns:1fr;gap:38px}
-  .closer-cols{grid-template-columns:repeat(2,1fr)}
+  .closer{gap:38px}
 }
 
 /* ── notification settings ───────────────────────────────────────── */
@@ -1843,6 +1929,25 @@ h2.ctr{margin-bottom:10px}
 .au-or{display:flex;align-items:center;gap:12px;margin:18px 0}
 .au-or span{flex:1;height:1px;background:var(--rule)}
 .au-or em{color:var(--faint);font-size:var(--t-small);font-style:normal}
+/* Airbnb's provider rows: full-width pill, icon pinned left, label optically
+   centred by giving it flex:1 and a right margin equal to the icon's column.
+   Stacked rather than a row of squares, so each option reads as a sentence. */
+/* The decline. Deliberately quiet — a text button, not a second primary — so it
+   reads as available without competing with Continue. */
+.au-guest{display:block;width:100%;margin-top:16px;padding:11px 0;
+  font-size:var(--text-base);font-weight:700;color:var(--muted);
+  text-decoration:underline;text-underline-offset:3px;transition:color .14s}
+.au-guest:hover{color:var(--ink)}
+.au-guest:focus-visible{outline:none;box-shadow:0 0 0 3px var(--slate-ring);border-radius:var(--r-m)}
+.au-rows{display:flex;flex-direction:column;gap:10px}
+.au-row{display:flex;align-items:center;gap:12px;width:100%;padding:13px 16px;
+  border:1px solid var(--rule-strong);border-radius:var(--r-pill);background:var(--paper);
+  font-size:var(--text-base);font-weight:700;color:var(--ink);
+  transition:border-color .14s,background .14s}
+.au-row:hover{border-color:var(--ink);background:var(--raise)}
+.au-row:focus-visible{outline:none;box-shadow:0 0 0 3px var(--slate-ring)}
+.au-row svg{width:20px;height:20px;flex:0 0 auto}
+.au-row span{flex:1;text-align:center;margin-right:32px}
 .au-oauth{display:flex;gap:10px;justify-content:center}
 .au-sq{
   width:56px;height:56px;border:1px solid var(--rule-strong);border-radius:var(--r-ctl);
@@ -1879,8 +1984,7 @@ h2.ctr{margin-bottom:10px}
 #app .card .ttl,#app .card .meta,#app .card .rate,
 #app .fchip,#app .btn,#app .btn.sm,#app .se-bar,
 #app .se-sortwrap,#app .co-tpill,#app .fcount,#app .tlink,
-#app .footcol button,#app .footcol a,#app .footlegal,
-#app .footbrand p,#app .pmrow span span,#app .se-live,
+#app .pmrow span span,#app .se-live,
 #app .biz2{font-size:var(--text-sm)}
 /* body-weight UI: form controls, primary rows */
 #app select,#app option,#app input,#app textarea,
@@ -1965,6 +2069,16 @@ h2.ctr{margin-bottom:10px}
    before this: ground still rgba(0,0,0,0). The id has to be in the selector
    for the ground to change at all. */
 #app.reg-serious{background:var(--raise)}
+/* Earnings and Media carry BOTH classes: they are money/consent surfaces, so
+   they take the serious register, and they are coach-portal tabs, so they take
+   the dark ground. The two background rules tie on specificity (1,1,0) and
+   .reg-serious is declared later, so it won — rendering a near-white slab
+   inside an otherwise black portal. This raises the ground to (1,2,0) so the
+   portal wins, and leaves the serious register doing what it is actually for:
+   the typographic weight, which is colour-independent. The .dash token block
+   already flips --paper/--raise/--ink to their dark values, so every panel and
+   every string inside follows without further overrides. */
+#app.reg-serious.coachdark{background:#0B0C0E}
 /* A plain .band declares no ground of its own -- it is transparent and shows
    whatever #app is painting. On a normal page that resolves white, so
    `band` vs `band alt` reads as white vs slate. On a serious page #app is
@@ -3304,6 +3418,11 @@ const S={
   activeConv:"conv_1",
   inboxTab:"direct",               // provider inbox: direct | group
   calMonth:TODAY.slice(0,7),       // provider schedule: month in view, "YYYY-MM"
+  schedTab:"month",                // provider schedule sub-tab: month | slots
+  coachPromptShown:false,          // auth sheet already offered on the coach side
+  coachQuery:"",                   // coach-side search box
+  coachSearchKind:"all",           // all | player | team | camp | staff
+  coachSearchFocus:false,          // keep the caret in the box across re-renders
   coachTab:"dashboard",
   modal:null,
   toast:null,
@@ -3311,6 +3430,7 @@ const S={
   mapPick:null,
   chat:[],
   chatThinking:false,
+  aiOpen:false,                    // the global AI dock, collapsed to its button
   cmdAction:"",
   cmdDraft:"",
   cmdSending:false,
@@ -3398,6 +3518,53 @@ function toast(msg){S.toast=msg;render();setTimeout(()=>{if(S.toast===msg){S.toa
 function go(name,arg){S.route={name,arg:arg??null};window.scrollTo(0,0);render();}
 
 /* auth-on-action gate — mirrors AuthProvider.requireAuth + intent preservation */
+/* ── guest scope on the provider side ──────────────────────────────
+   A signed-out visitor browsing the coach portal is looking at someone else's
+   business. They may see what each surface IS — its shape, its controls, its
+   purpose — but never another business's client names, message contents, or
+   money. Two levels: tabs whose entire substance is private are replaced with a
+   locked preview, and surfaces that are mostly public get their private
+   fragments veiled in place.
+
+   This is the UI half only. The server must return demo or empty payloads for
+   an unauthenticated session as well — a client-side veil is a courtesy, not a
+   control, and anyone can read the state in a console. */
+const COACH_PRIVATE={
+  finances:"earnings, payouts and per-booking transactions",
+  roster:"client names, contact details and payment status",
+  inbox:"conversations between this coach and families",
+  notes:"session notes written about individual children",
+  media:"photos of children and their consent records",
+};
+function isCoachGuest(){ return S.portal==="coach"&&!isVerified(); }
+/* money and counts that belong to the business, blanked for a guest */
+function veil(v){ return isCoachGuest()?"—":v; }
+function coachLockHTML(title,what){
+  return `<div class="sec-head" style="margin-top:18px"><h1>${esc(title)}</h1></div>
+    <div class="empty" style="margin-top:14px">
+      <h3>Sign in to see this</h3>
+      <p style="margin-top:8px;max-width:52ch;margin-left:auto;margin-right:auto">
+        This tab holds ${esc(what)}. It belongs to the coach who owns the account,
+        so it stays hidden until you sign in — you can keep looking around the rest
+        of the portal in the meantime.</p>
+      <button class="btn" data-signin="1" style="margin-top:20px">Log in or sign up</button>
+    </div>`;
+}
+
+/* The single way into the provider side. Navigate FIRST, then invite — the
+   visitor lands on the real portal and the sheet rises over the top, which is
+   the whole point of the flow. There were three entry points doing three
+   different things: the page CTAs navigated, the Coaches-menu row only raised
+   the sheet without ever navigating, and the product-page CTA opened an
+   onboarding wizard. All three now come through here. */
+function enterCoachPortal(){
+  S.portal="coach";S.signupRole="coach";S.coachTab="dashboard";S.modal=null;
+  go("dashboard");
+  if(!isVerified()&&!S.coachPromptShown){
+    S.coachPromptShown=true;S.modal={type:"authsheet"};render();
+  }
+}
+
 function requireAuth(fn){
   if(isVerified()){fn();return true;}
   S.pendingIntent=fn; S.modal={type:"authsheet"}; render(); return false;
@@ -4136,7 +4303,7 @@ function coachFrames(){
    founder's note rather than fabricated coach quotes.                        */
 function coachLandingHTML(){
   const feats=[
-    ["Services & locations","Define what you offer, what it costs, and where you coach. Group clinics, private sessions, and camps each carry their own price and capacity.","See how listings work","listings"],
+    ["Listings","Define what you offer, what it costs, and where you coach. Group clinics, private sessions, and camps each carry their own price and capacity.","See how listings work","listings"],
     ["Scheduling & availability","Set recurring availability once. Families book only real open slots, and the seat count is enforced at the database — double-booking isn't possible.","Open the schedule","slots"],
     ["Payments & payouts","Families check out in-app. Payouts run automatically and every booking keeps a receipt, a refund trail, and the cancellation policy that applied at purchase.","See payouts","finances"],
     ["Client roster","Every family, session, and note in one place — including which trainer is cleared to work with which athlete.","See the roster","roster"],
@@ -4447,11 +4614,11 @@ function productHTML(){
     [PICON.calendar,"Scheduling & availability","Set availability once; families book only what is genuinely open.","tab:slots"],
     [PICON.card,"Payments & payouts","In-app checkout, automatic payouts, the platform fee itemised.","tab:finances"],
     [PICON.users,"Client roster","Every family, session, and note in one place.","tab:roster"],
-    [PICON.list,"Services & locations","Define what you offer, what it costs, and where you coach.","tab:listings"],
+    [PICON.list,"Listings","Define what you offer, what it costs, and where you coach.","tab:listings"],
     [PICON.camera,"Media library","Photos and video with per-athlete consent enforced, not requested.","tab:media"],
     [PICON.note,"Session notes","Write once; the family sees the progress report.","tab:notes"],
     [PICON.chart,"Insights","Demand, funnel, price positioning, and a client watchlist.","tab:insights"],
-    [PICON.clock,"Waitlist & recurring slots","Fill cancellations automatically and repeat what works.","tab:waitlist"],
+    [PICON.clock,"Waitlist & recurring slots","Fill cancellations automatically and repeat what works.","tab:listings"],
     [PICON.doc,"Policies","Your cancellation policy is snapshotted onto every booking.","tab:policies"],
     [PICON.star,"Reviews","Unlocked by a completed session — never by a booking.","tab:reviews"],
     [PICON.check,"Onboarding","Seven steps from application to bookable, check included.","coach"],
@@ -4958,6 +5125,68 @@ function assistantHTML(){
       Suggestions are matched from Sporve's live catalogue — never invented.</p>
   </main>`;
 }
+/* ── AI dock ────────────────────────────────────────────────────────
+   The Coach finder, condensed to a button that lives in the bottom-right of
+   every screen. It reads and writes the SAME S.chat array and calls the same
+   askCoach() as assistantHTML(), so a thread started on the full page continues
+   in the dock and vice versa — there is one conversation, not two. Picks render
+   as compact rows rather than the page's .pickgrid cards, which need more width
+   than a 380px panel has. Ids are dock-specific (aiDockForm / aiDockInput) so
+   they never collide with the full page's chatForm when both are on screen. */
+function aiDockHTML(){
+  const open=!!S.aiOpen;
+  const thread=S.chat.length
+    ? S.chat.map(m=>m.role==="user"
+        ? `<div class="bub me" style="max-width:82%">${esc(m.text)}</div>`
+        : `<div style="max-width:94%;align-self:flex-start;display:flex;flex-direction:column;gap:8px">
+             <div class="bub them">${esc(m.text)}</div>
+             ${(m.picks||[]).map(id=>{
+               const p=PROGRAMS.find(x=>x.id===id);
+               return p?`<button class="aidock-pick" data-open="${esc(p.id)}">
+                 <img src="${p.img}" alt="">
+                 <span style="min-width:0">
+                   <b>${esc(p.title)}</b>
+                   <em>${money(p.price)} ${esc(modelLabel(p.model))} · ages ${p.minAge}–${p.maxAge}</em>
+                 </span></button>`:"";}).join("")}
+           </div>`).join("")
+    : `<div class="aidock-empty">
+         <span class="mark" style="margin:0 auto 11px">S</span>
+         <h3>What are you training for?</h3>
+         <p style="color:var(--muted);font-size:var(--text-sm);margin-top:6px">
+           I only suggest real Sporve listings that have cleared a background check.</p>
+         <div style="display:flex;flex-direction:column;gap:7px;margin-top:15px">
+           ${["Beginner swimming near Chicago under $60",
+              "Advanced basketball for a 14-year-old",
+              "Something for a shy 8-year-old"]
+             .map(q=>`<button class="btn ghost sm" data-ask="${esc(q)}">${esc(q)}</button>`).join("")}
+         </div></div>`;
+  return `<div class="aidock">
+    ${open?`<section class="aidock-panel" role="dialog" aria-label="Sporve AI helper">
+      <div class="aidock-head">
+        <span class="mark" style="width:30px;height:30px;font-size:15px;flex:none">S</span>
+        <div style="min-width:0"><b>Sporve AI</b>
+          <span class="aidock-sub">Real listings only — never invented</span></div>
+        ${S.chat.length?`<button class="btn ghost sm" data-chatclear="1" style="margin-left:auto">Clear</button>`:""}
+        <button class="x" data-aiclose="1" aria-label="Close">${ICON.x}</button>
+      </div>
+      <div class="aidock-scroll" id="aidockScroll">
+        ${thread}
+        ${S.chatThinking?`<div class="bub them" style="align-self:flex-start;display:flex;gap:5px;align-items:center">
+          <i class="dotdot"></i><i class="dotdot" style="animation-delay:.16s"></i><i class="dotdot" style="animation-delay:.32s"></i></div>`:""}
+      </div>
+      <form class="msg-compose" id="aiDockForm">
+        <input id="aiDockInput" placeholder="Ask about coaches or booking"
+               aria-label="Ask Sporve AI" autocomplete="off">
+        <button class="btn" type="submit" aria-label="Send">${ICON.send}</button>
+      </form>
+    </section>`:""}
+    <button class="aidock-fab" data-aitoggle="1" aria-expanded="${open}"
+            aria-label="${open?"Close":"Open"} Sporve AI helper">
+      ${open?ICON.x:`<span class="aidock-fab-mark">S</span>`}
+    </button>
+  </div>`;
+}
+
 /* deterministic, grounded matcher — mirrors provider_matcher.dart's hard gates */
 function answerFor(q){
   const t=q.toLowerCase();
@@ -5028,11 +5257,109 @@ function scheduleHTML(){
 /* ── coach portal ────────────────────────────────────────────────── */
 /* Sidebar is short and NOUNS-ONLY (spec Part 1, decision 5). Anything not a
    noun is reached through the coach-finder bar or a drill-in. */
+/* ── coach search ───────────────────────────────────────────────────
+   One flat index over everything a coach looks for by name: the players on
+   their rosters, the teams those rosters belong to, every camp/programme on
+   the marketplace, and their own staff. Each entry declares whether it is
+   PUBLIC — a listing is, because families browse them; a player, a team and a
+   staff member are not. A signed-out visitor sees only the public half, which
+   keeps this tab inside the same guest scope as the rest of the portal. */
+function coachSearchIndex(){
+  const mineIds=S.listings||[];
+  const out=[];
+  PROGRAMS.forEach(p=>out.push({
+    kind:"camp",label:"Camp",title:p.title,
+    sub:`${p.sport} · ages ${p.minAge}–${p.maxAge}`,
+    meta:`${money(p.price)} ${modelLabel(p.model)}`,
+    tag:mineIds.includes(p.id)?"Yours":p.biz,
+    pub:true,open:p.id,
+  }));
+  (SEED.teams||[]).forEach(t=>{
+    const n=(t.roster||[]).length;
+    out.push({kind:"team",label:"Team",title:t.name,
+      sub:`${t.sport} · ${n} player${n===1?"":"s"}`,meta:"",tag:"Roster",
+      pub:false,ctab:"roster"});
+    (t.roster||[]).forEach(r=>out.push({
+      kind:"player",label:"Player",title:r.name,
+      sub:`#${r.jersey} · ${t.name}`,
+      meta:r.paid?"Paid":"Payment due",
+      tag:r.available?"Available":"Unavailable",
+      pub:false,ctab:"roster"}));
+  });
+  (S.trainers||[]).forEach(m=>out.push({
+    kind:"staff",label:"Staff",title:m.name,sub:m.specialty,
+    meta:m.bg==="verified"?"Background verified":"Check pending",
+    tag:m.affiliation,pub:false,ctab:"roster"}));
+  return out;
+}
+function coachSearchHTML(){
+  const guest=isCoachGuest();
+  const q=String(S.coachQuery||"").trim().toLowerCase();
+  const kind=S.coachSearchKind||"all";
+  const all=coachSearchIndex();
+  const scope=guest?all.filter(r=>r.pub):all;
+  const byKind=k=>scope.filter(r=>r.kind===k).length;
+  const kinds=[["all","Everything",scope.length],["player","Players",byKind("player")],
+               ["team","Teams",byKind("team")],["camp","Camps",byKind("camp")],
+               ["staff","Staff",byKind("staff")]]
+              .filter(([k])=>k==="all"||byKind(k)>0);
+  let rows=kind==="all"?scope:scope.filter(r=>r.kind===kind);
+  if(q) rows=rows.filter(r=>[r.title,r.sub,r.meta,r.tag].join(" ").toLowerCase().indexOf(q)>=0);
+  const capped=rows.slice(0,60);
+  return `<div class="sec-head" style="margin-top:18px"><h1>Search</h1>
+      <span class="num" style="color:var(--faint);font-size:var(--t-small)">
+        ${scope.length} searchable record${scope.length===1?"":"s"}</span></div>
+    <form class="cs-bar" id="coSearchForm" role="search">
+      <span class="cs-icon" aria-hidden="true">${ICON.search}</span>
+      <input id="coSearchQ" value="${esc(S.coachQuery||"")}" autocomplete="off"
+             placeholder="Search players, teams, camps or staff"
+             aria-label="Search players, teams, camps or staff">
+      ${q?`<button type="button" class="cs-clear" data-csclear="1" aria-label="Clear search">${ICON.x}</button>`:""}
+    </form>
+    <div class="segwrap" style="justify-content:flex-start;margin:12px 0 0">
+      <div class="seg2" role="tablist" aria-label="Result type">
+        ${kinds.map(([k,l,n])=>`<button role="tab" aria-selected="${kind===k}"
+          class="${kind===k?"on":""}" data-cskind="${esc(k)}">${esc(l)}${k==="all"?"":` · ${n}`}</button>`).join("")}
+      </div></div>
+    ${guest?`<p style="color:var(--muted);font-size:var(--t-small);margin:14px 0 0">
+        Players, teams and staff belong to the coach who owns this account, so search
+        covers listings only until you sign in.
+        <button class="au-link" data-signin="1">Log in or sign up</button></p>`:""}
+    ${capped.length?`<div class="cs-list">${capped.map(r=>`
+      <button class="cs-row"${r.open?` data-open="${esc(r.open)}"`:` data-ctab="${esc(r.ctab||"roster")}"`}>
+        <span class="cs-kind cs-${esc(r.kind)}">${esc(r.label)}</span>
+        <span class="cs-main">
+          <b>${esc(r.title)}</b>
+          <span>${esc(r.sub)}</span>
+        </span>
+        ${r.meta?`<span class="cs-meta num">${esc(r.meta)}</span>`:""}
+        ${r.tag?`<span class="pill">${esc(r.tag)}</span>`:""}
+      </button>`).join("")}</div>
+      ${rows.length>capped.length?`<p style="color:var(--faint);font-size:var(--t-small);margin-top:12px">
+        Showing ${capped.length} of ${rows.length} — narrow the search to see the rest.</p>`:""}`
+    :`<div class="empty" style="margin-top:18px">
+        <h3>${q?"No matches":"Search your players, teams and camps"}</h3>
+        <p style="margin-top:6px">${q
+          ? `Nothing matches “${esc(S.coachQuery)}”. Try a first name, a team, or a sport.`
+          : "Type a name to find a player, the team they play for, a camp on the marketplace, or someone on your staff."}</p>
+      </div>`}`;
+}
+
 function coachHTML(){
   const t=S.coachTab;
-  const core=[["dashboard","Home"],["schedule","Schedule"],["bookings","Bookings"],
-              ["roster","Clients"],["inbox","Messages"],["listings","Services & locations"],
-              ["finances","Earnings"],["reviews","Reviews"]];
+  /* The gate sits here, above every branch, so a private tab cannot be reached
+     by any route that sets S.coachTab — including module code and the AI bar. */
+  if(isCoachGuest()&&COACH_PRIVATE[t]){
+    const label=(modCoachTabs().concat([["finances","Earnings"],["roster","Clients"],
+      ["inbox","Messages"]]).find(x=>x[0]===t)||[t,t])[1];
+    return coachLockHTML(label,COACH_PRIVATE[t]);
+  }
+  /* "Bookings" removed: it listed the same sessions Schedule already shows, and
+     its revenue lives on Home and in Earnings. S.bookings is untouched — the
+     dashboard, Earnings and the family portal all still read it. */
+  const core=[["dashboard","Home"],["search","Search"],["schedule","Schedule"],
+              ["roster","Clients"],["inbox","Messages"],["listings","Listings"],
+              ["finances","Earnings"],["operations","Operations"]];
   const extra=modCoachTabs().filter(([k])=>!core.some(c=>c[0]===k));
   const gs=gettingStarted();
   const unread=S.conversations.length;
@@ -5109,7 +5436,7 @@ function dashboardHTML(){
     ? [["Profile views","248",[12,18,15,22,19,28,31,27,34,30,38,41],"var(--slate)"],
        ["Booking requests","12",[0,1,2,1,3,2,4,3,5,4,6,5],"var(--slate)"],
        ["Sessions completed","31",[1,2,2,3,4,3,5,4,6,5,7,6],"var(--good)"],
-       ["Earnings",money(1395),[40,55,50,70,65,90,85,110,100,130,120,145],"var(--good)"]]
+       ["Earnings",veil(money(1395)),[40,55,50,70,65,90,85,110,100,130,120,145],"var(--good)"]]
     : [["Profile views","—",[],"var(--slate)"],["Booking requests","—",[],"var(--slate)"],
        ["Sessions completed","—",[],"var(--good)"],["Earnings","—",[],"var(--good)"]];
 
@@ -5128,7 +5455,7 @@ function dashboardHTML(){
     <section class="metrics" aria-label="Last 30 days">
       ${M.map(([k,v,vals,c])=>`<div class="metric">
         <div class="k">${esc(k)}</div>
-        <div class="v num">${esc(v)}</div>
+        <div class="v num">${esc(veil(v))}</div>
         ${spark(vals,c)}
       </div>`).join("")}
       <div class="metric livebox">
@@ -5150,52 +5477,10 @@ function dashboardHTML(){
       <p class="dashcontext">${esc(statusLine)}</p>
     </section>
 
-    <section class="cmdbar" aria-label="Sporve AI command center">
-      ${/* Leading history icon, then the actions, then "View all actions"
-           pushed to the right after a hairline — the reference's action-bar
-           shape. The history button opens the activity log below. */""}
-      <div class="cmdchips" aria-label="AI actions">
-        <button class="cmdchip cmdhist" type="button" data-cmdhist="1" aria-label="Recent activity">
-          ${PICON.clock}</button>
-        ${cmdActions.map(([label,icon])=>{
-          const last=label==="View all actions";
-          return `<button class="cmdchip ${last?"cmdchip-end":""} ${S.cmdAction===label?"on":""}"
-          type="button" data-cmdmode="${esc(label)}" aria-pressed="${S.cmdAction===label}">
-          ${icon}<span>${esc(label)}</span></button>`;}).join("")}
-      </div>
-      ${/* Icon order mirrors the reference: the input takes the row, and the
-           model selector + attach + mic cluster to the RIGHT, with the send
-           button appearing only once there is text. Attach was on the left
-           before; the reference groups every control on the right. */""}
-      <form class="cmdinput ${S.cmdDraft?"has-value":""} ${S.cmdSending?"sending":""}" id="cmdForm">
-        <input id="cmdField" value="${esc(S.cmdDraft||"")}" placeholder="Ask Sporve anything…"
-          aria-label="Ask Sporve anything" aria-describedby="${S.cmdError?"cmdError":""}" autocomplete="off" ${S.cmdSending?"disabled":""}>
-        ${/* Single non-interactive Sporve AI chip. The multi-model picker was
-             removed (owner call 2026-08-09): the named competitor models were
-             wired to nothing, so selecting one changed no behaviour — a
-             fabricated-capability claim. Real per-model routing is a backend
-             concern; until then this is one honest, static label. */""}
-        <span class="cmdmodelwrap">
-        <span class="cmdmodel cmdmodel-static" aria-label="Assistant: Sporve AI">
-          ${PICON.spark}<span>Sporve AI</span></span>
-        </span>
-        <button type="button" class="cmdicon" data-attach="1" aria-label="Attach a file" ${S.cmdSending?"disabled":""}>${PICON.doc}</button>
-        <button type="button" class="cmdicon" data-voice="1" aria-label="Voice input" ${S.cmdSending?"disabled":""}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M18 12a6 6 0 0 1-12 0H4a8 8 0 0 0 7 7.9V22h2v-2.1A8 8 0 0 0 20 12z"/></svg>
-        </button>
-        <button class="cmdgo" type="submit" aria-label="${S.cmdSending?"Sending":"Send"}" ${S.cmdSending?"disabled":""}>
-          ${S.cmdSending?`<span class="cmdspinner" aria-hidden="true"></span>`:ICON.send}</button>
-      </form>
-      ${S.cmdError?`<p class="cmderror" id="cmdError" role="alert">${esc(S.cmdError)}</p>`:""}
-      ${S.cmdPending?`<div class="cmdconfirm" role="group" aria-label="Confirm before sending">
-        <p class="cmdconfirm-line">${esc(S.cmdPending.restated)}</p>
-        ${S.cmdPending.body?`<p class="cmdconfirm-body">${esc(S.cmdPending.body)}</p>`:""}
-        <div class="cmdconfirm-actions">
-          <button class="btn sm" type="button" data-cmdok="1">Send it</button>
-          <button class="btn ghost sm" type="button" data-cmdno="1">Cancel</button>
-        </div>
-      </div>`:""}
-    </section>
+    ${/* The fixed "Ask Sporve anything" command bar was removed at the owner's
+         request: the global AI dock (bottom-right, every screen) is now the
+         single entry point, and two AI inputs stacked on one page read as two
+         different assistants. S.cmdLog below is untouched. */""}
     ${S.cmdLog&&S.cmdLog.length?`<div class="cmdlog" aria-label="Recent Sporve AI activity">
         <div class="eyebrow">Activity log</div>
         ${S.cmdLog.slice(0,4).map(l=>`<div class="cmdlogrow"><span>${esc(l.text)}</span>
@@ -5265,9 +5550,12 @@ function dashboardHTML(){
     <section class="cardrow">
       <div class="panel">
         <h3>Earnings</h3>
-        ${(()=>{const g=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0),f=Math.round(g*FEE_RATE);
-          return `<div class="num" style="font-size:var(--text-2xl);font-weight:700;letter-spacing:-.03em;margin-top:6px">${money(g-f)}</div>
-          <div class="num" style="color:var(--muted);font-size:var(--text-sm)">${money(g)} gross · ${money(f)} platform fee</div>
+        ${(()=>{const gAll=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0);
+          /* FEE_RATE, not a bare 0.12 — the rate is declared once at the top of
+             this file and smoke fails if any surface hardcodes it again. */
+          const g=isCoachGuest()?0:gAll,f=Math.round(g*FEE_RATE);
+          return `<div class="num" style="font-size:var(--text-2xl);font-weight:700;letter-spacing:-.03em;margin-top:6px">${veil(money(g-f))}</div>
+          <div class="num" style="color:var(--muted);font-size:var(--text-sm)">${isCoachGuest()?"Sign in to see payouts":money(g)+" gross · "+money(f)+" platform fee"}</div>
           <div class="payflow">
             ${[["Pending",money(0)],["In transit",money(0)],["Paid out",money(g-f)]]
               .map(([k,v],i)=>`<div class="payst ${i===2?"on":""}"><span class="eyebrow">${k}</span>
@@ -5364,6 +5652,10 @@ function qrHTML(str){
 
 /* ── Action queue: everything awaiting a yes/no ───────────────────── */
 function actionQueue(){
+  /* Every row here names a real person — an athlete waiting, a family who
+     messaged, a trainer awaiting a background check. None of it is a guest's
+     to read, and an empty queue is the honest guest state. */
+  if(isCoachGuest()) return [];
   const out=[];
   const mine=PROGRAMS.filter(p=>S.listings.includes(p.id));
   const pending=S.trainers.filter(t=>t.bg!=="verified");
@@ -5396,6 +5688,7 @@ function coachBody(t){
   const mine=PROGRAMS.filter(p=>S.listings.includes(p.id));
   const pp=SEED.providerProfile;
   const mv=modView(t); if(mv) return mv();
+  if(t==="search") return coachSearchHTML();
   if(t==="dashboard") return dashboardHTML();
   if(t==="__legacy_dashboard"){
     const revenue=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0);
@@ -5453,7 +5746,12 @@ function coachBody(t){
           ? `<b>${left}</b> <span style="color:var(--muted)">of ${p.cap}</span>`
           : `${p.enrolled}/${p.cap}`}</td>
         <td class="num">${ICON.star} ${p.rating}</td>
-        <td><button class="btn ghost sm" data-open="${esc(p.id)}">View</button></td>
+        <td><span style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+          ${/* the count is the coach's reason to open it, so it rides on the button */""}
+          ${isCoachGuest()?"":`<button class="btn ghost sm" data-signups="${esc(p.id)}">Signups${(()=>{
+            const n=S.bookings.filter(b=>b.programId===p.id).length;return n?` · ${n}`:"";})()}</button>`}
+          <button class="btn ghost sm" data-editlisting="${esc(p.id)}">Edit</button>
+        </span></td>
       </tr>`).join("")}</tbody></table></div>`;
     return `<div class="sec-head" style="margin-top:18px"><h1>Listings</h1>
         <button class="btn" data-newlisting="1">+ New listing</button></div>
@@ -5474,7 +5772,18 @@ function coachBody(t){
         ${full.length?`<div style="margin-top:14px">${table(full,"full")}</div>`
           :`<div class="empty" style="margin-top:14px"><h3>Nothing fully booked yet</h3>
              <p style="margin-top:6px">When a listing reaches its cap it moves here, so the ones you can still sell stay on top.</p></div>`}
-      </div>`;
+      </div>
+      ${/* The waitlist is no longer its own tab — it belongs directly under
+           "Fully booked", because a waitlist only exists for a listing that has
+           hit its cap. Rendered through modView() rather than importing the
+           module, so if mod-coachops is ever dropped from the build this
+           degrades to nothing instead of throwing. */""}
+      ${(()=>{if(isCoachGuest()) return `<div class="lst-waitlist"><div class="empty">
+          <h3>Waitlist hidden</h3>
+          <p style="margin-top:6px">The queue names the athletes and parents waiting on this coach's
+            listings, so it stays hidden until you sign in.</p></div></div>`;
+        const wv=modView("waitlist");
+        return wv?`<div class="lst-waitlist">${wv()}</div>`:"";})()}`;
   }
   /* A month grid, the way every calendar app draws one: weeks as rows, the
      month's own days in full contrast and the spill from either side muted,
@@ -5483,6 +5792,21 @@ function coachBody(t){
      Three fit in a cell; the rest roll into "+N more", and the whole day opens
      in a sheet on click. */
   if(t==="schedule"){
+    /* Schedule owns two views of the same working week: the month grid of what
+       is actually booked, and the recurring blocks that generate it. They were
+       a tab apart in the rail; as sub-tabs the coach can flip between intent
+       and outcome without losing their place in the portal. */
+    const sv=modView("slots");
+    const sub=(S.schedTab==="slots"&&sv)?"slots":"month";
+    const subnav=`<div class="segwrap" style="justify-content:flex-start;margin:0 0 4px">
+      <div class="seg2" role="tablist" aria-label="Schedule view">
+        <button role="tab" aria-selected="${sub==="month"}" class="${sub==="month"?"on":""}"
+                data-schedtab="month">Live calendar</button>
+        ${sv?`<button role="tab" aria-selected="${sub==="slots"}" class="${sub==="slots"?"on":""}"
+                data-schedtab="slots">Recurring slots</button>`:""}
+      </div></div>`;
+    if(sub==="slots") return `<div class="sec-head" style="margin-top:18px"><h1>Schedule</h1></div>
+      ${subnav}${sv()}`;
     const key=/^\d{4}-\d{2}$/.test(S.calMonth||"")?S.calMonth:TODAY.slice(0,7);
     const [cy,cm]=key.split("-").map(Number);
     const by=sessionsByDate();
@@ -5512,6 +5836,7 @@ function coachBody(t){
     return `<div class="sec-head" style="margin-top:18px"><h1>Schedule</h1>
         <span class="num" style="color:var(--faint);font-size:var(--t-small)">
           ${total} session${total===1?"":"s"} this month</span></div>
+      ${subnav}
       <div class="cal-head">
         <span class="cal-title">${esc(monthLabel(key))}</span>
         <button class="btn ghost sm" data-calnav="today">Today</button>
@@ -5609,43 +5934,59 @@ function coachBody(t){
   /* PART 5.1 — these two rail entries had no branch at all, so both fell
      through to the Business profile form. The dashboard's "Recent reviews ->
      Reply" landed a coach on a settings screen. */
-  if(t==="bookings"){
-    const rows=S.bookings.slice();
-    return `<div class="sec-head" style="margin-top:18px"><h1>Bookings</h1>
-        <span class="num" style="color:var(--faint);font-size:var(--t-small)">${rows.length} total</span></div>
-      ${rows.length?`<div class="queue">${rows.map(b=>{
-        const p=PROGRAMS.find(x=>x.id===b.programId);
-        return `<div class="qrow ${b.status==="confirmed"?"good":""}">
-          <span class="qdot" aria-hidden="true"></span>
-          <span class="qtext"><b>${esc(b.program)}</b>
-            <span>${esc(b.athlete)} · ${esc(fmtDate(b.date))} · ${esc(b.startTime||"")}</span></span>
-          <span class="qexp num">${money(b.price)}</span>
-          <span class="qacts"><span class="pill ${b.status==="confirmed"?"good":"warn"}">${esc(b.status)}</span>
-            ${p?`<button class="btn ghost sm" data-open="${esc(p.id)}">View listing</button>`:""}</span>
-        </div>`;}).join("")}</div>`
-      :`<div class="empty"><h3>No bookings yet</h3>
-         <p style="margin-top:6px">Once a family books one of your services, it appears here with its payment and policy.</p>
-         <button class="btn" data-ctab="listings" style="margin-top:18px">Check your listings</button></div>`}`;
-  }
-
-  if(t==="reviews"){
-    const revd=mine.filter(p=>Number(p.reviews)>0);
-    const total=revd.reduce((n,p)=>n+Number(p.reviews||0),0);
-    const avg=revd.length?(revd.reduce((n,p)=>n+Number(p.rating||0)*Number(p.reviews||0),0)/(total||1)).toFixed(1):"—";
-    return `<div class="sec-head" style="margin-top:18px"><h1>Reviews</h1></div>
-      <div class="stats">
-        ${[["Average rating",avg,"across your listings"],["Total reviews",String(total),"all time"],
-           ["Listings reviewed",String(revd.length)+" of "+mine.length,"have at least one"]]
-          .map(([k,v,d])=>`<div class="stat"><div class="k">${esc(k)}</div><div class="v num">${esc(v)}</div><div class="d">${esc(d)}</div></div>`).join("")}
-      </div>
-      ${revd.length?`<div class="queue" style="margin-top:18px">${revd.map(p=>`
-        <div class="qrow good"><span class="qdot" aria-hidden="true"></span>
-          <span class="qtext"><b>${esc(p.title)}</b>
-            <span>${ICON.star} ${p.rating} · ${p.reviews} review${p.reviews===1?"":"s"}</span></span>
-          <span class="qacts"><button class="btn ghost sm" data-open="${esc(p.id)}">See listing</button></span>
-        </div>`).join("")}</div>`
-      :`<div class="empty" style="margin-top:18px"><h3>No reviews yet</h3>
-         <p style="margin-top:6px">A family can only review after a session is completed — so the first one arrives after your first session.</p></div>`}`;
+  /* Operations — the four surfaces about running the practice rather than doing
+     the coaching: how it is performing (Insights), what families said about it
+     (Reviews), the terms that apply (Policies), and what gets sent without you
+     (Automated messages). Four rail entries collapsed into one, each still its
+     own screen behind a sub-tab. Sub-views that come from modules are probed
+     with modView() so the tab degrades to whatever is actually in the build. */
+  if(t==="operations"){
+    const iv0=modView("insights"), pv=modView("policies"), mv=modView("messages");
+    /* Insights carries a client watchlist — real athletes and parents by name —
+       so a guest gets the tab but not its contents. The other three are this
+       coach's own settings and public review counts, which are fine to browse. */
+    const iv=iv0&&(isCoachGuest()
+      ? ()=>`<div class="co-head"><div><h2>Insights</h2></div></div>
+          <div class="empty" style="margin-top:14px"><h3>Sign in to see this</h3>
+            <p style="margin-top:8px;max-width:52ch;margin-left:auto;margin-right:auto">
+              Insights includes a watchlist naming this coach's clients, so it stays hidden
+              until you sign in.</p>
+            <button class="btn" data-signin="1" style="margin-top:18px">Log in or sign up</button></div>`
+      : iv0);
+    const reviewsHTML=()=>{
+      const revd=mine.filter(p=>Number(p.reviews)>0);
+      const total=revd.reduce((n,p)=>n+Number(p.reviews||0),0);
+      const avg=revd.length?(revd.reduce((n,p)=>n+Number(p.rating||0)*Number(p.reviews||0),0)/(total||1)).toFixed(1):"—";
+      return `<div class="co-head"><div><h2>Reviews</h2>
+          <p class="co-lede">A family can only review after a completed session, so this is earned
+            feedback rather than booking noise.</p></div></div>
+        <div class="stats" style="margin-top:14px">
+          ${[["Average rating",avg,"across your listings"],["Total reviews",String(total),"all time"],
+             ["Listings reviewed",String(revd.length)+" of "+mine.length,"have at least one"]]
+            .map(([k,v,d])=>`<div class="stat"><div class="k">${esc(k)}</div><div class="v num">${esc(v)}</div><div class="d">${esc(d)}</div></div>`).join("")}
+        </div>
+        ${revd.length?`<div class="queue" style="margin-top:18px">${revd.map(p=>`
+          <div class="qrow good"><span class="qdot" aria-hidden="true"></span>
+            <span class="qtext"><b>${esc(p.title)}</b>
+              <span>${ICON.star} ${p.rating} · ${p.reviews} review${p.reviews===1?"":"s"}</span></span>
+            <span class="qacts"><button class="btn ghost sm" data-open="${esc(p.id)}">See listing</button></span>
+          </div>`).join("")}</div>`
+        :`<div class="empty" style="margin-top:18px"><h3>No reviews yet</h3>
+           <p style="margin-top:6px">A family can only review after a session is completed — so the first one arrives after your first session.</p></div>`}`;
+    };
+    const opts=[["insights","Insights",iv],["reviews","Reviews",reviewsHTML],
+                ["policies","Policies",pv],["messages","Automated messages",mv]]
+               .filter(o=>typeof o[2]==="function");
+    if(!opts.length) return `<div class="sec-head" style="margin-top:18px"><h1>Operations</h1></div>
+      <div class="empty"><h3>Nothing to show</h3></div>`;
+    const sub=opts.some(o=>o[0]===S.opsTab)?S.opsTab:opts[0][0];
+    return `<div class="sec-head" style="margin-top:18px"><h1>Operations</h1></div>
+      <div class="segwrap" style="justify-content:flex-start;margin:0 0 4px">
+        <div class="seg2" role="tablist" aria-label="Operations view">
+          ${opts.map(([k,l])=>`<button role="tab" aria-selected="${sub===k}"
+            class="${sub===k?"on":""}" data-opstab="${esc(k)}">${esc(l)}</button>`).join("")}
+        </div></div>
+      ${(opts.find(o=>o[0]===sub)[2])()}`;
   }
   if(t==="finances"){
     const gross=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0);
@@ -5791,11 +6132,19 @@ function modalHTML(){
         We'll reply by email — there's no automated scheduling yet.</p>
     </form>`);
 
+  /* The one auth surface, Airbnb-shaped: identifier field → Continue, a rule
+     that says "or", then stacked provider rows. It is always dismissible — the
+     X, the scrim and Escape all call dismiss(), which drops the modal AND the
+     pending intent, so closing it returns you to browsing rather than to a
+     half-finished action. Copy is role-aware because the same sheet now greets
+     a coach landing on the provider side. */
   if(m.type==="authsheet") return wrap("Log in or sign up",`
     <div class="au-head">
       <span class="mark au-mark">S</span>
       <h2>Log in or sign up</h2>
-      <p>Book sessions, message coaches, and manage your athletes.</p>
+      <p>${S.portal==="coach"
+        ? "Publish listings, take bookings, and get paid through Sporve."
+        : "Book sessions, message coaches, and manage your athletes."}</p>
     </div>
     <form id="authIdForm" class="au-form">
       <div class="field" style="margin-bottom:12px">
@@ -5806,14 +6155,19 @@ function modalHTML(){
       <button class="btn wide dark" type="submit">Continue</button>
     </form>
     <div class="au-or"><span></span><em>or</em><span></span></div>
-    <div class="au-oauth">
-      <button class="au-sq" data-google="1" aria-label="Continue with Google">${ICON.google}</button>
-      <button class="au-sq" data-soon="Apple sign-in" aria-label="Continue with Apple">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.8c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.8-3.5.8s-1.8-.8-3-.8c-1.5 0-2.9.9-3.7 2.3-1.6 2.7-.4 6.8 1.1 9 .8 1.1 1.6 2.3 2.8 2.3 1.1 0 1.6-.7 2.9-.7s1.7.7 2.9.7 2-1.1 2.7-2.2c.9-1.2 1.2-2.4 1.2-2.5 0 0-2.3-.9-2.3-3.6zM14.2 5.9c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.7-1.2z"/></svg>
-      </button>
+    <div class="au-rows">
+      <button class="au-row" data-google="1">${ICON.google}<span>Continue with Google</span></button>
+      <button class="au-row" data-soon="Apple sign-in">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.8c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.8-3.5.8s-1.8-.8-3-.8c-1.5 0-2.9.9-3.7 2.3-1.6 2.7-.4 6.8 1.1 9 .8 1.1 1.6 2.3 2.8 2.3 1.1 0 1.6-.7 2.9-.7s1.7.7 2.9.7 2-1.1 2.7-2.2c.9-1.2 1.2-2.4 1.2-2.5 0 0-2.3-.9-2.3-3.6zM14.2 5.9c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.7-1.2z"/></svg>
+        <span>Continue with Apple</span></button>
     </div>
-    <p class="au-foot">Here to coach? <button class="au-link" data-becomecoach="1">Start on the coach page →</button></p>
-    <p class="au-fine">You can keep browsing without an account.
+    ${S.portal==="coach"?"":`<p class="au-foot">Here to coach?
+      <button class="au-link" data-becomecoach="1">Start on the coach page →</button></p>`}
+    ${/* An explicit way out. The X and the scrim already dismiss, but a guest
+         being asked to sign in for the second or third time should be able to
+         SEE that declining is allowed rather than having to guess it. */""}
+    <button class="au-guest" data-close="1">Continue as a guest</button>
+    <p class="au-fine">Browsing is free — an account is only needed to book, message, or publish.
       <button class="au-link" data-demoacct="1">Use the demo account</button></p>`);
 
   if(m.type==="signup") return wrap("Create your account",`
@@ -5992,6 +6346,87 @@ function modalHTML(){
       <button class="btn wide" type="submit" style="margin-top:14px">Create listing</button>
     </form>`);
 
+  /* Edit an existing listing. Same field set as "Create a listing" so a coach
+     learns one form, prefilled from the live PROGRAMS record. Capacity and the
+     age range are validated here rather than silently coerced: dropping cap
+     below the number already enrolled would make the listing read as
+     over-subscribed everywhere it renders enrolled/cap. */
+  if(m.type==="editlisting"){
+    const p=PROGRAMS.find(x=>x.id===m.id);
+    if(!p) return "";
+    return wrap("Edit listing",`
+      <form id="editListingForm" data-pid="${esc(p.id)}">
+        <div class="field"><label>Program title</label>
+          <input name="title" value="${esc(p.title)}" required></div>
+        <div class="field"><label>Sport</label><select name="sport">
+          ${Object.keys(SPORT_COLOR).sort().map(s=>
+            `<option${s===p.sport?" selected":""}>${s}</option>`).join("")}</select></div>
+        <div class="field"><label>Description</label>
+          <textarea name="desc" rows="3" required>${esc(p.desc||"")}</textarea></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="field"><label>Price (USD)</label>
+            <input name="price" type="number" min="0" value="${Number(p.price)||0}" required></div>
+          <div class="field"><label>Pricing model</label><select name="model">
+            ${[["single_session","Per session"],["monthly","Monthly"],["package","Package"],["seasonal","Per season"]]
+              .map(([v,l])=>`<option value="${v}"${p.model===v?" selected":""}>${l}</option>`).join("")}
+          </select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+          <div class="field"><label>Min age</label>
+            <input name="minAge" type="number" value="${Number(p.minAge)||0}" required></div>
+          <div class="field"><label>Max age</label>
+            <input name="maxAge" type="number" value="${Number(p.maxAge)||0}" required></div>
+          <div class="field"><label>Capacity</label>
+            <input name="cap" type="number" min="0" value="${Number(p.cap)||0}" required></div>
+        </div>
+        <p style="font-size:var(--text-sm);color:var(--muted)">
+          ${p.enrolled} of ${p.cap} places are taken — capacity cannot go below ${p.enrolled}.</p>
+        <div id="editListingErr" class="err hide" style="margin:8px 0"></div>
+        <button class="btn wide" type="submit" style="margin-top:14px">Save changes</button>
+      </form>`);
+  }
+
+  /* Who has actually signed up. Booking records are the source of truth here —
+     p.enrolled is the listing's own counter and the two can legitimately differ
+     in demo data, so both are shown rather than one being presented as the
+     other. Waitlist entries come from mod-coachops when it is in the build. */
+  if(m.type==="signups"){
+    const p=PROGRAMS.find(x=>x.id===m.id);
+    if(!p) return "";
+    /* defence in depth: the button is hidden for a guest, but the modal can be
+       reached by state, and this list is entirely client names */
+    if(isCoachGuest()) return wrap("Signups",`<div class="empty"><h3>Sign in to see this</h3>
+      <p style="margin-top:8px">These are the families who booked this listing.</p>
+      <button class="btn" data-signin="1" style="margin-top:18px">Log in or sign up</button></div>`);
+    const rows=S.bookings.filter(b=>b.programId===p.id);
+    const wl=((window.MOD_COACHOPS&&window.MOD_COACHOPS.state&&window.MOD_COACHOPS.state.waitlistEntries)||[])
+      .filter(e=>e.programId===p.id);
+    const left=Math.max(0,Number(p.cap)-Number(p.enrolled));
+    return wrap(`Signups · ${p.title}`,`
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+        <span class="num pill slate">${p.enrolled}/${p.cap} enrolled</span>
+        ${left?`<span class="pill good">${left} spot${left===1?"":"s"} left</span>`
+              :`<span class="pill warn">Full</span>`}
+        ${wl.length?`<span class="pill">${wl.length} on the waitlist</span>`:""}
+      </div>
+      ${rows.length?`<div class="tblwrap"><table class="tbl">
+        <thead><tr><th>Athlete</th><th>Session</th><th>Booked</th><th>Status</th><th>Paid</th><th>Price</th></tr></thead>
+        <tbody>${rows.map(b=>`<tr>
+          <td><b>${esc(b.athlete)}</b></td>
+          <td>${esc(b.session||"—")}
+            <div class="num" style="color:var(--muted);font-size:var(--text-sm)">${esc(fmtDate(b.date))} · ${esc(b.startTime||"")}</div></td>
+          <td class="num">${esc(fmtDate(b.createdAt||b.date))}</td>
+          <td><span class="pill ${b.status==="confirmed"?"good":"warn"}">${esc(b.status)}</span></td>
+          <td><span class="pill ${b.paymentStatus==="paid"?"good":"warn"}">${esc(b.paymentStatus||"—")}</span></td>
+          <td class="num">${money(b.price)}</td>
+        </tr>`).join("")}</tbody></table></div>
+        <p style="color:var(--faint);font-size:var(--text-sm);margin-top:12px">
+          ${rows.length} booking record${rows.length===1?"":"s"} for this listing.</p>`
+      :`<div class="empty"><h3>Nobody has booked yet</h3>
+          <p style="margin-top:6px">When a family books this listing, they appear here with their session,
+            payment status and the price they paid.</p></div>`}`,true);
+  }
+
   if(m.type==="addtrainer") return wrap("Invite a trainer",`
     <form id="trainerForm">
       <div class="field"><label>Full name</label><input name="name" placeholder="Marcus Vale" required></div>
@@ -6153,7 +6588,8 @@ Marcus Chen, marcus@example.com"></textarea></div>
       <div style="display:flex;flex-direction:column;gap:2px;margin-top:12px">
         ${[["profile","Profile"],["bookings","Bookings"],["schedule","Schedule"],["messages","Messages"],
            ["saved","Saved"],["timeline","Athlete progress"],["goals","Goals & plan"],
-           ["notifications","Notifications"],["trust","Trust & safety"]]
+           ["notifications","Notifications"],["trust","Trust & safety"],
+           ["about","About &amp; Support"]]
           .map(([k,l])=>`<button class="rail-lite" data-nav="${k}" style="text-align:left;padding:11px 12px;border-radius:var(--r-m);font-weight:600">${l}</button>`).join("")}
         <div style="height:1px;background:var(--rule);margin:8px 0"></div>
         ${/* the toggle left global chrome; a signed-in coach switches here,
@@ -6172,7 +6608,7 @@ Marcus Chen, marcus@example.com"></textarea></div>
                 costs nothing and strands nobody. */
             [["explore","Explore"],["bookings","Bookings"],["messages","Messages"],
              ["profile","Profile"],["saved","Saved"],["map","Map"],["assistant","Coach finder"],
-             ["trust","Trust & safety"]]
+             ["trust","Trust & safety"],["about","About &amp; Support"]]
             .map(([k,l])=>`<button class="rail-lite" data-nav="${k}" style="text-align:left;padding:11px 12px;border-radius:var(--r-m);font-weight:600">${l}</button>`).join("")}
         </div>
         <div style="height:1px;background:var(--rule);margin:18px 0"></div>
@@ -6189,6 +6625,18 @@ Marcus Chen, marcus@example.com"></textarea></div>
    script block, so they exist by the time boot() runs.                     */
 function modules(){
   return Object.keys(window).filter(k=>/^MOD_[A-Z]+$/.test(k)).map(k=>window[k]).filter(Boolean);
+}
+/* "slots" is no longer a rail tab — the grid is a sub-tab of Schedule. Every
+   inbound link that still asks for it by name is redirected here, so a stale
+   token lands on the real surface instead of a tab the rail no longer offers. */
+function setCoachTab(v){
+  if(v==="slots"){S.coachTab="schedule";S.schedTab="slots";return;}
+  /* Insights, Reviews, Policies and Automated messages merged into Operations;
+     every old name still resolves, landing on its sub-tab rather than a rail
+     entry that no longer exists. */
+  if(v==="policies"||v==="messages"||v==="reviews"||v==="insights"){
+    S.coachTab="operations";S.opsTab=v;return;}
+  S.coachTab=v;
 }
 function modView(name){
   for(const m of modules()) if(m.views&&m.views[name]) return m.views[name];
@@ -6237,6 +6685,40 @@ const INFO={
     {h:"Report a problem",b:"If any part of Sporve is hard to use with a screen reader, keyboard, or other assistive technology, email support@sporve.com with the page and what happened. We read every message and prioritise access issues."},
   ]},
 };
+/* ── About & Support ───────────────────────────────────────────────
+   The Product / Company / Trust / Support columns removed from the footer, now
+   reachable from one account entry. The link data and its data-foot tokens are
+   carried over verbatim, so the existing [data-foot] handler routes them with
+   no new wiring — and Privacy, Legal, Help and Accessibility, which the footer
+   deletion had left with no entry point anywhere, are reachable again.
+   Product is open by default: it's the group a visitor is most likely after. */
+const ABOUT_GROUPS=[
+  ["Product",[["Find a coach","nav:explore"],["Map","nav:map"],["Coach finder","nav:assistant"],
+              ["Become a coach","coach"],["Coach dashboard","tab:dashboard"]]],
+  ["Company",[["About","info:legal"],["Careers","info:legal"],["Press","info:legal"]]],
+  ["Trust",[["Background checks","nav:trust"],["Privacy & Security","info:privacy"],
+            ["Legal","info:legal"],["Report a concern","nav:trust"]]],
+  ["Support",[["Help Center","info:help"],["Contact us","info:help"],
+              ["Accessibility","info:accessibility"],["support@sporve.com","mail"]]],
+];
+function aboutHTML(){
+  return `${subnavHTML()}<main class="shell" style="padding-bottom:70px">
+    <div class="sec-head"><div><h1>About &amp; Support</h1>
+      <p style="color:var(--muted);margin-top:4px">The product, the company behind it,
+        how we keep families safe, and how to reach us.</p></div></div>
+    <div class="abt">
+      ${ABOUT_GROUPS.map(([h,links],i)=>`<details class="abt-grp"${i===0?" open":""}>
+        <summary class="abt-sum"><span>${esc(h)}</span><span class="abt-cue" aria-hidden="true"></span></summary>
+        <div class="abt-links">
+          ${links.map(([t,a])=>a==="mail"
+            ? `<a href="mailto:support@sporve.com">${esc(t)}</a>`
+            : `<button data-foot="${a}">${esc(t)}</button>`).join("")}
+        </div>
+      </details>`).join("")}
+    </div>
+  </main>`;
+}
+
 function infoHTML(key){
   const d=INFO[key]||INFO.help;
   return `${subnavHTML()}<main class="shell" style="padding-bottom:70px">
@@ -6298,56 +6780,16 @@ function notifSettingsHTML(){
   </main>`;
 }
 
-/* ── footer — four columns (spec §8), identical on both views ─────── */
-function footerHTML(){
-  const cols=[
-    ["Product",[["Find a coach","nav:explore"],["Map","nav:map"],["Coach finder","nav:assistant"],
-                ["Become a coach","coach"],["Coach dashboard","tab:dashboard"]]],
-    ["Company",[["About","info:legal"],["Careers","info:legal"],["Press","info:legal"]]],
-    ["Trust",[["Background checks","nav:trust"],["Privacy & Security","info:privacy"],
-              ["Legal","info:legal"],["Report a concern","nav:trust"]]],
-    ["Support",[["Help Center","info:help"],["Contact us","info:help"],["Accessibility","info:accessibility"],["support@sporve.com","mail"]]],
-  ];
-  return `<footer class="sitefoot">
-    <div class="shell">
-      <div class="footgrid">
-        <div class="footbrand">
-          <span class="wordmark">sporve</span>
-          <p>Connecting families with background-checked coaches across 20+ sports.
-            Every sport. One app.</p>
-        </div>
-        ${cols.map(([h,links])=>`<div class="footcol">
-          <div class="eyebrow">${esc(h)}</div>
-          ${links.map(([t,a])=>a==="mail"
-            ? `<a href="mailto:support@sporve.com">${esc(t)}</a>`
-            : `<button data-foot="${a}">${esc(t)}</button>`).join("")}
-        </div>`).join("")}
-      </div>
-      <div class="footbase">
-        <div class="footlegal">
-          <span>© 2026 Sporve Inc. All rights reserved.</span><span>Chicago, IL</span>
-          <span>Sporve is a marketplace connecting families with independent coaches.</span>
-        </div>
-      </div>
-    </div></footer>`;
-}
+/* The light .sitefoot band — wordmark, tagline and copyright line — was deleted
+   at the owner's request. render() no longer appends any global footer; the
+   landing keeps its own dark .close-zone, emitted from landingHTML(). */
 
 /* T5 — Amboras-style closing zone. One continuous obsidian band that fuses the
    final CTA and the footer, rendered ONLY on the landing (explore route). On
-   that route render() suppresses the global footerHTML() so the page carries
-   exactly one footer region — this one. All text is white / white-alpha
-   LITERALS on the dark ground (§3: never a token that can resolve dark). The
-   footer columns and copyright lines reuse footerHTML()'s data/hrefs verbatim,
-   re-skinned to the dark spec. */
+   there is now no global footer at all, so this is the only footer region in
+   the app. All text is white / white-alpha LITERALS on the dark ground
+   (§3: never a token that can resolve dark). */
 function closeZoneHTML(){
-  const cols=[
-    ["Product",[["Find a coach","nav:explore"],["Map","nav:map"],["Coach finder","nav:assistant"],
-                ["Become a coach","coach"],["Coach dashboard","tab:dashboard"]]],
-    ["Company",[["About","info:legal"],["Careers","info:legal"],["Press","info:legal"]]],
-    ["Trust",[["Background checks","nav:trust"],["Privacy & Security","info:privacy"],
-              ["Legal","info:legal"],["Report a concern","nav:trust"]]],
-    ["Support",[["Help Center","info:help"],["Contact us","info:help"],["Accessibility","info:accessibility"],["support@sporve.com","mail"]]],
-  ];
   return `<footer class="close-zone">
     <div class="shell">
       <div class="closer">
@@ -6357,14 +6799,6 @@ function closeZoneHTML(){
           <a class="closer-link" data-nav="page:what-is">What is Sporve?
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"
                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7h10M8 3l4 4-4 4"/></svg></a>
-        </div>
-        <div class="closer-cols">
-          ${cols.map(([h,links])=>`<div class="closer-col">
-            <h5>${esc(h)}</h5>
-            ${links.map(([t,a])=>a==="mail"
-              ? `<a href="mailto:support@sporve.com">${esc(t)}</a>`
-              : `<button data-foot="${a}">${esc(t)}</button>`).join("")}
-          </div>`).join("")}
         </div>
       </div>
       <div class="closer-base">
@@ -7666,8 +8100,12 @@ function render(){
         what the coach rail expects. */
   if(r.name==="coachgate"){body=coachGateHTML();}
   else if(S.portal==="coach"){
-    if(!isVerified()) body=coachLandingHTML();
-    else if(r.name==="info") body=infoHTML(r.arg||"help");
+    /* A guest now browses the provider side rather than being bounced to the
+       marketing page — the auth sheet invites, it does not wall. Mutating
+       actions inside are individually gated with requireAuth(); see the
+       handlers. coachLandingHTML() is still reachable at the `coachinfo`
+       route for anyone who wants the pitch. */
+    if(r.name==="info") body=infoHTML(r.arg||"help");
     else body=coachHTML();
   }
   else if(r.name==="home") body=landingHTML();
@@ -7685,6 +8123,7 @@ function render(){
   else if(r.name==="assistant") body=assistantHTML();
   else if(r.name==="schedule") body=scheduleHTML();
   else if(r.name==="notifications") body=notifSettingsHTML();
+  else if(r.name==="about") body=aboutHTML();
   else if(r.name==="info") body=infoHTML(r.arg||"help");
   else if(modView(r.name)) body=modView(r.name)();
   else if(r.name==="explore") body=exploreHTML();
@@ -7709,16 +8148,27 @@ function render(){
      a visitor never lands on a half-inverted page. On #app rather than on the
      inner .dash because .shell is a centred max-width column; painting the
      grid alone would leave white gutters either side of the black. */
+  /* No longer conditioned on isVerified(): a guest browsing the provider side
+     gets the same dark ground a signed-in coach does, otherwise dismissing the
+     sheet dropped them onto a half-inverted page. */
   app.classList.toggle("coachdark",
-    S.portal==="coach"&&isVerified()&&r.name!=="coachgate");
+    S.portal==="coach"&&r.name!=="coachgate");
 
-  /* T5 — the landing (explore) ends in its own .close-zone footer, so the
-     global footerHTML() is suppressed there to keep exactly one footer. */
-  app.innerHTML=(r.name==="coachgate"?"":topbarHTML())+body+((r.name==="explore"||r.name==="coachgate")?"":footerHTML());
-  document.getElementById("layer").innerHTML=modalHTML()+(S.toast?`<div class="toast">${esc(S.toast)}</div>`:"");
+
+  /* The light footer band is gone at the owner's request, so no route appends a
+     global footer any more. The landing keeps its own dark .close-zone, which is
+     rendered inside landingHTML() rather than here. */
+  app.innerHTML=(r.name==="coachgate"?"":topbarHTML())+body;
+  /* The dock mounts into #layer so it outlives every route change — #app's
+     innerHTML is replaced wholesale on each render, #layer is rebuilt alongside
+     it, and neither the coach dark ground nor a page's own layout can affect a
+     fixed-position child here. */
+  document.getElementById("layer").innerHTML=
+    modalHTML()+aiDockHTML()+(S.toast?`<div class="toast">${esc(S.toast)}</div>`:"");
 
   const sc=document.getElementById("msgscroll"); if(sc) sc.scrollTop=sc.scrollHeight;
   const cs=document.getElementById("chatscroll"); if(cs&&S.chat.length) cs.scrollTop=cs.scrollHeight;
+  const ds=document.getElementById("aidockScroll"); if(ds&&S.chat.length) ds.scrollTop=ds.scrollHeight;
   wire();
   wireExtras();
   syncNavHero();
@@ -7902,10 +8352,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   $("[data-pdest]").forEach(b=>b.onclick=()=>{
     const [kind,arg]=b.dataset.pdest.split(":");
     if(kind==="filters"){if(modModal("filters")){S.modal={type:"filters"};render();}return;}
-    if(kind==="coach"){S.portal="coach";S.signupRole="coach";
-      if(!isVerified()){S.onboardStep=0;S.modal={type:"onboard"};}
-      else{S.coachTab="dashboard";S.route={name:"dashboard",arg:null};}
-      window.scrollTo(0,0);render();return;}
+    if(kind==="coach"){enterCoachPortal();return;}
     /* A signed-out visitor cannot be shown a coach dashboard, so render()
        substitutes coachLandingHTML(). That meant all six "For coaches" menu
        rows -- Scheduling, Payments, Roster, Session notes, Media, Insights --
@@ -7927,7 +8374,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
         if(el) el.scrollIntoView({block:"start"});
         return;
       }
-      S.portal="coach";S.coachTab=arg;go("dashboard");return;
+      S.portal="coach";setCoachTab(arg);go("dashboard");return;
     }
     /* page:<id> → the marketing page, in the family portal. Without this the
        split's kind==="page" fell through to go("<id>"), which set an unknown
@@ -7941,16 +8388,38 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     S.portal=b.dataset.portal;S.modal=null;S.sportOpen=false;
     S.route=S.portal==="coach"?{name:"dashboard",arg:null}:{name:"explore",arg:null};
     window.scrollTo(0,0);render();});
-  /* Leaving the tab drops any unconfirmed AI action with it. The command bar
-     renders only inside dashboardHTML(), so a pending send survives navigation
-     with no UI to approve or cancel it — the coach returns to the dashboard
-     minutes later and is offered a confirmation for a sentence they have
-     forgotten typing. Same reasoning as the deferred-booking drop below: a
-     stale intent that ambushes the user is worse than making them retype, and
-     this one broadcasts to every family on a roster. */
+  /* Through the normalizer, so a stale "reviews"/"insights"/"policies" target
+     resolves to its sub-tab inside Operations.
+
+     The cmdPending/cmdError clear is ours and must survive this rewrite: the
+     command bar renders only inside dashboardHTML(), so an unconfirmed AI
+     broadcast left behind on tab change has no UI to approve or cancel it and
+     would ambush the coach on their next visit to the dashboard. */
   $("[data-ctab]").forEach(b=>b.onclick=()=>{
-    S.coachTab=b.dataset.ctab;S.cmdPending=null;S.cmdError="";
-    window.scrollTo(0,0);render();});
+    S.cmdPending=null;S.cmdError="";
+    setCoachTab(b.dataset.ctab);window.scrollTo(0,0);render();});
+  /* Operations sub-tabs. Owned by the host, not mod-coachops, because the tab
+     now mixes host-rendered Reviews with views from two different modules. */
+  $("[data-opstab]").forEach(b=>b.onclick=()=>{S.opsTab=b.dataset.opstab;window.scrollTo(0,0);render();});
+  /* Coach search. Typing re-renders so the result list stays in sync with the
+     box; the caret is put back afterwards, otherwise focus would be lost on
+     every keystroke because #app's innerHTML is replaced wholesale. */
+  $("[data-cskind]").forEach(b=>b.onclick=()=>{S.coachSearchKind=b.dataset.cskind;render();});
+  $("[data-csclear]").forEach(b=>b.onclick=()=>{S.coachQuery="";S.coachSearchFocus=true;render();});
+  /* Submit cancelled here rather than with an inline onsubmit attribute:
+     script hashes cannot cover handler attributes, and our CSP carries no
+     'unsafe-inline', so an inline handler would be blocked in production and
+     fails smoke outright. Without this, Enter reloads the page. */
+  const csf=document.getElementById("coSearchForm");
+  if(csf) csf.onsubmit=e=>e.preventDefault();
+  const csq=document.getElementById("coSearchQ");
+  if(csq){
+    csq.oninput=()=>{S.coachQuery=csq.value;S.coachSearchFocus=true;render();};
+    if(S.coachSearchFocus){
+      csq.focus();
+      const n=csq.value.length; try{csq.setSelectionRange(n,n);}catch(e){}
+    }
+  } else if(S.coachSearchFocus){ S.coachSearchFocus=false; }
   $("[data-conv]").forEach(b=>b.onclick=()=>{S.activeConv=b.dataset.conv;render();});
   /* Dropping the sheet drops the deferred action with it. Otherwise a stale
      "book this" intent survives and ambushes the user after an unrelated
@@ -7961,6 +8430,11 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
      points across the 32x32 X button did nothing, including dead centre. Split
      into two handlers so the visible glyph is the hit target. */
   const dismiss=()=>{S.modal=null;S.pendingIntent=null;render();};
+  /* Escape closes the sheet. The only existing keydown listener closes the
+     product nav, not modals, so a keyboard user had no way out of the auth
+     sheet at all. Assigned rather than added, because wire() runs on every
+     render and addEventListener would stack a duplicate handler each time. */
+  document.onkeydown=e=>{ if(e.key==="Escape"&&S.modal) dismiss(); };
   $("[data-close]").forEach(b=>b.onclick=()=>dismiss());
   $("[data-scrim]").forEach(b=>b.onclick=e=>{if(e.target===b) dismiss();});
   $("[data-modal]").forEach(b=>b.onclick=()=>{S.modal={type:b.dataset.modal};render();});
@@ -7968,8 +8442,13 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   $("[data-signin]").forEach(b=>b.onclick=()=>{S.modal={type:"authsheet"};render();});
   $("[data-acct]").forEach(b=>b.onclick=()=>{S.modal={type:"account"};render();});
   $("[data-addchild]").forEach(b=>b.onclick=()=>{S.modal={type:"addchild"};render();});
-  $("[data-newlisting]").forEach(b=>b.onclick=()=>{S.modal={type:"newlisting"};render();});
-  $("[data-addtrainer]").forEach(b=>b.onclick=()=>{S.modal={type:"addtrainer"};render();});
+  /* Guest gating: every coach action that WRITES goes through requireAuth(),
+     which runs it when signed in and otherwise stores it as the pending intent
+     and raises the sheet — so the action completes itself after sign-in. */
+  $("[data-newlisting]").forEach(b=>b.onclick=()=>requireAuth(()=>{S.modal={type:"newlisting"};render();}));
+  $("[data-editlisting]").forEach(b=>b.onclick=()=>requireAuth(()=>{S.modal={type:"editlisting",id:b.dataset.editlisting};render();}));
+  $("[data-signups]").forEach(b=>b.onclick=()=>{S.modal={type:"signups",id:b.dataset.signups};render();});
+  $("[data-addtrainer]").forEach(b=>b.onclick=()=>requireAuth(()=>{S.modal={type:"addtrainer"};render();}));
   $("[data-save]").forEach(b=>b.onclick=()=>toast("Changes saved"));
   /* Reset the portal too. Without it, render() kept short-circuiting to the
      coach dashboard and a signed-out user still looked signed in. */
@@ -8035,11 +8514,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const i=+b.dataset.faq; S.faqOpen=S.faqOpen===i?null:i; render();});
   /* Become a coach opens the signup wizard directly — there is no marketing
      page in front of it any more. */
-  $("[data-becomecoach]").forEach(b=>b.onclick=()=>{
-    /* Become a coach now opens the split-screen gate first (login/sign-up or a
-       Continue screen), which then runs startCoachOnboarding on completion. */
-    S.portal="coach";S.signupRole="coach";S.modal=null;go("coachgate");
-  });
+  $("[data-becomecoach]").forEach(b=>b.onclick=()=>enterCoachPortal());
   $("#cgForm").forEach(f=>f.onsubmit=e=>{e.preventDefault();
     const id=(document.getElementById("cgId")||{}).value||"";
     S.pendingIntent=startCoachOnboarding;
@@ -8058,7 +8533,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const el=document.getElementById(b.dataset.scrollto);
     if(el) el.scrollIntoView({behavior:"smooth",block:"start"});});
   $("[data-coachtab]").forEach(b=>b.onclick=()=>{
-    S.portal="coach";S.coachTab=b.dataset.coachtab;go("dashboard");});
+    S.portal="coach";setCoachTab(b.dataset.coachtab);go("dashboard");});
   /* ── coach dashboard wiring ── */
   $("[data-import]").forEach(b=>b.onclick=()=>{S.modal={type:"importclients"};render();});
   $("[data-viewas]").forEach(b=>b.onclick=()=>{S.modal={type:"viewasparent"};render();});
@@ -8083,7 +8558,9 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   $("[data-qact]").forEach(b=>b.onclick=()=>{
     const [,act]=b.dataset.qact.split(":");
     if(act==="dismiss"){toast("Dismissed");return;}
-    if(act==="offer"){S.coachTab="waitlist";render();return;}
+    /* the waitlist lives inside Listings now — sending a coach to a tab that no
+       longer exists in the rail would fall through to the Business profile form */
+    if(act==="offer"){S.coachTab="listings";render();return;}
     S.portal="coach";S.coachTab=act;render();
   });
   const cmdf=document.getElementById("cmdForm");
@@ -8119,7 +8596,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     S.sportOpen=false;
     if(kind==="nav") go(val);
     else if(kind==="info") go("info",val);
-    else if(kind==="tab"){S.portal="coach";S.coachTab=val;go("dashboard");}
+    else if(kind==="tab"){S.portal="coach";setCoachTab(val);go("dashboard");}
     else if(kind==="coach"){S.portal="coach";S.route={name:"home",arg:null};window.scrollTo(0,0);render();}
   });
   $("[data-pm]").forEach(b=>b.onclick=()=>{
@@ -8164,6 +8641,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     bizf.oninput=()=>{ if(save) save.disabled=JSON.stringify(Object.fromEntries(new FormData(bizf)))===snap; };
     bizf.onsubmit=e=>{
       e.preventDefault();
+      if(!isVerified()){requireAuth(()=>{});return;}
       const d=Object.fromEntries(new FormData(bizf));
       SEED.providerProfile.businessName=String(d.businessName||"").trim()||SEED.providerProfile.businessName;
       SEED.providerProfile.bio=String(d.bio||"");
@@ -8187,6 +8665,8 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   if(cc) cc.onsubmit=e=>{
     e.preventDefault();
     const txt=String(new FormData(cc).get("text")||"").trim(); if(!txt) return;
+    /* sending a message to a family is a real action, not browsing */
+    if(!isVerified()){requireAuth(()=>{});return;}
     const id=(S.conversations.find(x=>x.id===S.activeConv)||S.conversations[0]).id;
     (S.messages[id]=S.messages[id]||[]).push({id:"msg_"+(S.messages[id].length+1),me:false,text:txt,at:TODAY});
     const c=S.conversations.find(x=>x.id===id); if(c) c.last=txt;
@@ -8196,6 +8676,8 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
 
   /* month paging. "Today" returns to the current month rather than merely
      selecting today, which is what a coach means by it when they're lost. */
+  $("[data-schedtab]").forEach(b=>b.onclick=()=>{
+    S.schedTab=b.dataset.schedtab==="slots"?"slots":"month";render();});
   $("[data-calnav]").forEach(b=>b.onclick=()=>{
     const d=b.dataset.calnav;
     const key=/^\d{4}-\d{2}$/.test(S.calMonth||"")?S.calMonth:TODAY.slice(0,7);
@@ -8215,8 +8697,8 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   });
   $("[data-cmdok]").forEach(b=>b.onclick=()=>confirmPending());
   $("[data-cmdno]").forEach(b=>b.onclick=()=>{S.cmdPending=null;render();});
-  $("[data-newgroup]").forEach(b=>b.onclick=()=>{S.modal={type:"newgroup"};render();});
-  $("[data-addpeople]").forEach(b=>b.onclick=()=>{S.modal={type:"addpeople",id:b.dataset.addpeople};render();});
+  $("[data-newgroup]").forEach(b=>b.onclick=()=>requireAuth(()=>{S.modal={type:"newgroup"};render();}));
+  $("[data-addpeople]").forEach(b=>b.onclick=()=>requireAuth(()=>{S.modal={type:"addpeople",id:b.dataset.addpeople};render();}));
 
   const ngf=document.getElementById("newGroupForm");
   if(ngf) ngf.onsubmit=e=>{
@@ -8260,8 +8742,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
 
   $("[data-cdest]").forEach(b=>b.onclick=()=>{
     const d=b.dataset.cdest;
-    if(d==="becomecoach"){S.modal=null;const f=()=>{S.portal="coach";go("dashboard");};
-      isVerified()?f():(S.pendingIntent=f,S.modal={type:"authsheet"},render());return;}
+    if(d==="becomecoach"){enterCoachPortal();return;}
     if(d==="import"){S.modal={type:"importclients"};render();return;}
     /* "coachfeatures" was never matched and arrived here by fall-through, so
        the token was dead string and any typo behaved identically. Explicit
@@ -8280,6 +8761,10 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     render();});
   $("[data-chatclear]").forEach(b=>b.onclick=()=>{S.chat=[];render();});
   $("[data-ask]").forEach(b=>b.onclick=()=>askCoach(b.dataset.ask));
+  /* The dock's own controls. data-ask / data-chatclear / data-open above are
+     document-wide, so the dock's copies of those are already wired. */
+  $("[data-aitoggle]").forEach(b=>b.onclick=()=>{S.aiOpen=!S.aiOpen;render();});
+  $("[data-aiclose]").forEach(b=>b.onclick=()=>{S.aiOpen=false;render();});
   $("[data-waitlist]").forEach(b=>b.onclick=()=>{
     const id=b.dataset.waitlist;
     requireAuth(()=>{S.modal={type:"waitlist",programId:id};render();});
@@ -8385,6 +8870,26 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     S.modal=null;S.coachTab="listings";render();toast("Listing created");
   };
 
+  /* Edits the live PROGRAMS record in place, so every surface that reads it —
+     the listings tables, the month calendar, the public detail page, search —
+     reflects the change on the next render without any of them being touched. */
+  const ef=document.getElementById("editListingForm");
+  if(ef) ef.onsubmit=e=>{
+    e.preventDefault();
+    const p=PROGRAMS.find(x=>x.id===ef.dataset.pid);
+    if(!p){S.modal=null;render();return;}
+    const d=Object.fromEntries(new FormData(ef));
+    const err=document.getElementById("editListingErr");
+    const cap=+d.cap, minAge=+d.minAge, maxAge=+d.maxAge, price=+d.price;
+    const fail=msg=>{err.textContent=msg;err.classList.remove("hide");};
+    if(cap<p.enrolled) return fail(`Capacity cannot be below the ${p.enrolled} already enrolled.`);
+    if(minAge>maxAge) return fail("Minimum age cannot be greater than maximum age.");
+    if(price<0) return fail("Price cannot be negative.");
+    Object.assign(p,{title:String(d.title).trim()||p.title,sport:d.sport,
+      desc:String(d.desc||""),price,model:d.model,minAge,maxAge,cap});
+    S.modal=null;render();toast("Listing updated");
+  };
+
   const tf=document.getElementById("trainerForm");
   if(tf) tf.onsubmit=e=>{
     e.preventDefault();
@@ -8448,6 +8953,22 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const v=i.value; i.value="";
     askCoach(v);
   };
+
+  /* Same pipeline as the full page, separate ids so both can coexist. Focus is
+     restored after the re-render that follows a send, which would otherwise
+     drop the caret out of the panel mid-conversation. */
+  const adf=document.getElementById("aiDockForm");
+  if(adf){
+    adf.onsubmit=e=>{
+      e.preventDefault();
+      const i=document.getElementById("aiDockInput");
+      const v=i.value; i.value="";
+      askCoach(v);
+    };
+    if(S.aiOpen&&document.activeElement===document.body){
+      const i=document.getElementById("aiDockInput"); if(i) i.focus();
+    }
+  }
 
   const comp=document.getElementById("composeForm");
   if(comp) comp.onsubmit=e=>{
@@ -8761,13 +9282,13 @@ function runCommand(text){
   const t=text.toLowerCase();
   let did="";
   if(/confirm/.test(t)&&/session/.test(t)){did="Opened schedule to confirm sessions";S.coachTab="schedule";}
-  else if(/fill|waitlist|open slot/.test(t)){did="Opened the waitlist";S.coachTab="waitlist";}
+  else if(/fill|waitlist|open slot/.test(t)){did="Opened the waitlist";S.coachTab="listings";}
   else if(/message|family|families/.test(t)){did="Opened your inbox";S.coachTab="inbox";}
   else if(/find/.test(t)&&/(coach|team|camp)/.test(t)){did="Opened coach search";S.portal="family";S.route={name:"explore",arg:null};}
   else if(/create/.test(t)&&/event/.test(t)){did="Opened your schedule to create an event";S.coachTab="schedule";}
   else if(/all action|action queue/.test(t)){did="Opened your action queue";S.coachTab="dashboard";}
   else if(/to-do|todo|left|go live|what's left/.test(t)){did="Listed what's left before you go live";S.coachTab="dashboard";}
-  else if(/availability|set my/.test(t)){did="Opened recurring availability";S.coachTab=modView("slots")?"slots":"schedule";}
+  else if(/availability|set my/.test(t)){did="Opened recurring availability";setCoachTab(modView("slots")?"slots":"schedule");}
   else if(/profile|build my/.test(t)){did="Opened your business profile";S.coachTab="profile";}
   else if(/note/.test(t)){did="Opened session notes";S.coachTab=modView("notes")?"notes":"schedule";}
   else {
@@ -10569,12 +11090,12 @@ function seedSlots(){
   const at = i => (mine[i] || PROGRAMS[i] || PROGRAMS[0]).id;
   const capOf = i => (mine[i] || PROGRAMS[i] || PROGRAMS[0]).cap;
   return [
-    { id: "rs_1", programId: at(0), weekday: 1, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
-    { id: "rs_2", programId: at(0), weekday: 3, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
-    { id: "rs_3", programId: at(1), weekday: 2, start: "16:00", end: "17:30", capacity: capOf(1), effectiveFrom: "2026-08-03", effectiveUntil: "2026-12-18" },
+    { id: "rs_1", name: "Monday evening squad", programId: at(0), weekday: 1, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
+    { id: "rs_2", name: "Midweek evening squad", programId: at(0), weekday: 3, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
+    { id: "rs_3", name: "Tuesday skills block", programId: at(1), weekday: 2, start: "16:00", end: "17:30", capacity: capOf(1), effectiveFrom: "2026-08-03", effectiveUntil: "2026-12-18" },
     /* deliberately overlaps rs_1 by 30 minutes so the conflict check has something honest to find */
-    { id: "rs_4", programId: at(2), weekday: 1, start: "18:00", end: "19:30", capacity: capOf(2), effectiveFrom: "2026-08-10", effectiveUntil: "2026-11-27" },
-    { id: "rs_5", programId: at(4), weekday: 6, start: "10:00", end: "11:00", capacity: capOf(4), effectiveFrom: "2026-08-08", effectiveUntil: "2026-12-19" },
+    { id: "rs_4", name: "Monday late session", programId: at(2), weekday: 1, start: "18:00", end: "19:30", capacity: capOf(2), effectiveFrom: "2026-08-10", effectiveUntil: "2026-11-27" },
+    { id: "rs_5", name: "Saturday morning club", programId: at(4), weekday: 6, start: "10:00", end: "11:00", capacity: capOf(4), effectiveFrom: "2026-08-08", effectiveUntil: "2026-12-19" },
   ];
 }
 
@@ -10617,6 +11138,10 @@ const state = {
   },
   waitlistEntries: seedWaitlist(),
   recurringSlots: seedSlots(),
+  /* Range drawn on the grid, held between pointerup and the naming modal being
+     submitted. Nothing is written to recurringSlots until the coach names it,
+     so an abandoned modal leaves no half-made rule behind. */
+  pendingSlot: null,
   autoMessages: seedMessages(),
 };
 
@@ -10679,6 +11204,20 @@ function clashAt(weekday, hour){
 }
 const GRID_START = 7, GRID_END = 21;                       // 7am → 9pm rows
 
+/* Quarter-hour resolution. The grid used to be one row per hour, so a block
+   could only ever start and end on the hour; a session finishing at 9:15 was
+   unrepresentable. Rows are now 15 minutes, which makes quarter / half /
+   three-quarter fills fall out of the same mechanism as a full hour — a block
+   is just a run of consecutive rows. */
+const SLOT_MIN = 15;
+const coversMin = (r, weekday, mn) =>
+  r.weekday === weekday && toMin(r.start) < mn + SLOT_MIN && toMin(r.end) > mn;
+function rulesAtMin(weekday, mn){ return state.recurringSlots.filter(r => coversMin(r, weekday, mn)); }
+function clashAtMin(weekday, mn){
+  return conflicts().some(c =>
+    c.a.weekday === weekday && toMin(c.start) < mn + SLOT_MIN && toMin(c.end) > mn);
+}
+
 /* ═══════════════════ CSS ═══════════════════ */
 const CSS = `
 .co-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin:18px 0 6px;flex-wrap:wrap}
@@ -10705,15 +11244,23 @@ const CSS = `
   background:var(--raise2);color:var(--ink-2);font-size:var(--text-sm);font-weight:700}
 .co-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 4px}
 .co-gridwrap{border:1px solid var(--rule);border-radius:var(--r-l);padding:14px;background:var(--paper);margin-top:14px}
-.co-week{display:grid;grid-template-columns:64px repeat(7,minmax(74px,1fr));gap:4px;min-width:620px}
+.co-week{display:grid;grid-template-columns:64px repeat(7,minmax(74px,1fr));gap:0 4px;min-width:620px}
 .co-day{font-size:var(--text-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
   text-align:center;padding-bottom:4px}
-.co-hh{font-size:var(--text-xs);color:var(--faint);text-align:right;padding-right:8px;line-height:30px}
-.co-cell{height:30px;border:1px solid var(--rule);border-radius:var(--r-s);background:var(--paper);
-  padding:0;width:100%;transition:background .12s,border-color .12s}
-.co-cell:hover{border-color:var(--ink-2);background:var(--raise)}
+/* One row per quarter hour: only the :00 row is labelled, and only it carries a
+   visible top rule, so an hour still reads as one band of four cells. */
+.co-hh{font-size:var(--text-xs);color:var(--faint);text-align:right;padding-right:8px;line-height:15px}
+.co-cell{height:15px;border:1px solid transparent;border-top:1px solid var(--rule-soft,rgba(0,0,0,.06));
+  background:var(--paper);padding:0;width:100%;
+  transition:background .1s,border-color .1s;touch-action:none}
+.co-cell.co-hourtop{border-top:1px solid var(--rule)}
+.co-cell:hover{background:var(--raise)}
 .co-cell.on{border-color:transparent;background:var(--cc);box-shadow:inset 0 0 0 1px var(--rule)}
+.co-cell.on.co-hourtop{border-top-color:transparent}
 .co-cell.clash{box-shadow:inset 0 0 0 2px var(--danger)}
+/* live drag preview — painted directly, without a re-render per pointer move */
+.co-cell.sel{background:var(--slate-tint,rgba(83,104,120,.22));box-shadow:inset 0 0 0 1px var(--slate)}
+.co-draghint{font-size:var(--text-sm);color:var(--muted);margin-top:10px}
 .co-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:var(--text-sm);color:var(--muted)}
 .co-legend i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:6px}
 .co-alert{border:1px solid var(--danger);border-radius:var(--r-m);padding:14px 16px;margin-top:16px;
@@ -10751,11 +11298,15 @@ const CSS = `
 
 /* ═══════════════════ VIEWS ═══════════════════ */
 
+/* The Policies/Automated-messages wrapper that briefly lived here was
+   superseded by the host-owned Operations tab, which also folds in Reviews
+   and Insights. Both views below are still exported and rendered there. */
+
 function policiesView(){
   const p = state.policies;
   const wr = weatherRow(p.weather), cr = cancelRow(p.cancellation);
   return `<div class="co-head"><div>
-      <h1>Policies</h1>
+      <h2>Policies</h2>
       <p class="co-lede">These terms attach to every listing you publish. Families see them before they pay,
         and refunds are calculated from them — so the wording here is the wording that binds.</p></div>
     <button class="btn ghost sm" data-modal="editpolicy">Quick edit</button></div>
@@ -10826,6 +11377,15 @@ function policiesView(){
 }
 
 function waitlistView(){
+  /* Third instance of the same gap: the dashboard's waitlist widget was
+     withheld from guests, but this tab view -- which lists the same families
+     by name, plus their parents -- was not. S.coachTab persists, so a guest can
+     be restored directly onto it. Gate the view, not the route to it. */
+  if (typeof isCoachGuest === "function" && isCoachGuest()) {
+    return typeof coachLockHTML === "function"
+      ? coachLockHTML("Waitlist", "who is waiting on a seat, and the families to contact")
+      : `<div class="empty" style="margin-top:18px"><h3>Sign in to see the waitlist</h3></div>`;
+  }
   const c = statusCounts();
   const rows = state.waitlistEntries.slice().sort((a, b) => {
     const pa = prog(a.programId), pb = prog(b.programId);
@@ -10838,8 +11398,10 @@ function waitlistView(){
     ["Accepted", c.accepted, "converted to a booking"],
     ["Expired", c.expired, "offer window closed"],
   ];
+  /* h2, not h1: the waitlist is now a section inside the Listings tab, which
+     owns the page's single h1. Two h1s on one page is a document-outline bug. */
   return `<div class="co-head"><div>
-      <h1>Waitlist</h1>
+      <h2>Waitlist</h2>
       <p class="co-lede">Every athlete queued on a program that has reached capacity. Offers are held for
         24 hours — if the family does not accept, the spot passes to the next athlete in line.</p></div></div>
 
@@ -10891,13 +11453,16 @@ function slotsView(){
   const cl = conflicts();
   const rules = state.recurringSlots.slice().sort((a, b) =>
     a.weekday - b.weekday || toMin(a.start) - toMin(b.start));
-  const hours = [];
-  for (let h = GRID_START; h < GRID_END; h++) hours.push(h);
+  const steps = [];
+  for (let mn = GRID_START * 60; mn < GRID_END * 60; mn += SLOT_MIN) steps.push(mn);
 
+  /* h2: this view is now a panel inside the Schedule tab, which owns the h1. */
   return `<div class="co-head"><div>
-      <h1>Recurring slots</h1>
-      <p class="co-lede">Blocks you hold open week after week. Click a cell to open or clear an hour —
-        the rules list below is the same data, written out in full.</p></div>
+      <h2>Recurring slots</h2>
+      <p class="co-lede">Blocks you hold open week after week. Each row is 15 minutes — click one for a
+        quarter hour, or press and drag down a column to hold any run of them, so a block can end at
+        9:15 as easily as 10:00. Drag from a held cell to clear a stretch. The rules list below is the
+        same data, written out in full.</p></div>
     <button class="btn" data-modal="addslot">+ Add recurring block</button></div>
 
   ${cl.length ? `<div class="co-alert" role="alert">
@@ -10916,19 +11481,23 @@ function slotsView(){
       <div class="co-week" role="group" aria-label="Weekly recurring availability">
         <div></div>
         ${WD.map(w => `<div class="co-day">${w.s}</div>`).join("")}
-        ${hours.map(h => `
-          <div class="co-hh num">${esc(t12(fromMin(h * 60)))}</div>
+        ${steps.map(mn => {
+          const onHour = mn % 60 === 0;
+          return `
+          <div class="co-hh num">${onHour ? esc(t12(fromMin(mn))) : ""}</div>
           ${WD.map(w => {
-            const rs = rulesAt(w.n, h), on = rs.length > 0, clash = on && clashAt(w.n, h);
+            const rs = rulesAtMin(w.n, mn), on = rs.length > 0, clash = on && clashAtMin(w.n, mn);
             const p = on ? prog(rs[0].programId) : null;
             const tint = p ? `color-mix(in srgb,${sportColor(p.sport)} 22%,transparent)` : "transparent";
+            const span = t12(fromMin(mn)) + "–" + t12(fromMin(mn + SLOT_MIN));
             const label = on
-              ? `${w.l} ${t12(fromMin(h * 60))} — ${rs.map(r => (prog(r.programId) || {}).title || r.programId).join(", ")}. Clear this block.`
-              : `${w.l} ${t12(fromMin(h * 60))} — open. Hold this hour.`;
-            return `<button class="co-cell ${on ? "on" : ""} ${clash ? "clash" : ""}"
-              style="--cc:${tint}" data-co-cell="${w.n}-${h}" aria-pressed="${on}"
+              ? `${w.l} ${span} — ${rs.map(r => (prog(r.programId) || {}).title || r.programId).join(", ")}. Drag to clear.`
+              : `${w.l} ${span} — open. Click or drag to hold.`;
+            return `<button class="co-cell${on ? " on" : ""}${clash ? " clash" : ""}${onHour ? " co-hourtop" : ""}"
+              style="--cc:${tint}" data-co-cell="${w.n}-${mn}" aria-pressed="${on}"
               aria-label="${esc(label)}" title="${esc(label)}"></button>`;
-          }).join("")}`).join("")}
+          }).join("")}`;
+        }).join("")}
       </div>
     </div>
     <div class="co-legend">
@@ -10939,17 +11508,22 @@ function slotsView(){
       }).join("")}
       <span><i style="background:transparent;box-shadow:inset 0 0 0 2px var(--danger)"></i>Conflict</span>
     </div>
+    <p class="co-draghint">Each row is 15 minutes. Press and drag down a day to hold a longer block —
+      two rows is a half hour, three is 45 minutes, four is a full hour.</p>
   </div>
 
   <div class="sec-head" style="margin:26px 0 12px"><h3>Recurring rules</h3>
     <span class="num" style="color:var(--muted);font-size:var(--text-sm)">${rules.length} rule${rules.length === 1 ? "" : "s"}</span></div>
 
   ${rules.length ? `<div class="tblwrap panel" style="padding:18px"><table class="tbl">
-    <thead><tr><th>Program</th><th>Day</th><th>Time</th><th>Capacity</th><th>Effective</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Block</th><th>Program</th><th>Day</th><th>Time</th><th>Capacity</th><th>Effective</th><th>Status</th><th></th></tr></thead>
     <tbody>${rules.map(r => {
       const p = prog(r.programId);
       const bad = cl.some(c => c.a.id === r.id || c.b.id === r.id);
       return `<tr>
+        ${/* rules seeded before names existed fall back to the day + time, so a
+             nameless row still reads as something rather than an empty cell */""}
+        <td><b style="font-weight:700">${esc(r.name || (wdShort(r.weekday) + " " + t12(r.start)))}</b></td>
         <td>${p ? `<b style="font-weight:600">${esc(p.title)}</b>
           <div style="margin-top:4px"><span class="pill" style="background:${sportColor(p.sport)}1A;color:${sportColor(p.sport)}">${esc(p.sport)}</span></div>`
           : `<span style="color:var(--muted)">${esc(r.programId)}</span>`}</td>
@@ -10972,7 +11546,7 @@ function messagesView(){
   const v = sampleValues();
   const onCount = state.autoMessages.filter(m => m.enabled).length;
   return `<div class="co-head"><div>
-      <h1>Automated messages</h1>
+      <h2>Automated messages</h2>
       <p class="co-lede">One template per trigger. Placeholders are filled from the real booking at send time —
         the preview below uses ${esc(v.athlete_first_name)}'s ${esc(v.program_title)} booking.</p></div>
     <span class="pill slate num">${onCount} of ${state.autoMessages.length} on</span></div>
@@ -11054,11 +11628,38 @@ function editPolicyModal(){
     </form>`);
 }
 
+/* Asks what the block drawn on the grid should be called. The range and the
+   program are already decided by the gesture, so this is a single field plus a
+   read-back of what was drawn — a coach should be able to confirm they selected
+   the hours they meant before it is committed. */
+function nameSlotModal(){
+  const d = state.pendingSlot;
+  if (!d) return wrap("Name this block", `<p style="color:var(--muted)">That selection has expired — draw it again on the grid.</p>`);
+  const mine = myListings();
+  const list = mine.length ? mine : PROGRAMS.slice(0, 5);
+  const mins = toMin(d.end) - toMin(d.start);
+  return wrap("Name this block", `
+    <p style="color:var(--muted);margin-bottom:16px;font-size:var(--text-sm)">
+      <b>${esc(wdName(d.weekday))} ${esc(t12(d.start))}–${esc(t12(d.end))}</b> · ${esc(durLabel(mins))}</p>
+    <form id="coNameForm">
+      <div class="field"><label for="coNameField">Block name</label>
+        <input id="coNameField" name="name" placeholder="Monday evening squad" autocomplete="off" required></div>
+      <div class="field"><label for="coNameProg">Program</label>
+        <select id="coNameProg" name="programId">
+          ${list.map(p => `<option value="${esc(p.id)}"${p.id === d.programId ? " selected" : ""}>${esc(p.title)}</option>`).join("")}
+        </select></div>
+      <div id="coNameErr" class="err hide" style="margin:8px 0"></div>
+      <button class="btn wide" type="submit" style="margin-top:6px">Save block</button>
+    </form>`);
+}
+
 function addSlotModal(){
   const mine = myListings();
   const list = mine.length ? mine : PROGRAMS.slice(0, 5);
   return wrap("Add a recurring block", `
     <form id="coSlotForm">
+      <div class="field"><label for="coSlotName">Block name</label>
+        <input id="coSlotName" name="name" placeholder="Monday evening squad" autocomplete="off" required></div>
       <div class="field"><label for="coSlotProg">Program</label>
         <select id="coSlotProg" name="programId">
           ${list.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("")}
@@ -11198,7 +11799,8 @@ function wire(){
   if (qf) qf.onsubmit = ev => {
     ev.preventDefault();
     if (readPolicy(qf, "coQuickErr", true)){
-      S.modal = null; S.coachTab = "policies"; render(); toast("Policy updated");
+      /* via the host normalizer, so "policies" resolves to its new home */
+      S.modal = null; setCoachTab("policies"); render(); toast("Policy updated");
     }
   };
 
@@ -11234,32 +11836,79 @@ function wire(){
   };
 
   /* ── recurring slots ──────────────────────────────────────────── */
-  q("[data-co-cell]").forEach(b => b.onclick = () => {
-    const parts = String(b.dataset.coCell).split("-");
-    const wd = Number(parts[0]), h = Number(parts[1]);
-    const hit = rulesAt(wd, h);
-    if (hit.length){
-      const r = hit[0], p = prog(r.programId);
-      state.recurringSlots = state.recurringSlots.filter(x => x.id !== r.id);
-      render();
-      toast("Cleared " + wdShort(wd) + " " + t12(r.start) + "–" + t12(r.end) +
-        (p ? " · " + p.title : ""));
-      return;
+  /* Drag-selection over the quarter-hour grid.
+     A click is just a drag of length one, so both gestures share one code path.
+     The preview is painted by toggling a class on the cells rather than calling
+     render() per pointermove — a re-render would rebuild the grid and destroy
+     the element the pointer is currently captured on, ending the drag.
+     Direction is intent-preserving: a gesture that STARTS on a held cell clears
+     the range it covers, one that starts on an open cell holds it. */
+  const cells = [].slice.call(document.querySelectorAll("[data-co-cell]"));
+  const parseCell = el => {
+    const p = String(el.dataset.coCell).split("-");
+    return { wd: Number(p[0]), mn: Number(p[1]) };
+  };
+  let drag = null;
+  const paint = () => {
+    cells.forEach(el => {
+      const c = parseCell(el);
+      let inSel = false;
+      if (drag && c.wd === drag.wd){
+        inSel = c.mn >= Math.min(drag.a, drag.b) && c.mn <= Math.max(drag.a, drag.b);
+      }
+      el.classList.toggle("sel", inSel);
+    });
+  };
+  cells.forEach(el => {
+    el.addEventListener("pointerdown", e => {
+      e.preventDefault();                       // don't start a text selection
+      const c = parseCell(el);
+      drag = { wd: c.wd, a: c.mn, b: c.mn, clearing: rulesAtMin(c.wd, c.mn).length > 0 };
+      paint();
+    });
+    /* pointerenter, not pointerover: fires once per cell and doesn't bubble */
+    el.addEventListener("pointerenter", () => {
+      if (!drag) return;
+      const c = parseCell(el);
+      if (c.wd !== drag.wd) return;             // a block belongs to one weekday
+      drag.b = c.mn;
+      paint();
+    });
+  });
+  /* Assigned, not addEventListener: wire() runs on every render, and assignment
+     replaces the previous handler instead of stacking a new one each time. */
+  document.onpointerup = () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    const lo = Math.min(d.a, d.b), hi = Math.max(d.a, d.b) + SLOT_MIN;
+    if (d.clearing){
+      const hit = state.recurringSlots.filter(r =>
+        r.weekday === d.wd && toMin(r.start) < hi && toMin(r.end) > lo);
+      if (hit.length){
+        state.recurringSlots = state.recurringSlots.filter(r => hit.indexOf(r) < 0);
+        render();
+        toast("Cleared " + hit.length + " block" + (hit.length > 1 ? "s" : "") +
+          " on " + wdShort(d.wd));
+        return;
+      }
     }
     const base = myListings()[0] || PROGRAMS[0];
-    state.recurringSlots = state.recurringSlots.concat([{
-      id: "rs_" + Date.now(),
+    if (!base){ render(); return; }
+    /* Holding availability writes to the coach's real schedule — a guest gets
+       the sheet instead, and the drawn range is discarded rather than half-kept. */
+    if (typeof isVerified === "function" && !isVerified()){ requireAuth(function(){}); return; }
+    /* Hold the range and ask for a name — nothing is written until the coach
+       confirms, so cancelling the modal leaves the grid exactly as it was. */
+    state.pendingSlot = {
+      weekday: d.wd,
+      start: fromMin(lo),
+      end: fromMin(hi),
       programId: base.id,
-      weekday: wd,
-      start: fromMin(h * 60),
-      end: fromMin(h * 60 + 60),
       capacity: base.cap,
-      effectiveFrom: TODAY,
-      effectiveUntil: "2026-12-18",
-    }]);
+    };
+    S.modal = { type: "nameslot" };
     render();
-    toast("Holding " + wdShort(wd) + " " + t12(fromMin(h * 60)) + " for " + base.title);
-  });
+  };
   q("[data-co-delslot]").forEach(b => b.onclick = () => {
     const r = state.recurringSlots.find(x => x.id === b.dataset.coDelslot);
     if (!r) return;
@@ -11267,6 +11916,38 @@ function wire(){
     render();
     toast("Removed the " + wdShort(r.weekday) + " " + t12(r.start) + " block");
   });
+  /* Commits the drawn range once it has a name. Absorbs any rule wholly inside
+     the range so redrawing over a block replaces it rather than stacking. */
+  const nf2 = document.getElementById("coNameForm");
+  if (nf2) nf2.onsubmit = ev => {
+    ev.preventDefault();
+    const d = state.pendingSlot;
+    if (!d){ S.modal = null; render(); return; }
+    const f = Object.fromEntries(new FormData(nf2));
+    const name = String(f.name || "").trim();
+    const err = document.getElementById("coNameErr");
+    if (!name){ err.textContent = "Give this block a name."; err.classList.remove("hide"); return; }
+    const lo = toMin(d.start), hi = toMin(d.end);
+    const p = prog(f.programId) || prog(d.programId);
+    state.recurringSlots = state.recurringSlots
+      .filter(r => !(r.weekday === d.weekday && toMin(r.start) >= lo && toMin(r.end) <= hi))
+      .concat([{
+        id: "rs_" + Date.now(),
+        name: name,
+        programId: f.programId || d.programId,
+        weekday: d.weekday,
+        start: d.start,
+        end: d.end,
+        capacity: (p && p.cap) || d.capacity,
+        effectiveFrom: TODAY,
+        effectiveUntil: "2026-12-18",
+      }]);
+    state.pendingSlot = null;
+    S.modal = null;
+    render();
+    toast('"' + name + '" held ' + wdShort(d.weekday) + " " + t12(d.start) + "–" + t12(d.end));
+  };
+
   const sf = document.getElementById("coSlotForm");
   if (sf) sf.onsubmit = ev => {
     ev.preventDefault();
@@ -11279,8 +11960,11 @@ function wire(){
     const cap = Number(d.capacity);
     if (!isFinite(cap) || cap < 1) return show("Capacity must be at least 1.");
     if (d.effectiveUntil && d.effectiveUntil < d.effectiveFrom) return show("The end date falls before the start date.");
+    const nm = String(d.name || "").trim();
+    if (!nm) return show("Give this block a name.");
     const rule = {
       id: "rs_" + Date.now(),
+      name: nm,
       programId: d.programId,
       weekday: Number(d.weekday),
       start: fromMin(s),
@@ -11352,9 +12036,20 @@ function wire(){
 /* ═══════════════════ EXPORT ═══════════════════ */
 window.MOD_COACHOPS = {
   css: CSS,
-  tabs: { policies: "Policies", waitlist: "Waitlist", slots: "Recurring slots", messages: "Automated messages" },
-  views: { policies: policiesView, waitlist: waitlistView, slots: slotsView, messages: messagesView },
-  modals: { editpolicy: editPolicyModal, addslot: addSlotModal, offerspot: offerSpotModal },
+  /* `waitlist` is deliberately absent from `tabs` but present in `views`: the
+     tab button is gone, while the view is still resolvable via modView() so the
+     Listings tab can render it inline. */
+  /* `slots` joins `waitlist` as view-only: the rail button is gone because the
+     grid now lives as a sub-tab of Schedule, but modView("slots") still
+     resolves so that tab can render it. */
+  /* No rail tabs of its own any more: policies + messages live under the host
+     Operations tab, waitlist under Listings, slots under Schedule. Views stay
+     exported so those hosts can render them. */
+  tabs: {},
+  views: { policies: policiesView, waitlist: waitlistView,
+           slots: slotsView, messages: messagesView },
+  modals: { editpolicy: editPolicyModal, addslot: addSlotModal, offerspot: offerSpotModal,
+            nameslot: nameSlotModal },
   wire: wire,
   state: state,
 };
@@ -18057,6 +18752,20 @@ function demandCard(){
 }
 
 function watchlistCard(){
+  /* Guest gate lives HERE, not at the call site.
+     The Insights TAB is locked for a signed-out coach, but this same widget is
+     also embedded directly on the dashboard, and that second path was not
+     gated — a guest saw real client names on the first screen after entering
+     the coach portal. Gating the renderer covers every embed, present and
+     future; gating the navigation only covered the one route someone thought
+     of. Verified by sweeping rendered text on 11 coach surfaces for seeded
+     names. */
+  if (typeof isCoachGuest === "function" && isCoachGuest()) {
+    return `<div class="in-card"><div class="in-cardhead">
+        <b>Clients to follow up</b></div>
+      <p style="color:var(--muted);font-size:var(--text-sm);margin-top:8px">
+        Sign in to see which families have stopped booking.</p></div>`;
+  }
   const rows = watchlistRows().filter(r => r.broken).slice(0, 3);
   const total = watchlistRows().filter(r => r.broken).length;
   return `<div class="in-card">
@@ -18087,6 +18796,16 @@ function watchlistCard(){
 
 /* ═══════════════════ VIEW ═══════════════════ */
 function insightsView(){
+  /* The Insights tab is hidden from a signed-out coach's Operations menu, but
+     hiding a control is not a guard. S.coachTab is persisted to sessionStorage,
+     so a coach who viewed Insights and then signed out is restored straight
+     onto this view as a guest. The watchlist names real families, so the view
+     refuses to render rather than relying on nobody finding the route. */
+  if (typeof isCoachGuest === "function" && isCoachGuest()) {
+    return typeof coachLockHTML === "function"
+      ? coachLockHTML("Insights", "demand, retention and the families to follow up")
+      : `<div class="empty" style="margin-top:18px"><h3>Sign in to see Insights</h3></div>`;
+  }
   const rows = watchlistRows();
   const positions = myPricePositions();
   const d = state.demand;
@@ -18102,7 +18821,7 @@ function insightsView(){
   <section class="band alt in-band">
     <div class="shell" data-rev>
       <div class="eyebrow">Insights</div>
-      <h1 style="margin-top:12px;max-width:20ch">Where families find you.</h1>
+      <h2 style="margin-top:12px;max-width:20ch">Where families find you.</h2>
       <p class="in-lede">Demand, funnel, pricing, and the families who stopped coming back.</p>
       <div class="in-tags" style="margin-top:16px">
         ${SAMPLE_PILL}<span class="in-tagtxt">funnel and search volume</span>
@@ -18273,7 +18992,7 @@ function wire(){
   const q = s => document.querySelectorAll(s);
 
   q("[data-in-goto]").forEach(b => b.onclick = () => {
-    S.coachTab = "insights";
+    setCoachTab("insights");
     window.scrollTo(0, 0);
     render();
   });
@@ -18315,7 +19034,8 @@ function wire(){
 /* ═══════════════════ EXPORT ═══════════════════ */
 window.MOD_INSIGHTS = {
   css: CSS,
-  tabs: { insights: "Insights" },
+  /* Rendered as a sub-tab of the host Operations tab; no rail entry of its own. */
+  tabs: {},
   views: { insights: insightsView },
   modals: { checkin: checkinModal },
   wire: wire,
@@ -19555,6 +20275,13 @@ const EPHEMERAL = new Set([
   "modal", "toast", "pendingIntent",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
+  /* From the ported coach-portal work. coachSearchFocus is a one-render flag
+     that puts the caret back after #app's innerHTML is replaced; restoring it
+     from storage would steal focus into the search box on every page load.
+     coachPromptShown is deliberately NOT here — "we already offered you the
+     sign-in sheet" should survive a refresh, or a guest is re-prompted every
+     time they reload. */
+  "coachSearchFocus",
 ]);
 
 function saveState(){
