@@ -30,7 +30,7 @@ const TODAY_ISO = "2026-08-03";
    program price; this flat rate is a stand-in for the arithmetic only. No
    user-facing string states a percentage — see PART 8.7. Replace with the
    real tier table when it is exported here, then render the table. */
-const FEE_RATE = 0.12;   // flat 12% (owner decision 2026-08-06)
+/* FEE_RATE comes from the host — see the single-source block there. */
 const feeOn = n => Math.round(Number(n) * FEE_RATE);
 const netOf = n => Number(n) - feeOn(n);
 

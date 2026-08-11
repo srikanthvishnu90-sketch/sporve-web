@@ -27,7 +27,7 @@
   const TODAY = "2026-08-03";
   const NOW = new Date(2026, 7, 3, 0, 0, 0);
 
-  const FEE_PCT = 12;                // platform fee, deducted from the coach's price (flat 12%, owner decision 2026-08-06; incidence 2026-08-10)
+  /* FEE_PCT comes from the host — single source, do not redeclare. */
   const PACK_SESSIONS = 5;
   const PACK_DISCOUNT_PCT = 10;
   const SPLIT_VALID_DAYS = 7;

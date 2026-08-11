@@ -3136,6 +3136,23 @@ function ptypeOf(p){
    booking became review-eligible the instant it was paid for, the family
    Schedule read as history, and no card could show a next opening. */
 const TODAY="2026-08-03";
+
+/* ── platform fee: the single source of truth ──────────────────────────
+   Flat 12%, deducted from the coach (owner decision 2026-08-06; incidence
+   2026-08-10). See docs/decisions/2026-08-10-fee-incidence.md.
+
+   This lives here, at the top level of the host script, because every module
+   is inlined AFTER it inside its own IIFE and therefore resolves these names
+   from the enclosing scope. Declaring a module-local copy shadows this one and
+   silently reintroduces drift, which is exactly how the rate was left at 9% in
+   two files after PR #35 and again after #47 — the same constant was fixed
+   three times because it was authored in five places. Read these; do not
+   redeclare them, and do not write the bare decimal anywhere.
+
+   src/smoke.sh enforces both halves: no stray fee literal, and every rendered
+   percentage equal to FEE_PCT. */
+const FEE_PCT = 12;
+const FEE_RATE = FEE_PCT / 100;
 function dayAfter(n){
   const d=new Date(TODAY+"T12:00:00Z");
   d.setUTCDate(d.getUTCDate()+n);
@@ -3580,7 +3597,7 @@ function pricingHTML(){
       </div>
       <div class="panel">
         <div class="eyebrow">For coaches</div>
-        <h2 style="margin-top:8px">A flat 12% platform fee</h2>
+        <h2 style="margin-top:8px">A flat ${FEE_PCT}% platform fee</h2>
         <p style="color:var(--muted);margin-top:8px;font-size:var(--t-small)">
           Taken only when a booking is paid, and itemized on every payout — gross,
           fee, and your net on each one. Joining and listing are free.</p>
@@ -4085,7 +4102,7 @@ function coachLandingHTML(){
   const faq=[
     ["How does the background check work?","Every individual clears their own check — not the business. Your listings stay unbookable and hidden from search until yours clears, and an org being approved never vouches for a trainer on its roster."],
     ["When do I get paid?","Payouts run automatically after a completed session. Each one itemizes gross, the platform fee, and your net."],
-    ["What does Sporve take?","A flat 12% platform fee, taken only when you get paid and itemized on every payout — gross, fee, and your net on each booking. Joining, listing, and messaging are free."],
+    ["What does Sporve take?",`A flat ${FEE_PCT}% platform fee, taken only when you get paid and itemized on every payout — gross, fee, and your net on each booking. Joining, listing, and messaging are free.`],
     ["What happens when someone cancels?","The cancellation policy copied onto the booking at purchase governs the refund — not whatever your listing says later. You pick flexible, moderate, or strict per service."],
     ["Who owns the client relationship?","You do. Families you bring keep booking you, and your roster and notes are yours."],
     ["Can I leave and take my data?","Yes. Request an export at any time. Deletion is reviewed as a case so financial and safety records required by law are retained, and everything else is removed."]];
@@ -4560,7 +4577,7 @@ function detailHTML(id){
       </div>
       <div style="margin-top:18px">
         <div class="linerow"><span>${money(p.price)} × 1 session</span><span class="num">${money(p.price)}</span></div>
-        <div class="linerow"><span>Sporve's 12% (paid by the coach)</span><span class="num">−${money(Math.round(p.price*0.12))}</span></div>
+        <div class="linerow"><span>Sporve's ${FEE_PCT}% (paid by the coach)</span><span class="num">−${money(Math.round(p.price*FEE_RATE))}</span></div>
         <div class="linerow total"><span>Total</span><span class="num">${money(p.price)}</span></div>
       </div>
       ${spots>0
@@ -5199,7 +5216,7 @@ function dashboardHTML(){
     <section class="cardrow">
       <div class="panel">
         <h3>Earnings</h3>
-        ${(()=>{const g=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0),f=Math.round(g*0.12);
+        ${(()=>{const g=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0),f=Math.round(g*FEE_RATE);
           return `<div class="num" style="font-size:var(--text-2xl);font-weight:700;letter-spacing:-.03em;margin-top:6px">${money(g-f)}</div>
           <div class="num" style="color:var(--muted);font-size:var(--text-sm)">${money(g)} gross · ${money(f)} platform fee</div>
           <div class="payflow">
@@ -5583,7 +5600,7 @@ function coachBody(t){
   }
   if(t==="finances"){
     const gross=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0);
-    const fee=Math.round(gross*0.12), net=gross-fee;
+    const fee=Math.round(gross*FEE_RATE), net=gross-fee;
     return `<div class="sec-head" style="margin-top:18px"><h1>Finances</h1></div>
       <div class="stats">
         ${[["Gross",money(gross),"all bookings"],["Platform fee",money(fee),"itemized per booking"],
@@ -5595,8 +5612,8 @@ function coachBody(t){
           <thead><tr><th>Date</th><th>Program</th><th>Athlete</th><th>Gross</th><th>Fee</th><th>Net</th><th>Status</th></tr></thead>
           <tbody>${S.bookings.map(b=>`<tr>
             <td class="num">${fmtDate(b.createdAt)}</td><td>${esc(b.program)}</td><td>${esc(b.athlete)}</td>
-            <td class="num">${money(b.price)}</td><td class="num">${money(Math.round(b.price*0.12))}</td>
-            <td class="num"><b>${money(b.price-Math.round(b.price*0.12))}</b></td>
+            <td class="num">${money(b.price)}</td><td class="num">${money(Math.round(b.price*FEE_RATE))}</td>
+            <td class="num"><b>${money(b.price-Math.round(b.price*FEE_RATE))}</b></td>
             <td><span class="pill good">${esc(b.paymentStatus)}</span></td></tr>`).join("")}
           </tbody></table></div></div>`;
   }
@@ -5803,7 +5820,7 @@ function modalHTML(){
   if(m.type==="book"){
     const p=PROGRAMS.find(x=>x.id===m.programId);
     const slots=slotsFor(p.id);
-    const fee=Math.round(p.price*0.12);
+    const fee=Math.round(p.price*FEE_RATE);
     return wrap("Request to book",`
       <div style="display:flex;gap:14px;align-items:center;padding-bottom:17px;border-bottom:1px solid var(--rule)">
         <img src="${p.img}" alt="" style="width:70px;height:70px;border-radius:var(--r-m);object-fit:cover">

@@ -164,6 +164,35 @@ else
   pass "contrast: family portal holding at baseline $FAMILY_CONTRAST_BASELINE"
 fi
 
+# ── platform fee: one source, one rendered value ────────────────────────
+# The 12% rate was authored in five places and partially migrated twice, so it
+# was fixed three times and still shipped wrong. Two tripwires, because the two
+# failure modes are different: a module re-declaring the constant shadows the
+# host and drifts silently, and a hardcoded percentage in copy drifts without
+# any constant being involved at all.
+redecl=$(grep -cE "^\s*const (FEE_RATE|FEE_PCT|PLATFORM_FEE)\s*=" src/mod-*.js 2>/dev/null | awk -F: '{s+=$2} END{print s+0}')
+[ "$redecl" -eq 0 ] && pass "fee: no module re-declares the rate" \
+  || fail "fee: a module re-declares the rate — it shadows the host and will drift"
+
+feep=$($B js "
+(()=>{const pcts=new Set();
+ const scan=()=>{const t=document.getElementById('app').innerText;const re=/(\d{1,2})%/g;let m;
+   while((m=re.exec(t))){const c=t.slice(Math.max(0,m.index-45),m.index+30).toLowerCase();
+     if(c.includes('fee')||c.includes('sporve'))pcts.add(m[1])}};
+ S.auth={status:'verified'};S.portal='family';
+ ['wallet','pricing','coachinfo','bookings'].forEach(r=>{try{S.route={name:r,arg:null};render();scan()}catch(e){}});
+ S.portal='coach';['dashboard','finances','listings'].forEach(t=>{try{S.coachTab=t;render();scan()}catch(e){}});
+ const a=[...pcts];
+ if(typeof FEE_PCT==='undefined')return 'NOFEECONST';
+ if(!a.length)return 'NONE';
+ return a.length===1&&a[0]===String(FEE_PCT)?'OK:'+a[0]:'MIXED:'+a.join(',')})()" 2>/dev/null | tr -d '"\r')
+case "$feep" in
+  OK:*)        pass "fee: every rendered percentage is ${feep#OK:}%" ;;
+  NOFEECONST)  fail "fee: FEE_PCT is not defined in the host — the single source is gone" ;;
+  NONE)        fail "fee: no fee percentage rendered anywhere — the check has gone blind" ;;
+  *)           fail "fee: rendered percentages disagree — $feep" ;;
+esac
+
 # ── §9 sweep — permanent bans, enforced so they cannot silently regress ──
 # Any rule that is only an instruction eventually gets undone by a helpful edit;
 # these are the tripwires. picsum is a URL, not documentation, so a static grep
