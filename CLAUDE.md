@@ -233,9 +233,30 @@ actually shipped.
 `python3 src/build.py` inlines `src/mod-*.js` into `src/sporve-web.host.html`
 and writes `index.html`. **Edit the sources, never `index.html`.** Fonts and
 hero images are base64'd in, because the built page must survive a CSP that
-blocks every external request. `mod-companies.js` still fetches
-`picsum.photos` externally, which violates that and is the one open warning in
-the smoke test.
+blocks every external request.
+
+The build also stamps a content hash into `<meta name="sporve-build">`. That is
+what lets `src/verify-prod.sh` ask production which build it is serving and get
+an exact answer — comparing `wc -c` against a local file depends on transfer
+encoding and cannot see a byte that changes without changing length.
+
+**Corrected 2026-08-11.** Two claims that used to live here were false:
+
+- *"`mod-companies.js` still fetches `picsum.photos`"* — it does not. There is
+  no `picsum` reference anywhere in `src/`, and `smoke.sh` has a static
+  tripwire asserting the built page is free of it.
+- *"the built page must survive a CSP"* was aspirational, not enforced.
+  Production served **no** CSP at all until `vercel.json` landed on
+  2026-08-11. It now sends a real one — `default-src 'self'`,
+  `frame-ancestors 'none'` — plus HSTS, nosniff, Referrer-Policy and
+  Permissions-Policy, and `src/verify-prod.sh` fails the build if any of them
+  goes missing from production.
+
+  One honest limit: `script-src` carries `'unsafe-inline'`, because the build
+  inlines twelve `<script>` blocks. This CSP therefore does **not** stop XSS.
+  What it does buy is clickjacking, object, base-uri and form-action
+  protection. Emitting per-script sha256 hashes from `build.py` is the change
+  that would make `script-src` meaningful.
 
 ---
 
