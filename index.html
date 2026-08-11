@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="83191b1df2a77db7">
+<meta name="sporve-build" content="174723f9cb616129">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -8430,11 +8430,11 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
      points across the 32x32 X button did nothing, including dead centre. Split
      into two handlers so the visible glyph is the hit target. */
   const dismiss=()=>{S.modal=null;S.pendingIntent=null;render();};
-  /* Escape closes the sheet. The only existing keydown listener closes the
-     product nav, not modals, so a keyboard user had no way out of the auth
-     sheet at all. Assigned rather than added, because wire() runs on every
-     render and addEventListener would stack a duplicate handler each time. */
-  document.onkeydown=e=>{ if(e.key==="Escape"&&S.modal) dismiss(); };
+  /* No Escape handler here on purpose. The top-level listener near the end of
+     this file already closes the modal on Escape and clears pendingIntent, and
+     being registered at script-eval time it runs first — a second handler bound
+     during wire() would always find S.modal already null. It would also be a
+     property assignment, silently clobbering any future document.onkeydown. */
   $("[data-close]").forEach(b=>b.onclick=()=>dismiss());
   $("[data-scrim]").forEach(b=>b.onclick=e=>{if(e.target===b) dismiss();});
   $("[data-modal]").forEach(b=>b.onclick=()=>{S.modal={type:b.dataset.modal};render();});
@@ -8523,7 +8523,10 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   $("[data-cg-apple]").forEach(b=>b.onclick=()=>toast("Apple sign-in isn't wired up yet"));
   $("[data-cg-demo]").forEach(b=>b.onclick=()=>{S.pendingIntent=startCoachOnboarding;completeAuth({...SEED.user,role:"provider"});});
   $("[data-cg-proceed]").forEach(b=>b.onclick=()=>startCoachOnboarding());
-  $("[data-cg-signout]").forEach(b=>b.onclick=()=>{S.auth={status:"guest",user:null};render();});
+  $("[data-cg-signout]").forEach(b=>b.onclick=()=>{
+    /* Drop the pending intent with the identity. Keeping it means the action
+       queued by the previous user fires for whoever signs in next. */
+    S.auth={status:"guest",user:null};S.pendingIntent=null;render();});
   $("[data-cg-back]").forEach(b=>b.onclick=()=>{S.portal="family";go("home");});
   $("[data-coachdash]").forEach(b=>b.onclick=()=>{
     S.portal="coach";S.coachTab="dashboard";go("dashboard");});
@@ -20281,7 +20284,7 @@ const EPHEMERAL = new Set([
      coachPromptShown is deliberately NOT here — "we already offered you the
      sign-in sheet" should survive a refresh, or a guest is re-prompted every
      time they reload. */
-  "coachSearchFocus",
+  "coachSearchFocus", "aiOpen",
 ]);
 
 function saveState(){
