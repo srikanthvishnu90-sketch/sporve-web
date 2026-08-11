@@ -5,7 +5,7 @@ Idempotent: always rebuilds from the pristine host (sporve-web.html), so
 re-running after a new module lands simply re-inlines the full current set.
 Outputs the built page to every distribution target.
 """
-import glob, os, re, shutil, sys
+import glob, hashlib, os, re, shutil, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -258,14 +258,28 @@ STANDALONE = (
     "</head>\n<body>\n__SPORVE_BODY__\n</body>\n</html>\n"
 )
 
+# Build stamp: a content hash of the emitted page, embedded in the page.
+#
+# Verifying a deploy by comparing `wc -c` of the live response against the local
+# file is fragile — it depends on transfer encoding and cannot survive a byte
+# that changes without changing length. A stamp lets any check ask the live
+# site "which build are you serving?" and get an exact answer, which is what
+# post-deploy verification and rollback both need.
+_page = STANDALONE.replace("__SPORVE_BODY__", built)
+_stamp = hashlib.sha256(_page.encode("utf-8")).hexdigest()[:16]
+_page = _page.replace(
+    "</head>", f'<meta name="sporve-build" content="{_stamp}">\n</head>', 1
+)
+
 for t in TARGETS:
     os.makedirs(os.path.dirname(t), exist_ok=True)
     with open(t, "w", encoding="utf-8") as f:
-        f.write(STANDALONE.replace("__SPORVE_BODY__", built))
+        f.write(_page)
 
 print("inlined %d module(s):" % len(names))
 print("\n".join(report) if report else "  (none yet)")
 print("built size: %d bytes" % len(built))
+print("build stamp: %s" % _stamp)
 print("targets:")
 for t in TARGETS:
     print("  %s  %s" % ("OK " if os.path.exists(t) else "FAIL", t))

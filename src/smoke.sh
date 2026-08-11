@@ -37,17 +37,33 @@ grep -q "NONE FOUND" /tmp/smoke-build.txt && fail "fonts missing -- type contrac
 [ -s index.html ] && pass "index.html emitted ($(wc -c < index.html) bytes)" \
   || { fail "index.html empty or missing"; exit 1; }
 
+# gstack's browse is a developer convenience and lives outside the repo, so it
+# is absent on a CI runner. src/ci-browse.mjs is the in-repo fallback: a
+# Playwright-backed daemon implementing the six subcommands used below. Without
+# it this script exited 0 after 3 of 25 assertions and CI showed a green tick
+# for a run that never opened a page.
+CIB=""
 if [ ! -x "$B" ]; then
-  # This is the honest version of what CI has been doing all along. The build
-  # phase is 3 assertions; the other 22 need a browser. Silently exiting 0 here
-  # made every PR check look like a full pass when it proved almost nothing —
-  # so say the number out loud, and emit a GitHub annotation when running in
-  # Actions so it appears on the PR rather than only in the log.
-  echo "  browse not built -- 22 of 25 checks SKIPPED (only build checks ran)"
-  [ -n "$GITHUB_ACTIONS" ] && \
-    echo "::warning title=Partial smoke::browse harness unavailable; 22 of 25 smoke checks did not run. A green check here does NOT mean the page renders."
-  exit $FAIL
+  if command -v node >/dev/null 2>&1 && node -e "import('playwright')" >/dev/null 2>&1; then
+    node src/ci-browse.mjs serve >/tmp/ci-browse.log 2>&1 &
+    CIB=$!
+    for _ in $(seq 1 50); do [ -f .ci-browse-port ] && break; sleep 0.2; done
+    if [ ! -f .ci-browse-port ]; then
+      fail "ci-browse daemon failed to start:"; sed 's/^/        /' /tmp/ci-browse.log; exit 1
+    fi
+    B="node src/ci-browse.mjs"
+    echo "  using in-repo ci-browse (playwright)"
+  else
+    # Fail, do not skip. A check that goes green without running is the exact
+    # failure this file exists to prevent.
+    fail "no browser harness: gstack browse absent and playwright not installed — 22 of 25 checks cannot run"
+    [ -n "${GITHUB_ACTIONS:-}" ] && \
+      echo "::error title=Smoke incomplete::No browser harness available; 22 of 25 smoke checks did not run."
+    exit 1
+  fi
 fi
+cleanup(){ [ -n "$CIB" ] && { $B stop >/dev/null 2>&1; kill "$CIB" 2>/dev/null; rm -f .ci-browse-port; }; }
+trap cleanup EXIT
 
 echo "── runtime ──────────────────────────────────────────"
 $B viewport 1440x900 >/dev/null 2>&1
