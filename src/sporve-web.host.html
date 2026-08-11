@@ -2291,7 +2291,13 @@ h2.ctr{margin-bottom:10px}
    .lstats keeps three columns -- they are two-digit figures and fit at 360px;
    stacking them added ~180px of near-empty card on a phone. */
 @media(max-width:980px){
-  .lgrid,.dual{grid-template-columns:1fr;gap:28px}
+  /* minmax(0,1fr), not 1fr. A bare `1fr` is `minmax(auto,1fr)`, and that `auto`
+     floor is min-content — so the track refuses to shrink below its widest
+     unbreakable child and pushes the whole page sideways. The desktop rule
+     above already guards this; the mobile collapse did not, which is why the
+     phone layout overflowed by 5px on Linux while fitting on macOS, where the
+     same text measured slightly narrower. */
+  .lgrid,.dual{grid-template-columns:minmax(0,1fr);gap:28px}
   .stepgrid{grid-template-columns:1fr}
   .amq::before,.amq::after{width:48px}
 }
