@@ -281,10 +281,16 @@ for vp in 1440x900 768x1024 390x844; do
   o=$($B js "S.route={name:'home',arg:null};render();
 (()=>{const b=document.body,over=b.scrollWidth-b.clientWidth;
  if(over<=1)return 'CLEAN:'+over;
+ // An element only widens the page if nothing between it and <body> clips it.
+ // A marquee inside overflow:hidden sticks out thousands of px and is
+ // harmless; reporting it buries the element that actually scrolls the page.
+ const clipped=el=>{for(let n=el.parentElement;n&&n!==b;n=n.parentElement){
+   const o=getComputedStyle(n).overflowX; if(o!=='visible')return true} return false};
  let worst='',w=0;document.querySelectorAll('#app *').forEach(el=>{
+   if(clipped(el))return;
    const r=el.getBoundingClientRect();const x=Math.round(r.right-b.clientWidth);
    if(x>w){w=x;worst=(el.className||el.tagName)+'(+'+x+'px)'}});
- return 'OVER:'+over+' '+worst})()" 2>/dev/null | tr -d '\r')
+ return 'OVER:'+over+' '+(worst||'no unclipped culprit — sub-pixel accumulation')})()" 2>/dev/null | tr -d '\r')
   case "$(printf '%s' "$o" | tr -d '"')" in
     CLEAN*) pass "no horizontal overflow at $vp" ;;
     *)      fail "horizontal overflow at $vp — $o" ;;
