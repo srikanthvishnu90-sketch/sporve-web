@@ -195,7 +195,15 @@ if not want:
 missing = [h for h in want if h not in directive]
 if missing:
     print("MISMATCH:%d/%d" % (len(missing), len(want))); sys.exit()
-if re.search(r' on(click|submit|change|input|load|error|keydown)="', page):
+# Any inline handler attribute, any quoting, any case. The earlier form listed
+# seven names and required double quotes, so onclick='...', onfocus=, ONCLICK=
+# and unquoted values all slipped past a check whose whole job is to guarantee
+# there are none.
+_EVENTS = (r"click|dblclick|submit|reset|change|input|focus|blur|load|error|abort|"
+           r"key(down|up|press)|mouse[a-z]+|pointer[a-z]+|touch[a-z]+|drag[a-z]*|drop|"
+           r"scroll|resize|select|toggle|wheel|paste|copy|cut|contextmenu|"
+           r"animation[a-z]+|transition[a-z]+")
+if re.search(r"\son(" + _EVENTS + r")\s*=", page, re.I):
     print("INLINEHANDLER"); sys.exit()
 print("OK:%d" % len(want))
 PY
@@ -226,6 +234,30 @@ if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; th
     printf "  \033[33mWARN\033[0m  %s\n" "build outputs differ from HEAD (expected while editing; enforced in CI)"
   fi
 fi
+
+# Exercise the policy for real. Everything above compares strings; none of it
+# proves a browser accepts the result, because file:// ignores response headers
+# entirely. This serves the built page with the exact vercel.json headers and
+# asserts it still boots — the only check that would catch a hash mismatch
+# before it blanks production.
+CSPPORT=8749
+python3 src/csp-serve.py "$(pwd)" "$CSPPORT" >/tmp/csp-serve.log 2>&1 &
+CSPPID=$!
+for _ in $(seq 1 40); do
+  curl -s -o /dev/null "http://127.0.0.1:$CSPPORT/index.html" && break; sleep 0.25
+done
+if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security-policy:"; then
+  $B goto "http://127.0.0.1:$CSPPORT/index.html" >/dev/null 2>&1
+  booted=$($B js "typeof render==='function'&&typeof S==='object'&&document.getElementById('app').children.length>0" 2>/dev/null | tr -d '[:space:]')
+  [ "$booted" = "true" ] \
+    && pass "csp: page boots under the real policy (hashes accepted by the browser)" \
+    || fail "csp: page did NOT boot under the real policy — a script hash is rejected; production would be BLANK"
+  # Leave the harness on a file:// page so later checks are unaffected.
+  $B goto "file://$(pwd)/index.html" >/dev/null 2>&1
+else
+  fail "csp: local header server did not serve a policy — check could not run"
+fi
+{ kill "$CSPPID"; wait "$CSPPID"; } >/dev/null 2>&1
 
 case "$csp" in
   OK:*)          pass "csp: ${csp#OK:} script hashes match the built page, no 'unsafe-inline'" ;;
