@@ -8794,7 +8794,85 @@ document.addEventListener("click",e=>{
 <!--MODULES-->
 
 <script>
-/* boot: merge module state + css, then first paint */
+/* ── session persistence ───────────────────────────────────────────────
+   Everything the page knows lives in the in-memory object S, so a refresh
+   used to discard every booking, message, note and onboarding step on a
+   product whose pitch is "run your business on it".
+
+   sessionStorage, not localStorage, on purpose: work survives a reload and a
+   navigation, and a closed tab returns to the seeded demo. Persisting demo
+   data forever would strand people in a stale sandbox with no reset.
+
+   Four properties make a bad snapshot safe to load:
+
+   1. A VERSION in the key. Change the shape of S, bump it, and every old
+      snapshot is ignored rather than half-applied.
+   2. MERGE, never replace. Only keys that already exist in S are restored,
+      so a key added after a snapshot was written keeps its default instead
+      of becoming undefined, and a foreign or tampered key cannot inject
+      state that no code expects.
+   3. EPHEMERAL keys are excluded in BOTH directions. Restoring an open
+      modal, an in-flight spinner, or a half-typed command is confusing at
+      best. cmdPending matters most: it is an unconfirmed broadcast to every
+      family on a roster, and it must not outlive the screen that made it —
+      the same reason leaving the tab drops it.
+   4. Every path is wrapped. Quota exhaustion, private-mode denial, or a
+      corrupt entry must degrade to "no persistence", never to a blank page.
+      A failed parse also clears the entry so the next load starts clean. */
+const PERSIST_KEY = "sporve:state:v1";
+const EPHEMERAL = new Set([
+  "modal", "toast", "pendingIntent",
+  "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
+  "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
+]);
+
+function saveState(){
+  try{
+    const out = {};
+    for(const k of Object.keys(S)) if(!EPHEMERAL.has(k)) out[k] = S[k];
+    sessionStorage.setItem(PERSIST_KEY, JSON.stringify(out));
+  }catch(e){ /* quota, private mode, or a cycle — persistence is optional */ }
+}
+
+function loadState(){
+  try{
+    const raw = sessionStorage.getItem(PERSIST_KEY);
+    if(!raw) return false;
+    const saved = JSON.parse(raw);
+    if(!saved || typeof saved !== "object" || Array.isArray(saved)) return false;
+    for(const k of Object.keys(saved)){
+      if(EPHEMERAL.has(k)) continue;
+      if(!(k in S)) continue;          /* never widen S from storage */
+      S[k] = saved[k];
+    }
+    return true;
+  }catch(e){
+    try{ sessionStorage.removeItem(PERSIST_KEY); }catch(_){}
+    return false;
+  }
+}
+
+/* Coalesced: render() runs on every interaction, and serialising 28KB on each
+   one is wasted work. One write per frame-ish window is enough, because the
+   only reader is the next page load. */
+let saveTimer = null;
+function scheduleSave(){
+  if(saveTimer) return;
+  saveTimer = setTimeout(() => { saveTimer = null; saveState(); }, 250);
+}
+
+/* boot: merge module state, restore the session, then first paint.
+   Order is load-critical — bootModules() seeds module keys with
+   `if(!(k in S))`, so restoring before it would have those defaults
+   overwrite the saved values. */
 bootModules();
+loadState();
 render();
+
+/* Wrap render rather than editing it: every mutation path in the host and in
+   every module already ends in render(), so this catches all of them without
+   touching a single call site. */
+const _renderNoPersist = render;
+render = function(){ _renderNoPersist.apply(this, arguments); scheduleSave(); };
+window.addEventListener("pagehide", saveState);
 </script>

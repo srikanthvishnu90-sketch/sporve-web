@@ -164,6 +164,48 @@ else
   pass "contrast: family portal holding at baseline $FAMILY_CONTRAST_BASELINE"
 fi
 
+# ── session persistence ─────────────────────────────────────────────────
+# Two invariants, both verified against a real browser rather than by reading
+# the code. The page is loaded over file:// here, where sessionStorage is
+# available but origin-scoped, which is enough to exercise save and restore.
+#
+# The second assertion is the one that matters: cmdPending is an unconfirmed
+# broadcast to every family on a roster, and it must never come back after a
+# reload. Persisting it would resurrect a message the coach never approved.
+persist=$($B js "
+(()=>{try{
+  if(typeof saveState!=='function'||typeof loadState!=='function')return 'NOAPI';
+  /* Snapshot and restore everything this check touches. Later assertions
+     render marketing pages and would otherwise find the coach dashboard,
+     and a snapshot left in sessionStorage would be restored by any later
+     reload. A test that leaks state fails its neighbours, not itself. */
+  const _p=S.portal,_t=S.coachTab,_r=S.route;
+  S.portal='coach';S.coachTab='inbox';
+  S.messages['__smoke']=[{id:'x',me:false,text:'persisted',at:TODAY}];
+  S.cmdPending={convId:'__smoke',body:'MUST NOT SURVIVE',restated:'x'};
+  saveState();
+  const raw=sessionStorage.getItem('sporve:state:v1');
+  if(!raw)return 'NOWRITE';
+  const snap=JSON.parse(raw);
+  const dataKept = snap.messages && snap.messages['__smoke'] && snap.messages['__smoke'][0].text==='persisted';
+  const ephemeralDropped = !('cmdPending' in snap) && !('modal' in snap);
+  delete S.messages['__smoke'];S.cmdPending=null;
+  S.portal=_p;S.coachTab=_t;S.route=_r;
+  try{sessionStorage.removeItem('sporve:state:v1')}catch(_){}
+  render();
+  if(!dataKept)return 'DATALOST';
+  if(!ephemeralDropped)return 'EPHEMERAL_PERSISTED';
+  return 'OK';
+}catch(e){return 'THREW:'+e.message}})()" 2>/dev/null | tr -d '"\r')
+case "$persist" in
+  OK)                  pass "persistence: data saved, ephemeral state dropped" ;;
+  NOAPI)               fail "persistence: saveState/loadState missing" ;;
+  NOWRITE)             fail "persistence: nothing written to sessionStorage" ;;
+  DATALOST)            fail "persistence: data did not survive the snapshot" ;;
+  EPHEMERAL_PERSISTED) fail "persistence: cmdPending or modal was persisted — an unconfirmed broadcast can resurrect" ;;
+  *)                   fail "persistence: $persist" ;;
+esac
+
 # ── platform fee: one source, one rendered value ────────────────────────
 # The 12% rate was authored in five places and partially migrated twice, so it
 # was fixed three times and still shipped wrong. Two tripwires, because the two
@@ -204,6 +246,14 @@ c=$(grep -oc "picsum" index.html 2>/dev/null); c=${c:-0}
 # (svg is allowed only in functional chrome), zero scaffolds, and no painted
 # #C2410C (rgb 194,65,12) or #38BDF8 (rgb 56,189,248).
 PAGES="what-is background-checks search map-search instant-booking messaging bookings-receipts saved athlete-progress scheduling payments roster session-notes media-consent insights ai-coach"
+# Reset the portal EXPLICITLY before reloading. This used to be implicit: a
+# reload wiped S back to defaults, so the coach checks above could not leak
+# into the marketing-page checks below. Session persistence deliberately ends
+# that — a reload now restores the previous state, which is the entire point of
+# the feature — so the reset has to be stated rather than assumed. Set it
+# before the goto, because `pagehide` snapshots whatever is in memory as the
+# page unloads and that snapshot is what the next load restores.
+$B js "S.portal='family';S.auth={status:'guest'};S.coachTab='dashboard';render();'reset'" >/dev/null 2>&1
 $B goto "file://$(pwd)/index.html" >/dev/null 2>&1
 sweep=$($B js "
 (()=>{const em=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/gu;const bad=[];
