@@ -38,7 +38,14 @@ grep -q "NONE FOUND" /tmp/smoke-build.txt && fail "fonts missing -- type contrac
   || { fail "index.html empty or missing"; exit 1; }
 
 if [ ! -x "$B" ]; then
-  echo "  browse not built -- runtime checks skipped (build checks passed)"
+  # This is the honest version of what CI has been doing all along. The build
+  # phase is 3 assertions; the other 22 need a browser. Silently exiting 0 here
+  # made every PR check look like a full pass when it proved almost nothing —
+  # so say the number out loud, and emit a GitHub annotation when running in
+  # Actions so it appears on the PR rather than only in the log.
+  echo "  browse not built -- 22 of 25 checks SKIPPED (only build checks ran)"
+  [ -n "$GITHUB_ACTIONS" ] && \
+    echo "::warning title=Partial smoke::browse harness unavailable; 22 of 25 smoke checks did not run. A green check here does NOT mean the page renders."
   exit $FAIL
 fi
 
@@ -67,6 +74,75 @@ for r in $ROUTES; do
 done
 [ "$FAIL" -eq 0 ] && pass "no JS errors across $(echo $ROUTES | wc -w | tr -d ' ') routes"
 [ "$RESWARN" -gt 0 ] && printf "  \033[33mWARN\033[0m  %s\n" "$RESWARN external resource(s) failed — the single-file/CSP design says nothing should be fetched externally"
+
+# ── coach portal ────────────────────────────────────────────────────────
+# Every route above forces portal='family' and auth=guest, so until now the
+# entire coach dashboard — roughly half the product — was never rendered by
+# this script at all. Three real contrast defects shipped through a green
+# smoke run because of that. The coach surface gets the same treatment.
+COACHTABS="dashboard schedule bookings roster inbox listings finances reviews"
+CFAIL=0
+for t in $COACHTABS; do
+  $B console --clear >/dev/null 2>&1
+  $B js "S.auth={status:'verified'};S.portal='coach';S.coachTab='$t';S.route={name:'dashboard',arg:null};render();'ok'" >/dev/null 2>&1
+  log=$($B console --errors 2>&1)
+  js=$(printf '%s' "$log" | grep "\[error\]" | grep -vc "Failed to load resource")
+  [ "$js" -eq 0 ] || { fail "JS errors on coach tab '$t' ($js)"; CFAIL=$((CFAIL+1)); }
+done
+[ "$CFAIL" -eq 0 ] && pass "no JS errors across $(echo $COACHTABS | wc -w | tr -d ' ') coach tabs"
+
+# ── contrast ────────────────────────────────────────────────────────────
+# Structural assertions cannot see whether text is readable. This repo has
+# shipped near-black-on-black once and near-white-on-white once; both were
+# computed-style defects that only a browser measuring real pixels catches.
+#
+# The coach portal is held at zero because it was built clean and there is no
+# reason to let it rot. The family portal carries 16 pre-existing failures, so
+# it is ratcheted instead of gated: the number may fall, never rise. Blocking
+# on it today would stop every unrelated change until someone fixes 16 old
+# defects, which is how a check gets deleted rather than satisfied.
+FAMILY_CONTRAST_BASELINE=16
+# Fail closed. If the audit file is missing or the harness returns nothing,
+# `${n:-0}` would coerce empty to zero and every assertion below would report
+# PASS without measuring a pixel — a check that goes green when it cannot run
+# is worse than no check, because it is trusted.
+[ -f src/contrast-audit.js ] || { fail "contrast: src/contrast-audit.js missing — gate cannot run"; }
+cx_run() { $B eval src/contrast-audit.js 2>/dev/null | tr -d '\r' | tail -1; }
+cx_num() {
+  n=$(printf '%s' "$1" | sed -n 's/.*"failures":\([0-9]*\).*/\1/p')
+  [ -n "$n" ] || { printf 'UNMEASURED'; return; }
+  printf '%s' "$n"
+}
+
+COACH_CX=0
+for t in $COACHTABS; do
+  $B js "S.auth={status:'verified'};S.portal='coach';S.coachTab='$t';S.route={name:'dashboard',arg:null};render();'ok'" >/dev/null 2>&1
+  out=$(cx_run); n=$(cx_num "$out")
+  if [ "$n" = "UNMEASURED" ]; then
+    fail "contrast: coach tab '$t' returned no measurement — gate broken"
+    COACH_CX=$((COACH_CX+1))
+  elif [ "$n" -ne 0 ]; then
+    fail "contrast: coach tab '$t' has $n failure(s)"
+    printf '        %s\n' "$(printf '%s' "$out" | sed -n 's/.*"list":\[\(.*\)\]}/\1/p' | tr ',' '\n' | head -4)"
+    COACH_CX=$((COACH_CX+n))
+  fi
+done
+[ "$COACH_CX" -eq 0 ] && pass "contrast: coach portal clean across $(echo $COACHTABS | wc -w | tr -d ' ') tabs"
+
+FAM_CX=0
+for r in home explore product trust; do
+  $B js "S.auth={status:'guest'};S.portal='family';S.route={name:'$r',arg:null};render();'ok'" >/dev/null 2>&1
+  n=$(cx_num "$(cx_run)")
+  [ "$n" = "UNMEASURED" ] && { fail "contrast: family route '$r' returned no measurement — gate broken"; n=0; }
+  FAM_CX=$((FAM_CX+n))
+done
+if [ "$FAM_CX" -gt "$FAMILY_CONTRAST_BASELINE" ]; then
+  fail "contrast: family portal regressed to $FAM_CX (baseline $FAMILY_CONTRAST_BASELINE)"
+elif [ "$FAM_CX" -lt "$FAMILY_CONTRAST_BASELINE" ]; then
+  pass "contrast: family portal improved to $FAM_CX (baseline $FAMILY_CONTRAST_BASELINE — lower it)"
+else
+  pass "contrast: family portal holding at baseline $FAMILY_CONTRAST_BASELINE"
+fi
 
 # ── §9 sweep — permanent bans, enforced so they cannot silently regress ──
 # Any rule that is only an instruction eventually gets undone by a helpful edit;

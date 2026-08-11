@@ -1435,7 +1435,15 @@ h2.ctr{margin-bottom:10px}
 #app.coachdark .rbadge,
 #app.coachdark .cal-num.today,
 #app.coachdark .bub.me{color:#0B0C0E}
-/* Hardcoded light values inside the coach shell that tokens cannot reach. */
+/* Hardcoded light values inside the coach shell that tokens cannot reach.
+   .cmdbar is a fixed, near-white panel — the command bar itself. Its text took
+   the dark-ground tokens while its own background stayed white, leaving the
+   suggestion chips at 2.38:1. It only renders wide, which is why a default
+   viewport misses it and 1440x900 catches it. */
+#app.coachdark .cmdbar{
+  background:rgba(19,21,25,.98);
+  box-shadow:0 6px 8px rgba(0,0,0,.42),0 18px 48px rgba(0,0,0,.55);
+}
 #app.coachdark .cmdgo{color:#0B0C0E}
 #app.coachdark .cmdspinner{border-color:rgba(11,12,14,.38);border-top-color:#0B0C0E}
 /* Orange earns one job on this ground: the live send affordance. */
