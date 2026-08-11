@@ -274,8 +274,21 @@ else fail "dark-ground violations: $bad"; fi
 for vp in 1440x900 768x1024 390x844; do
   $B viewport "$vp" >/dev/null 2>&1
   $B goto "file://$(pwd)/index.html" >/dev/null 2>&1
-  o=$($B js "S.route={name:'home',arg:null};render();document.body.scrollWidth>document.body.clientWidth" 2>/dev/null | tr -d '[:space:]')
-  [ "$o" = "false" ] && pass "no horizontal overflow at $vp" || fail "horizontal overflow at $vp"
+  # Reports the overshoot and the widest culprit rather than a bare boolean.
+  # Text shaping differs between platforms, so a sub-pixel difference can round
+  # a passing layout into a failing one; knowing whether it is 1px or 40px is
+  # the difference between a tolerance and a real bug.
+  o=$($B js "S.route={name:'home',arg:null};render();
+(()=>{const b=document.body,over=b.scrollWidth-b.clientWidth;
+ if(over<=1)return 'CLEAN:'+over;
+ let worst='',w=0;document.querySelectorAll('#app *').forEach(el=>{
+   const r=el.getBoundingClientRect();const x=Math.round(r.right-b.clientWidth);
+   if(x>w){w=x;worst=(el.className||el.tagName)+'(+'+x+'px)'}});
+ return 'OVER:'+over+' '+worst})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$o" | tr -d '"')" in
+    CLEAN*) pass "no horizontal overflow at $vp" ;;
+    *)      fail "horizontal overflow at $vp — $o" ;;
+  esac
 done
 
 # Type scale. 21/22px are the documented unboxed-glyph exceptions.
