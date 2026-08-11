@@ -164,6 +164,79 @@ else
   pass "contrast: family portal holding at baseline $FAMILY_CONTRAST_BASELINE"
 fi
 
+# ── CSP script hashes ───────────────────────────────────────────────────
+# The blast radius here is total: a script-src hash that does not match the
+# script it is meant to authorise blocks that script, and blocking the host
+# script serves a blank page. Verified by corrupting one hash and watching the
+# page fail to boot, so this is not a theoretical failure mode.
+#
+# build.py regenerates these on every build, so a mismatch means either the
+# regex silently failed or vercel.json was hand-edited. Both are worth stopping
+# a merge for.
+csp=$(python3 - <<'PY'
+import base64, hashlib, json, re, sys
+page = open("index.html", encoding="utf-8").read()
+cfg = json.load(open("vercel.json", encoding="utf-8"))
+policy = ""
+for rule in cfg.get("headers", []):
+    for h in rule.get("headers", []):
+        if h.get("key") == "Content-Security-Policy":
+            policy = h["value"]
+m = re.search(r"script-src ([^;]*);", policy)
+if not m:
+    print("NOSCRIPTSRC"); sys.exit()
+directive = m.group(1)
+if "'unsafe-inline'" in directive:
+    print("UNSAFEINLINE"); sys.exit()
+want = ["'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'"
+        for s in re.findall(r"<script>(.*?)</script>", page, re.S)]
+if not want:
+    print("NOSCRIPTS"); sys.exit()
+missing = [h for h in want if h not in directive]
+if missing:
+    print("MISMATCH:%d/%d" % (len(missing), len(want))); sys.exit()
+if re.search(r' on(click|submit|change|input|load|error|keydown)="', page):
+    print("INLINEHANDLER"); sys.exit()
+print("OK:%d" % len(want))
+PY
+)
+# The check above can never fail on its own, because smoke runs build.py first
+# and build.py regenerates vercel.json — the tamper is repaired before the
+# assertion reads it. Verified: corrupting a hash and reintroducing
+# 'unsafe-inline' both still passed.
+#
+# The invariant that actually matters is different. There is no buildCommand,
+# so Vercel serves the COMMITTED index.html and vercel.json verbatim. If a
+# source change is committed without regenerating them, production serves a
+# stale page — and a stale vercel.json means hashes that do not match the
+# scripts, which is a blank site. So: after a fresh build, the working tree
+# must be clean. If build.py changed anything, what was committed was wrong.
+#
+# Enforced in CI only. There the tree starts clean at HEAD, so any diff after a
+# build means the committed outputs were stale. Locally the outputs differ from
+# HEAD by design the moment you edit a source file, so this warns instead of
+# failing rather than making the normal edit-build-test loop unusable.
+if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
+  dirty=$(git status --porcelain -- index.html vercel.json 2>/dev/null)
+  if [ -z "$dirty" ]; then
+    pass "build outputs in sync with sources"
+  elif [ -n "${GITHUB_ACTIONS:-}" ]; then
+    fail "index.html/vercel.json are STALE — a fresh build differs from what is committed, and Vercel serves the committed files verbatim: $(printf '%s' "$dirty" | tr '\n' ' ')"
+  else
+    printf "  \033[33mWARN\033[0m  %s\n" "build outputs differ from HEAD (expected while editing; enforced in CI)"
+  fi
+fi
+
+case "$csp" in
+  OK:*)          pass "csp: ${csp#OK:} script hashes match the built page, no 'unsafe-inline'" ;;
+  UNSAFEINLINE)  fail "csp: script-src still allows 'unsafe-inline' — the policy does not stop XSS" ;;
+  MISMATCH:*)    fail "csp: ${csp#MISMATCH:} script hashes do not match the built page — production would serve a BLANK page" ;;
+  INLINEHANDLER) fail "csp: an inline event-handler attribute is back; hashes cannot cover it and it will be blocked" ;;
+  NOSCRIPTSRC)   fail "csp: no script-src directive found in vercel.json" ;;
+  NOSCRIPTS)     fail "csp: no inline scripts found in the built page — the check has gone blind" ;;
+  *)             fail "csp: $csp" ;;
+esac
+
 # ── session persistence ─────────────────────────────────────────────────
 # Two invariants, both verified against a real browser rather than by reading
 # the code. The page is loaded over file:// here, where sessionStorage is

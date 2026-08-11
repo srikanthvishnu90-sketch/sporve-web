@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="d88dab1733e3eece">
+<meta name="sporve-build" content="514e0bd9c0ba0c42">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -6625,7 +6625,12 @@ function sig_insights(){ return `<div class="sig-insights" aria-label="Business 
 </div>`; }
 function sig_ai_coach(){ return `<div class="sig-ai-coach" aria-label="Coach finder demo">
   <div class="ac-head"><span class="ac-dot"></span><span class="ac-title">Coach finder · Chicago, IL</span><span class="ac-pill">Demo data</span></div>
-  <form class="ac-bar" onsubmit="return false">
+  <!-- No inline onsubmit: the submit is already cancelled in JS a few hundred
+       lines below (addEventListener('submit', e => { e.preventDefault(); … })),
+       so the attribute was redundant. It was also the single inline event
+       handler in the built page, and script hashes cannot cover those — it
+       alone would have forced 'unsafe-inline' to stay in the CSP. -->
+  <form class="ac-bar">
     <input class="ac-input" type="text" value="a martial arts coach for my 9-year-old" aria-label="Ask the coach finder">
     <button class="ac-go" type="submit">Ask</button>
   </form>

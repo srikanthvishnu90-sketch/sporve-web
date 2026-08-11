@@ -6576,7 +6576,12 @@ function sig_insights(){ return `<div class="sig-insights" aria-label="Business 
 </div>`; }
 function sig_ai_coach(){ return `<div class="sig-ai-coach" aria-label="Coach finder demo">
   <div class="ac-head"><span class="ac-dot"></span><span class="ac-title">Coach finder · Chicago, IL</span><span class="ac-pill">Demo data</span></div>
-  <form class="ac-bar" onsubmit="return false">
+  <!-- No inline onsubmit: the submit is already cancelled in JS a few hundred
+       lines below (addEventListener('submit', e => { e.preventDefault(); … })),
+       so the attribute was redundant. It was also the single inline event
+       handler in the built page, and script hashes cannot cover those — it
+       alone would have forced 'unsafe-inline' to stay in the CSP. -->
+  <form class="ac-bar">
     <input class="ac-input" type="text" value="a martial arts coach for my 9-year-old" aria-label="Ask the coach finder">
     <button class="ac-go" type="submit">Ask</button>
   </form>
