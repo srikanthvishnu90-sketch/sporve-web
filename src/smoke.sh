@@ -288,6 +288,30 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *) fail "auth: unexpected sign-in failure shape — $badlogin" ;;
   esac
 
+  # FIX 1 — one store owns identity. If S.auth is persisted to sessionStorage
+  # alongside the real token in localStorage, the two disagree the moment a tab
+  # closes: UI signed-out, transport still authenticated (or the reverse).
+  onestore=$($B js "(()=>{S.auth={status:'verified',user:{id:'x'}};saveState();const r=JSON.parse(sessionStorage.getItem('sporve:state:v1')||'{}');S.auth={status:'guest',user:null};return !('auth' in (r.s||r));})()" 2>/dev/null | tr -d '[:space:]')
+  [ "$onestore" = "true" ] \
+    && pass "auth: identity is NOT mirrored into sessionStorage (one store owns it)" \
+    || fail "auth: S.auth is persisted as well as the token — two identity sources with different lifetimes"
+
+  # FIX 2 — an intent must survive a full-page OAuth redirect. A closure cannot;
+  # a descriptor can. This is the difference between returning from Google to
+  # your booking and returning to the explore grid with it silently lost.
+  intent=$($B js "(()=>{S.pendingIntent={kind:'book',programId:'p1'};saveState();const r=JSON.parse(sessionStorage.getItem('sporve:state:v1')||'{}');const st=r.s||r;S.pendingIntent=null;return !!(st.pendingIntent&&st.pendingIntent.kind==='book'&&st.pendingIntent.programId==='p1');})()" 2>/dev/null | tr -d '[:space:]')
+  [ "$intent" = "true" ] \
+    && pass "auth: a parked intent survives serialisation (OAuth-safe)" \
+    || fail "auth: pendingIntent does not survive a reload — every deferred booking is lost through OAuth"
+
+  # FIX 3 — a failed sign-in must leave somewhere to show why. The mock closed
+  # the sheet unconditionally, which with a real backend means a wrong password
+  # dismisses the modal and reports nothing.
+  failpath=$($B js "typeof authFail==='function'&&typeof doSignIn==='function'&&typeof runIntent==='function'" 2>/dev/null | tr -d '[:space:]')
+  [ "$failpath" = "true" ] \
+    && pass "auth: sign-in has a failure branch and an intent replayer" \
+    || fail "auth: authFail/doSignIn/runIntent missing — a failed sign-in has nowhere to report"
+
   ping=$($B js "window.SporveAPI.ping().then(r=>'OK:'+r.programs).catch(e=>'ERR:'+e.status+':'+e.message)" 2>/dev/null | tr -d '\r')
   case "$(printf '%s' "$ping" | tr -d '[:space:]')" in
     OK:0)  fail "api: reached the backend but zero published programs — the marketplace has no inventory" ;;

@@ -3516,16 +3516,98 @@ function enterCoachPortal(){
   }
 }
 
+/* INTENT REGISTRY — the fix for "sign in with Google loses your booking".
+   requireAuth used to park a live JS CLOSURE in S.pendingIntent. That works for
+   a modal, because the heap survives. It cannot survive an OAuth redirect: the
+   browser navigates away to Google and back, the heap is destroyed, and the
+   action the visitor actually wanted is silently gone. They return signed in,
+   on the explore grid, wondering where the booking went.
+
+   So an intent is now DATA — {kind, ...args} — which serialises, survives the
+   round trip in sessionStorage, and is replayed by name on return. Closures are
+   still accepted (every existing call site passes one) and still work for the
+   modal path; they simply cannot cross a redirect, and INTENTS below is the
+   registry for the ones that must. */
+const INTENTS = {
+  book:    a => { S.modal={type:"book", programId:a.programId}; render(); },
+  message: a => { S.modal={type:"message", coachId:a.coachId}; render(); },
+  save:    a => { if(!S.favorites.includes(a.id)) S.favorites=[...S.favorites,a.id]; toast("Saved to your list"); },
+  coachOnboard: () => startCoachOnboarding(),
+};
+function runIntent(intent){
+  if(!intent) return;
+  if(typeof intent==="function"){ intent(); return; }
+  const fn = INTENTS[intent.kind];
+  if(fn) { try{ fn(intent); }catch(e){ /* a stale descriptor must never break boot */ } }
+}
 function requireAuth(fn){
   if(isVerified()){fn();return true;}
   S.pendingIntent=fn; S.modal={type:"authsheet"}; render(); return false;
 }
+
+/* completeAuth is now the SUCCESS branch only, and it is called after the
+   network has already answered. The mock could not fail, so it closed the modal
+   unconditionally; a real sign-in can fail, and closing the sheet leaves
+   nowhere to show why. authFail() below is the other half. */
 function completeAuth(user){
   S.auth={status:"verified",user};
-  S.modal=null;
+  S.modal=null; S.authBusy=false; S.authError=null;
   const intent=S.pendingIntent; S.pendingIntent=null;
   render();
-  if(intent) setTimeout(intent,60);
+  if(intent) setTimeout(()=>runIntent(intent),60);
+}
+function authFail(msg){
+  S.authBusy=false;
+  S.authError=msg||"Something went wrong. Please try again.";
+  /* Deliberately does NOT clear S.pendingIntent: the visitor is still trying to
+     do the thing they asked for, and a retry should still land them there. */
+  render();
+}
+
+/* The single door for a real sign-in. Every mock flip site now routes through
+   this, so error handling, the busy flag and the profile fetch exist in exactly
+   one place rather than seven. */
+function doSignIn(email, password){
+  if(!window.SporveAuth){ authFail("Sign-in is unavailable right now."); return Promise.resolve(false); }
+  S.authBusy=true; S.authError=null; render();
+  return window.SporveAuth.signIn(email, password)
+    .then(()=>window.SporveAuth.loadProfile())
+    .then(p=>{
+      /* Role comes from profiles.role — the DATABASE — never from a button the
+         visitor clicked. It gates the coach surfaces. */
+      completeAuth({
+        id:p&&p.id, firstName:(p&&p.first_name)||"", lastName:(p&&p.last_name)||"",
+        email:(p&&p.email)||email, phone:(p&&p.phone_number)||"",
+        role:(p&&p.role)||"searcher", preferredSports:[], img:phAvatar(),
+      });
+      if(p&&p.role==="provider") S.portal="coach";
+      return true;
+    })
+    .catch(e=>{ authFail(e&&e.message); return false; });
+}
+
+/* Signup cannot sign you in: mailer_autoconfirm is FALSE on this project, so
+   Supabase returns a user with no session and emails a confirmation link.
+   Telling the visitor "welcome" here would be a lie and would strand them. */
+function doSignUp(email, password, meta){
+  if(!window.SporveAuth){ authFail("Sign-up is unavailable right now."); return Promise.resolve(false); }
+  S.authBusy=true; S.authError=null; render();
+  return window.SporveAuth.signUp(email, password, meta||{})
+    .then(r=>{
+      S.authBusy=false;
+      if(r.needsConfirmation){ S.modal={type:"confirmemail", email:r.email||email}; render(); return true; }
+      return doSignIn(email, password);
+    })
+    .catch(e=>{ authFail(e&&e.message); return false; });
+}
+
+function doSignOut(){
+  /* Clear the transport FIRST. If only S.auth were reset, the UI would say
+     guest while every fetch still carried a valid bearer — the two-store
+     disagreement this release exists to remove. */
+  if(window.SporveAuth) window.SporveAuth.signOut();
+  S.auth={status:"guest",user:null};
+  S.pendingIntent=null; S.authError=null; S.authBusy=false;
 }
 /* guest save allowance: 3 free, un-saving always allowed */
 function toggleFav(id){
@@ -6148,6 +6230,20 @@ function modalHTML(){
       <button type="button" data-modal="forgot" style="width:100%;text-align:center;margin-top:14px;font-size:var(--text-sm);font-weight:600;color:var(--slate)">Forgot your password?</button>
     </form>`);
 
+  /* Signup does NOT sign you in on this project: mailer_autoconfirm is FALSE,
+     so Supabase emails a confirmation link and returns no session. Without this
+     screen the visitor is left on a closed modal with no idea what happened —
+     the exact "silently stranded" failure the mock hid, because a mock cannot
+     have an unconfirmed state. */
+  if(m.type==="confirmemail") return wrap("Check your email",`
+    <p style="color:var(--muted);margin-bottom:18px;line-height:1.6">
+      We sent a confirmation link to <b style="color:var(--ink)">${esc(m.email||"")}</b>.
+      Open it to finish setting up your account, then come back and sign in.</p>
+    <p style="color:var(--faint);font-size:var(--text-sm);margin-bottom:20px;line-height:1.6">
+      No email after a minute? Check your spam folder — and make sure the address above is right.</p>
+    <button class="btn wide" type="button" data-modal="login">Back to sign in</button>
+    <button class="btn ghost wide" type="button" data-close="1" style="margin-top:9px">Keep browsing</button>`);
+
   if(m.type==="addchild") return wrap("Add a child",`
     <p style="color:var(--muted);margin-bottom:18px">We'll use this to book and track their sessions.</p>
     <form id="childForm">
@@ -8404,7 +8500,10 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   /* Reset the portal too. Without it, render() kept short-circuiting to the
      coach dashboard and a signed-out user still looked signed in. */
   $("[data-logout]").forEach(b=>b.onclick=()=>{
-    S.auth={status:"guest",user:null};S.portal="family";S.modal=null;S.pendingIntent=null;
+    /* doSignOut clears the TRANSPORT first. Resetting only S.auth left the UI
+       saying guest while every fetch still carried a valid bearer token. */
+    doSignOut();
+    S.portal="family";S.modal=null;
     go("home");toast("Signed out");});
 
   $("[data-filter]").forEach(b=>b.onclick=()=>{
@@ -8470,7 +8569,14 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const id=(document.getElementById("cgId")||{}).value||"";
     S.pendingIntent=startCoachOnboarding;
     completeAuth({...SEED.user,email:id.includes("@")?id:SEED.user.email,role:"provider"});});
-  $("[data-cg-google]").forEach(b=>b.onclick=()=>{S.pendingIntent=startCoachOnboarding;completeAuth({...SEED.user,role:"provider"});});
+  $("[data-cg-google]").forEach(b=>b.onclick=()=>{
+    /* Park the intent as DATA before navigating away — a closure would not
+       survive the redirect. saveState() is forced because the browser is about
+       to leave and the 250ms debounce would not have fired. */
+    S.pendingIntent={kind:"coachOnboard"};
+    try{ saveState(); }catch(e){}
+    if(window.SporveAuth) window.location.href=window.SporveAuth.oauthUrl("google", window.location.origin);
+  });
   $("[data-cg-apple]").forEach(b=>b.onclick=()=>toast("Apple sign-in isn't wired up yet"));
   $("[data-cg-demo]").forEach(b=>b.onclick=()=>{S.pendingIntent=startCoachOnboarding;completeAuth({...SEED.user,role:"provider"});});
   $("[data-cg-proceed]").forEach(b=>b.onclick=()=>startCoachOnboarding());
@@ -8729,6 +8835,8 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     requireAuth(()=>{S.modal={type:"waitlist",programId:id};render();});
   });
   $("[data-google]").forEach(b=>b.onclick=()=>{
+    if(window.SporveAuth){ try{ saveState(); }catch(e){}
+      window.location.href=window.SporveAuth.oauthUrl("google", window.location.origin); return; }
     completeAuth({...SEED.user,role:S.signupRole==="coach"?"provider":"searcher"});
     if(S.signupRole==="coach") S.portal="coach";
     toast("Signed in with Google");
@@ -8759,9 +8867,24 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     if(!/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(d.email)) return show("Please enter a valid email address.");
     if(d.password.length<8) return show("Password must be at least 8 characters.");
     if(!d.privacy) return show("Please acknowledge Sporve's Privacy Policy to continue.");
-    completeAuth({firstName:d.first,lastName:d.last,email:d.email,phone:d.phone||"",
-      role:"searcher",preferredSports:S.onboardSports.slice()});
-    toast("Account created");
+    /* Real signup. mailer_autoconfirm is FALSE on this project, so this does
+       NOT sign anyone in — Supabase emails a confirmation link. The old code
+       toasted "Account created" and flipped to verified, which with a real
+       backend would have stranded every new family in a signed-in-looking UI
+       whose every request was anonymous. doSignUp raises the confirmemail
+       modal instead. Role is NOT sent from here beyond the searcher default;
+       profiles.role is the authority. */
+    err.classList.add("hide");
+    const btn=sf.querySelector('button[type="submit"]');
+    if(btn){btn.disabled=true;btn.textContent="Creating account…";}
+    doSignUp(d.email, d.password, {name:(d.first+" "+d.last).trim(), phone:d.phone||"", role:"searcher"})
+      .then(ok=>{
+        if(ok) return;
+        const e2=document.getElementById("signupErr");
+        if(e2){e2.textContent=S.authError||"Could not create the account.";e2.classList.remove("hide");}
+        const b2=document.querySelector('#signupForm button[type="submit"]');
+        if(b2){b2.disabled=false;b2.textContent="Create account";}
+      });
   };
 
   const lf=document.getElementById("loginForm");
@@ -8773,8 +8896,20 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
       err.textContent="Please enter a valid email address.";err.classList.remove("hide");return;}
     if(!d.password||d.password.length<8){
       err.textContent="Please enter both email and password.";err.classList.remove("hide");return;}
-    completeAuth({...SEED.user});
-    toast("Welcome back, Alex");
+    /* Real sign-in. The toast moved INSIDE the success branch: it used to fire
+       on the next line, which with a real network call would have congratulated
+       a visitor whose password was wrong. */
+    err.classList.add("hide");
+    const btn=lf.querySelector('button[type="submit"]');
+    if(btn){btn.disabled=true;btn.textContent="Signing in…";}
+    doSignIn(d.email, d.password).then(ok=>{
+      if(ok){ toast("Welcome back"); return; }
+      /* render() has already repainted with S.authError; re-find the node. */
+      const e2=document.getElementById("loginErr");
+      if(e2){e2.textContent=S.authError||"Invalid login credentials.";e2.classList.remove("hide");}
+      const b2=document.querySelector('#loginForm button[type="submit"]');
+      if(b2){b2.disabled=false;b2.textContent="Sign in";}
+    });
   };
 
   const cf=document.getElementById("childForm");
@@ -9354,7 +9489,12 @@ document.addEventListener("click",e=>{
       A failed parse also clears the entry so the next load starts clean. */
 const PERSIST_KEY = "sporve:state:v1";
 const EPHEMERAL = new Set([
-  "modal", "toast", "pendingIntent",
+  "modal", "toast",
+  /* pendingIntent is deliberately NOT ephemeral any more. JSON.stringify drops
+     a function silently, so a legacy closure still vanishes on reload exactly
+     as before — but a DESCRIPTOR ({kind:"book",…}) survives, which is what lets
+     an intent live through a full-page OAuth redirect. The serialiser does the
+     discrimination for us; no type check needed. */
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
   /* From the ported coach-portal work. coachSearchFocus is a one-render flag
@@ -9364,6 +9504,15 @@ const EPHEMERAL = new Set([
      sign-in sheet" should survive a refresh, or a guest is re-prompted every
      time they reload. */
   "coachSearchFocus", "aiOpen",
+  /* auth/authBusy/authError are EPHEMERAL from Phase B on. The real session
+     lives in localStorage under sporve:session:v1 and is owned by mod-auth.js.
+     Persisting S.auth to sessionStorage as well gave two identity sources with
+     DIFFERENT LIFETIMES: close the tab and sessionStorage dies, so the UI
+     rendered signed-out while a valid refresh token still authenticated every
+     request; sign out in one tab and another would still render the coach
+     dashboard while its fetches went out anonymous. One store owns identity.
+     S.auth is now a mirror, rehydrated at boot by hydrateAuth(). */
+  "auth", "authBusy", "authError",
 ]);
 
 function saveState(){
@@ -9422,6 +9571,36 @@ function scheduleSave(){
 bootModules();
 loadState();
 render();
+
+/* First paint is synchronous and the network is not, so the page shows one
+   guest-flavoured frame and then re-renders when the session resolves. That is
+   the deliberate trade: a brief flash beats a blank screen waiting on a fetch,
+   and it fails CLOSED — a visitor is never shown a signed-in UI they have not
+   earned, only the reverse for a few hundred milliseconds. */
+function hydrateAuth(){
+  if(!window.SporveAuth) return;
+  window.SporveAuth.restore()
+    .then(sess=>{
+      if(!sess) return null;
+      return window.SporveAuth.loadProfile();
+    })
+    .then(p=>{
+      if(!p) return;
+      S.auth={status:"verified",user:{
+        id:p.id, firstName:p.first_name||"", lastName:p.last_name||"",
+        email:p.email||"", phone:p.phone_number||"",
+        role:p.role||"searcher", preferredSports:[], img:phAvatar(),
+      }};
+      if(p.role==="provider" && S.portal!=="coach") S.portal="coach";
+      /* Replay an intent parked before an OAuth redirect. It survived as DATA
+         in sessionStorage; the closure it replaced could not have. */
+      const parked=S.pendingIntent; S.pendingIntent=null;
+      render();
+      if(parked) setTimeout(()=>runIntent(parked),60);
+    })
+    .catch(()=>{ /* stay a guest; RLS is the real control either way */ });
+}
+hydrateAuth();
 
 /* Wrap render rather than editing it: every mutation path in the host and in
    every module already ends in render(), so this catches all of them without
