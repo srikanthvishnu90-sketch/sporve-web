@@ -492,10 +492,16 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
   # marketplace and on the very page that explains what the badge means. Both
   # branches of the ternary had been given the same string; only the class
   # differed. This is the product's core claim, so it gets an assertion.
-  badge=$($B js "(function(){S.route={name:'explore',arg:null};render();
-    var gold=[].slice.call(document.querySelectorAll('.verifline,.pill.gold'));
-    var wrong=gold.filter(function(e){return /Verification pending/i.test(e.textContent);}).length;
-    var right=gold.filter(function(e){return /Background-checked/i.test(e.textContent);}).length;
+  badge=$($B js "(function(){
+    var wrong=0,right=0;
+    ['explore','companies','trust'].forEach(function(r){
+      S.route={name:r,arg:null};render();
+      /* Every POSITIVE badge style on the page. .co-trust.ok is the companies
+         surface, which was the ninth site carrying the same inversion. */
+      var good=[].slice.call(document.querySelectorAll('.verifline,.pill.gold,.co-trust.ok'));
+      wrong+=good.filter(function(e){return /Verification pending/i.test(e.textContent);}).length;
+      right+=good.filter(function(e){return /Background-checked|Verified/i.test(e.textContent);}).length;
+    });
     return wrong?'INVERTED:'+wrong:'OK:'+right;})()" 2>/dev/null | tr -d '\r')
   case "$(printf '%s' "$badge" | tr -d '[:space:]')" in
     OK:0)       fail "catalog: no verified badge rendered at all — 10 background-checked providers and not one shield" ;;

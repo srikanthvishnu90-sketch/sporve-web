@@ -654,9 +654,13 @@ function mixOf(company){
   return m;
 }
 
+/* Both branches used to read "Verification pending" — the `ok` class carrying
+   the `no` copy — so a background-checked operator was labelled unverified in
+   positive styling. Same defect as the eight sites in the host; this was the
+   ninth. The class was always right; only the words were wrong. */
 function trustLine(company){
   return company.verified
-    ? `<span class="co-trust ok">${(typeof ICON !== "undefined" && ICON.shield) || "✓"} Verification pending</span>`
+    ? `<span class="co-trust ok">${(typeof ICON !== "undefined" && ICON.shield) || "✓"} Background-checked</span>`
     : `<span class="co-trust no">Verification pending</span>`;
 }
 
@@ -718,7 +722,15 @@ function companiesView(){
       <div class="eyebrow" data-rev>Examples</div>
       <h1 style="margin-top:16px;max-width:18ch" data-rev>Six sample businesses in Chicago.</h1>
       <p class="lede" style="margin:16px 0 0;max-width:56ch;text-align:left" data-rev>${nProg} programmes,
-        ${nSport} sports across ${nBiz} operators. Verification is pending across the roster.</p>
+        ${/* COUNTED, not asserted — the same rule as every other figure on this
+             page. "Verification is pending across the roster" was stated flatly
+             while four of the six operators had cleared their checks, so the
+             sentence contradicted the badges rendered directly beneath it. */""}
+        ${nSport} sports across ${nBiz} operators. ${nChecked === nBiz
+          ? `All ${nBiz} have cleared background checks.`
+          : nChecked === 0
+            ? `Verification is pending across the roster.`
+            : `${nChecked} of ${nBiz} have cleared background checks.`}</p>
     </div>
   </section>
 
