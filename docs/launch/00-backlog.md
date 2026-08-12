@@ -550,3 +550,36 @@ columns came from elsewhere. That migration is NOT APPLIED like the rest.
 - [ ] `[Y]` `20260801_000100_coach_agent_turns`
 
 Deliberately excluded from the safe wave: `20260728_000100_recurring_bookings` and `20260729_000500_commission_rates` (both install triggers on the live `bookings` write path), `20260728_000700_ai_drafts` (replaces three live `messages` policies), `20260728_000401_referrals` (seeds an unapproved $25 credit). None would fail; all four change live behaviour.
+
+---
+
+## Safe wave — progress
+
+**Applied and regression-tested:**
+
+- [x] `20260728_000600_coach_policies` + the two `providers` columns lifted surgically from `20260729_000100` — fixes two coach screens that were failing at runtime
+- [x] `20260728_000001_north_star_metrics` — 3 timestamp columns, 2 stamp triggers, 2 reporting views (`security_invoker`, service-role only)
+
+**A finding the apply plan missed.** It excluded four migrations for "installing triggers on the live `bookings` write path", but **two files inside its own safe wave do exactly that**: `north_star_metrics` adds `trg_stamp_provider_first_booking` and `availability_truthfulness` adds `trg_stamp_booking_provider_response`, both on `public.bookings`. The wave was still correct — but for a reason it did not state.
+
+Why `north_star` is genuinely safe, verified rather than assumed:
+- its bookings trigger is **AFTER**, so it cannot reject a write
+- it cascades an `update public.providers`, which fires `enforce_provider_trust` — and that recomputes `status` from `onboarding_completed`. **This was the real risk.** A provider with `status='approved'` but `onboarding_completed=false` would have been silently demoted to `pending` and vanished from search on the next unrelated write. Checked first: all 23 approved rows have `onboarding_completed=true` and all 4 pending have `false`. Consistent, so no demotion. **On a database where that did not hold, this migration would quietly empty the marketplace.**
+- regression-tested live: a legitimate booking still inserts, and a `providers` UPDATE leaves all 23 approved. Both rolled back.
+
+**Remaining safe wave (4, not yet applied):**
+- [ ] `[Y]` `20260728_000201_availability_truthfulness` — **read the `enforce_provider_availability_signals` BEFORE trigger against `trg_sync_public_coords` and `trg_enforce_provider_trust` first**; three BEFORE triggers on `providers` fire in name order
+- [ ] `[Y]` `20260728_000202_resolution_center` — new `disputes` table, isolated
+- [ ] `[Y]` `20260728_000300_waitlist` — new `program_waitlist` table, isolated
+- [ ] `[Y]` `20260728_000400_coach_invites` — new `coach_invites` table, isolated
+- [ ] `[Y]` `20260801_000100_coach_agent_turns` — new table, isolated
+
+### Production state at checkpoint
+| | |
+|---|---|
+| ledger entries | **21** (was 17 this morning) |
+| tables | 36 |
+| policies | 97 |
+| triggers | **25** |
+| approved / visible providers | 23 / **20** |
+| bookings / athletes | 9 / 2 |
