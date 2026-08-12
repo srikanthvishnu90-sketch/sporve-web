@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="e54815f284a126b9">
+<meta name="sporve-build" content="2549a9ad40939dcd">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -1164,6 +1164,26 @@ img{max-width:100%;display:block}
    the coach .cmdbar (80) so it is never buried, below .scrim (100) so an open
    modal still covers it. It drives the same S.chat / askCoach() pipeline as the
    full Coach finder page — one conversation, two entry points. */
+
+/* Three-category showcase. Card grid, 3 up on desktop, 1 up on a phone. */
+.kshow{padding:64px 0 60px}
+.kshow-h{font-family:var(--display);font-size:var(--text-2xl);letter-spacing:-.02em;
+  margin:14px 0 30px;max-width:22ch}
+.kshow-grid{display:grid;gap:22px;grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.kshow-grid{grid-template-columns:1fr}}
+.kcard{border:1px solid var(--rule);border-radius:var(--r-l);overflow:hidden;
+  background:var(--paper);display:flex;flex-direction:column;
+  transition:border-color .16s,transform .16s}
+.kcard:hover{border-color:var(--rule-strong);transform:translateY(-2px)}
+.kcard-img{width:100%;height:172px;object-fit:cover;display:block;flex:none}
+.kcard-body{padding:17px 18px 19px;display:flex;flex-direction:column;gap:7px;flex:1}
+.kcard-eyebrow{font-size:9px;font-weight:900;text-transform:uppercase;
+  letter-spacing:.3em;color:var(--muted)}
+.kcard-h{font-family:var(--display);font-size:var(--text-lg);letter-spacing:-.01em}
+.kcard-p{color:var(--muted);font-size:var(--text-sm);flex:1}
+.kcard .btn{align-self:flex-start;margin-top:4px}
+.kcard-soon{align-self:flex-start;margin-top:4px;font-size:var(--text-sm);
+  font-weight:700;color:var(--muted)}
 .aidock{position:fixed;right:22px;bottom:22px;z-index:85;
   display:flex;flex-direction:column;align-items:flex-end;gap:12px}
 /* The button was --ink, which is #000 — invisible against the coach portal's
@@ -4196,6 +4216,66 @@ const KIND_BANDS=[
    sub:"Recurring group sessions at the same age and level, all season."},
 ];
 
+/* A sample photograph stand-in for a category card. Same contract as phShot:
+   an inline SVG data: URI, so it survives the CSP that blocks every external
+   request, and it is generated from the sport's own colour so the three cards
+   are visibly different without shipping three JPEGs. Two figures and a ground
+   line read as "people doing a sport" at card size, which a flat disc did not. */
+function phScene(sport,seed){
+  const c=sportColor(sport), k=(seed||0)%3;
+  const svg="<svg xmlns='http://www.w3.org/2000/svg' width='640' height='420'>"+
+    "<rect width='640' height='420' fill='#EEF2F7'/>"+
+    "<circle cx='"+(150+k*40)+"' cy='120' r='70' fill='"+c+"' opacity='0.14'/>"+
+    "<circle cx='"+(470-k*30)+"' cy='90' r='46' fill='"+c+"' opacity='0.10'/>"+
+    "<rect x='0' y='330' width='640' height='90' fill='"+c+"' opacity='0.10'/>"+
+    "<circle cx='250' cy='232' r='26' fill='"+c+"' opacity='0.55'/>"+
+    "<rect x='234' y='262' width='32' height='72' rx='15' fill='"+c+"' opacity='0.55'/>"+
+    "<circle cx='372' cy='250' r='19' fill='"+c+"' opacity='0.38'/>"+
+    "<rect x='360' y='272' width='24' height='60' rx='11' fill='"+c+"' opacity='0.38'/>"+
+    "</svg>";
+  return "data:image/svg+xml,"+encodeURIComponent(svg);
+}
+
+/* THE THREE CATEGORIES, back on the landing page.
+   ---------------------------------------------------------------------------
+   The kind BANDS were removed when the catalogue went live, because production
+   is twenty solo providers and two of the three bands rendered a heading over
+   "No matching programs right now." forever.
+
+   This is the owner's ask answered without reintroducing that: three cards that
+   describe what Sporve carries, each with a sample image, rather than three
+   grids pretending to hold listings. The distinction matters more now than it
+   did last week — a family can actually pay on this page, so a filler listing
+   is not a placeholder, it is an offer that cannot be honoured.
+
+   A category with real inventory links into the filtered grid. One without says
+   "coming soon" and does not pretend to be clickable. The counts are COUNTED
+   from PROGRAMS, so the day a camp operator signs up the card changes itself. */
+function kindShowcaseHTML(){
+  const cards=KIND_BANDS.map((k,i)=>{
+    const n=PROGRAMS.filter(p=>ptypeOf(p)===k.type).length;
+    const sport=(PROGRAMS.filter(p=>ptypeOf(p)===k.type)[0]||PROGRAMS[i]||PROGRAMS[0]||{}).sport||"Soccer";
+    return `<article class="kcard">
+      <img class="kcard-img" src="${phScene(sport,i)}" alt="" width="640" height="420">
+      <div class="kcard-body">
+        <span class="kcard-eyebrow">${esc(k.tab)}</span>
+        <h3 class="kcard-h">${k.title}</h3>
+        <p class="kcard-p">${esc(k.sub)}</p>
+        ${n
+          ? `<button class="btn ghost sm" data-kindfilter="${esc(k.type)}">See ${n} ${n===1?"listing":"listings"}</button>`
+          : `<span class="kcard-soon">Coming soon</span>`}
+      </div>
+    </article>`;
+  }).join("");
+  return `<section class="band white kshow">
+    <div class="shell">
+      <p class="eyebrow">Three ways to train</p>
+      <h2 class="kshow-h">Every sport, however your athlete trains.</h2>
+      <div class="kshow-grid">${cards}</div>
+    </div>
+  </section>`;
+}
+
 function kindBandHTML(id,title,sub,type,full){
   const items=full.filter(p=>ptypeOf(p)===type);
   /* Two different kinds of empty, and they deserve different answers.
@@ -5099,7 +5179,7 @@ function exploreHTML(){
       </div>
 
       ${list.length?
-        KIND_BANDS.map(k=>kindBandHTML(k.id,k.title,k.sub,k.type,list)).join("")
+        kindShowcaseHTML()+KIND_BANDS.map(k=>kindBandHTML(k.id,k.title,k.sub,k.type,list)).join("")
         :`<div class="empty"><div class="big">${ICON.search}</div><h3>No programs match those filters</h3>
           <p style="margin-top:6px">Try clearing a filter or picking a different sport.</p>
           <button class="btn ghost sm" data-filter="clear" style="margin-top:18px">Clear all filters</button></div>`}
@@ -9409,6 +9489,13 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   $("[data-ask]").forEach(b=>b.onclick=()=>askCoach(b.dataset.ask));
   /* The dock's own controls. data-ask / data-chatclear / data-open above are
      document-wide, so the dock's copies of those are already wired. */
+  /* Category card -> filter the grid to that type and scroll to it. Sets the
+     same S.kind the tabs use, so the two controls cannot disagree. */
+  $("[data-kindfilter]").forEach(b=>b.onclick=()=>{
+    S.kind=b.dataset.kindfilter;render();
+    const el=document.querySelector(".kind-band");
+    if(el) el.scrollIntoView({behavior:"smooth",block:"start"});
+  });
   $("[data-aitoggle]").forEach(b=>b.onclick=()=>{S.aiOpen=!S.aiOpen;render();});
   /* Attach and dictate are in the reference image, so the controls are there —
      but neither is wired to anything yet. They SAY so rather than failing
