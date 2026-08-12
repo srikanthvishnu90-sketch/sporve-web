@@ -621,3 +621,49 @@ Worth writing down: **"the guard did not fire" and "the guard is broken" are dif
 - [ ] `[Y]` `20260801_000100_coach_agent_turns` — `coach_agent_turns`
 
 Each creates a table nothing currently references, with its own RLS and write-guard trigger. They cannot alter existing behaviour; the value is enabling features, not closing risk.
+
+---
+
+## Safe wave COMPLETE — all 6 applied
+
+- [x] `20260728_000001_north_star_metrics`
+- [x] `20260728_000201_availability_truthfulness`
+- [x] `20260728_000202_resolution_center`
+- [x] `20260728_000300_waitlist`
+- [x] `20260728_000400_coach_invites`
+- [x] `20260801_000100_coach_agent_turns`
+- [x] `20260728_000600_coach_policies` (+ 2 columns lifted from `20260729_000100`)
+
+### A dependency the apply plan missed — caught before it bit
+
+`20260728_000202_resolution_center` was classified "isolated, new table only". It is not.
+`enforce_dispute_insert` calls **`public.is_booking_provider_owner()`**, which is defined
+in **`20260728_000200_reviews.sql`** — a file on the **do-not-apply** list, because it adds
+`published_at is not null` to a live policy with no backfill and would blank every existing
+public review.
+
+PL/pgSQL resolves function references at **execution**, not at `CREATE FUNCTION`. So
+`resolution_center` would have applied cleanly, reported success, and then thrown
+`function public.is_booking_provider_owner(uuid) does not exist` the first time a **coach**
+opened a dispute — while a family opening one worked fine, because that branch never calls it.
+A latent failure on one code path only.
+
+Fixed by lifting `is_booking_provider_owner` out of the reviews migration surgically and
+applying it alone, leaving the destructive policy change behind. Same technique as
+`buffer_minutes` / `vacation_until`.
+
+**This is the third time tonight that "applies cleanly" was not evidence of "is correct".**
+The other two are `20260802_000102` and `_000103`, still unapplied for the same reason.
+
+### Final verification — all PASS
+| check | result |
+|---|---|
+| `disputes`, `program_waitlist`, `coach_invites`, `coach_agent_turns` exist | PASS |
+| `is_booking_provider_owner` present | PASS |
+| all 4 new tables have RLS enabled | PASS |
+| **no new table is readable by `anon`** | PASS |
+| COPPA gate intact | PASS |
+| background-check gate intact | PASS |
+| visible providers | **20** |
+| `anon` blocked on `providers.latitude` | PASS |
+| ledger entries | **26** (was 17 this morning) |
