@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="174723f9cb616129">
+<meta name="sporve-build" content="1373ddb7b54362a9">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -6478,16 +6478,14 @@ function modalHTML(){
   if(m.type==="onboard"){
     const step=S.onboardStep;
     const sports=Object.keys(SPORT_COLOR).sort();
-    if(step===0) return wrap("How will you use Sporve?",`
-      <p style="color:var(--muted);margin-bottom:20px">Choose a role before creating an account.</p>
-      ${[["family","I'm looking for training","Discover background-check-verified coaches, compare programs, and book training."],
-         ["coach","I provide training","Create listings, manage sessions, and communicate with families."]]
-        .map(([k,t,d])=>`<button class="onbcard ${S.signupRole===k?"on":""}" data-srole="${k}">
-          <b>${t}</b><span>${d}</span></button>`).join("")}
-      <button class="btn wide" data-onbnext="1" style="margin-top:20px">Continue</button>`);
-    if(step===1) return wrap("Pick your sports",`
+    /* The role-picker step that used to sit here is gone. It was the third
+       place in the app asking a question the codebase already decided to infer
+       (:5720-5722), and it was the only way a coach could reach this modal —
+       which is now the family create-account path exclusively. Coaches go
+       through coachgate to the 7-step wizard in mod-coachonboard.js. */
+    if(step===0) return wrap("Pick your sports",`
       <p style="color:var(--muted);margin-bottom:18px">
-        ${S.signupRole==="coach"?"Which sports do you coach?":"What does your athlete play?"}
+        What does your athlete play?
         Select as many as apply.</p>
       <div style="display:flex;flex-wrap:wrap;gap:8px;max-height:280px;overflow:auto;padding:2px">
         ${sports.map(s=>`<button class="sportpick ${S.onboardSports.includes(s)?"on":""}" data-pick="${esc(s)}"
@@ -6497,8 +6495,7 @@ function modalHTML(){
       <button class="btn wide" data-onbnext="1" style="margin-top:14px" ${S.onboardSports.length?"":"disabled"}>Continue</button>
       <button class="btn ghost wide" data-onbback="1" style="margin-top:9px">Back</button>`);
     return wrap("Create your account",`
-      <p class="eyebrow" style="margin-bottom:16px">
-        ${S.signupRole==="coach"?"Coach account · Final step":"Athlete &amp; family · Final step"}</p>
+      <p class="eyebrow" style="margin-bottom:16px">Athlete &amp; family · Final step</p>
       <form id="signupForm">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
           <div class="field"><label>First name</label><input name="first" placeholder="Alex" required></div>
@@ -8038,8 +8035,11 @@ if(id==="messaging"){
    footer for this route). Colour law: black ground, white/slate literals. */
 function startCoachOnboarding(){
   S.portal="coach";S.signupRole="coach";
-  if(!isVerified()){S.onboardStep=0;S.modal={type:"onboard"};}
-  else {S.coachTab=modView("onboard")?"onboard":"dashboard";}
+  /* One wizard for everyone. This used to fork on isVerified() — a guest got
+     the 3-step signup modal, a signed-in user got the 7-step wizard — which
+     also meant the string "onboard" resolved to two unrelated surfaces
+     depending on whether it reached S.modal.type or modView(). */
+  S.coachTab=modView("onboard")?"onboard":"dashboard";
   S.route={name:"dashboard",arg:null};window.scrollTo(0,0);render();
 }
 function coachGateHTML(){
@@ -8438,7 +8438,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   $("[data-close]").forEach(b=>b.onclick=()=>dismiss());
   $("[data-scrim]").forEach(b=>b.onclick=e=>{if(e.target===b) dismiss();});
   $("[data-modal]").forEach(b=>b.onclick=()=>{S.modal={type:b.dataset.modal};render();});
-  $("[data-srole]").forEach(b=>b.onclick=()=>{S.signupRole=b.dataset.srole;render();});
+  /* [data-srole] handler removed with the role-picker step it drove. */
   $("[data-signin]").forEach(b=>b.onclick=()=>{S.modal={type:"authsheet"};render();});
   $("[data-acct]").forEach(b=>b.onclick=()=>{S.modal={type:"account"};render();});
   $("[data-addchild]").forEach(b=>b.onclick=()=>{S.modal={type:"addchild"};render();});
@@ -8608,7 +8608,12 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     if(side==="co"){S.portal="coach";S.coachTab=key;go("dashboard");}
     else go(key);
   });
-  $("[data-onboard]").forEach(b=>b.onclick=()=>{S.onboardStep=0;S.modal={type:"onboard"};render();});
+  /* This modal is the family/searcher create-account path only, so the role is
+     pinned here rather than asked. Without this, a visitor who had clicked
+     "Become a coach" earlier (which sets signupRole="coach" at :7992) and then
+     backed out would silently create a provider account from the family form. */
+  $("[data-onboard]").forEach(b=>b.onclick=()=>{
+    S.onboardStep=0;S.signupRole="family";S.modal={type:"onboard"};render();});
 
   /* PART 7 — one identifier field, then branch. An address we've seen goes to
      the password step; anything else creates an account. */
@@ -8755,7 +8760,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   });
   $("[data-soon]").forEach(b=>b.onclick=()=>toast(b.dataset.soon+" isn't wired up yet"));
   $("[data-demoacct]").forEach(b=>b.onclick=()=>{completeAuth({...SEED.user});toast("Signed in to the demo account");});
-  $("[data-onbnext]").forEach(b=>b.onclick=()=>{S.onboardStep=Math.min(2,S.onboardStep+1);render();});
+  $("[data-onbnext]").forEach(b=>b.onclick=()=>{S.onboardStep=Math.min(1,S.onboardStep+1);render();});
   $("[data-onbback]").forEach(b=>b.onclick=()=>{
     if(S.onboardStep===0){S.modal={type:"authsheet"};} else S.onboardStep--; render();});
   $("[data-pick]").forEach(b=>b.onclick=()=>{
@@ -8804,8 +8809,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     if(d.password.length<8) return show("Password must be at least 8 characters.");
     if(!d.privacy) return show("Please acknowledge Sporve's Privacy Policy to continue.");
     completeAuth({firstName:d.first,lastName:d.last,email:d.email,phone:d.phone||"",
-      role:S.signupRole==="coach"?"provider":"searcher",preferredSports:S.onboardSports.slice()});
-    if(S.signupRole==="coach") S.portal="coach";
+      role:"searcher",preferredSports:S.onboardSports.slice()});
     toast("Account created");
   };
 
