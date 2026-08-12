@@ -524,3 +524,29 @@ columns came from elsewhere. That migration is NOT APPLIED like the rest.
 - [ ] `[RED]` **providers column leak, authenticated half — NOT DONE, needs a paired client change.** `providers_select_public` grants to `anon, authenticated`, signup is free, so any signed-in user still reads all 20 coaches' coordinates and Stripe IDs. Column privileges are per-role, not per-policy, so the owner's own full-row read must move to a definer function first. `supabase_repository.dart:3339` calls `.select()` (SELECT *) on the owner's row — revoking without changing that line returns `permission denied for column latitude` and breaks every coach dashboard. Both halves drafted in `docs/launch/sql/6-providers-column-leak-part2.md`. **Ship the client change first.**
 - [ ] `[Y]` **Durable fix for the coordinate class of bug:** store `public_latitude`/`public_longitude` rounded to ~1km for map pins, keep exact coordinates owner-and-service-role only for server-side distance. Removes the class rather than the instance.
 - [x] `[Y→PR]` **`platform_fees` rewritten from 18%/4% to a flat 1200 bps** — sporve-app PR #20. Also fixed `resolve_platform_fee_bps`, whose "fail safe" fallback returned 1800: safe for the platform, six points out of the coach's pocket. Upsert changed from `DO NOTHING` to `DO UPDATE` so a re-run corrects a wrong row instead of silently leaving it.
+
+---
+
+## Apply plan — key findings (2026-08-11 late)
+
+- [x] `[G]` **The cutoff assumption was wrong.** 19 of the 39 depend on `20260626_000000_services_availability.sql`, which is dated BEFORE the ledger's last entry and is **also unapplied**. Prod's ledger has 19 entries against ~31 pre-cutoff files, so "everything before `20260725033343` is applied" is false. `services`, `availability` and `set_updated_at()` exist in no other file.
+- [x] `[G]` **No migration in the 39 reverts either gate applied tonight.** All ten redefinitions checked. `20260801_000302` rewrites every policy in `public` but never authors a predicate — it reads `pg_get_expr` from the catalog and substitutes only `auth.uid()` → `(select auth.uid())`. `provider_safety_cleared`, `providers_select_public`, `programs_select_public`, `search_candidates`, `enforce_provider_trust` and the consent gate are untouched.
+- [x] `[G]` **Two static findings reversed:** `20260729_000100` *fixes* `availability_select_public` rather than reintroducing `USING (true)`, and `20260729_000620` keeps the parent's `visible_to_parent = true` branch verbatim.
+- [x] `[APPLIED]` **Fixed two coach screens that were failing at runtime.** `supabase_repository.dart:2119` and `:3458` query seven `providers` columns that did not exist in production. Applied `20260728_000600_coach_policies` (5 columns + a `faq` array CHECK, purely additive) and the two `providers` columns from `20260729_000100` surgically, without the rest of that migration, which depends on tables prod lacks. All seven now exist.
+
+### Do not apply as written
+- [ ] `[RED]` **`20260729_000300_coach_invoices`** — `:40,:46` widen the fee-kind CHECK and insert `('offplatform', 250)`, reintroducing the 2.5% off-platform rate the owner killed. `:150` also fails safe to 250 bps. Same defect as `platform_fees` had. **Rewrite before applying.**
+- [ ] `[Y]` **`20260728_000200_reviews`** — `:312` adds `published_at is not null` to a live policy with no backfill for a column the same file adds. Every existing public review goes dark.
+- [ ] `[RED]` **`20260802_000105_fix_p2_hardening`** — `:146` drops the baseline `conversations_insert_participant` with no replacement; `:119` adds a service-role exemption to `prevent_profile_role_change` that prod's version does not have.
+- [ ] `[RED]` **`20260802_000102` and `20260802_000103` are the worst files in the set.** They apply *cleanly* against prod today and then break every booking write: PL/pgSQL resolves `new.service_id` at execution, not at `CREATE FUNCTION`, and both bind to `bookings` with no `UPDATE OF` list to validate against. `000102` drops the working prod trigger first, so there is no fallback. **A clean apply is not evidence of safety for these two.**
+- [x] ~~`20260728_000101_platform_fees` fallback still 1800~~ — stale finding; the agent read the file before the rewrite. Line 100 reads `1200`. Verified.
+
+### Remaining safe wave (not yet applied)
+- [ ] `[Y]` `20260728_000001_north_star_metrics`
+- [ ] `[Y]` `20260728_000201_availability_truthfulness`
+- [ ] `[Y]` `20260728_000202_resolution_center`
+- [ ] `[Y]` `20260728_000300_waitlist`
+- [ ] `[Y]` `20260728_000400_coach_invites`
+- [ ] `[Y]` `20260801_000100_coach_agent_turns`
+
+Deliberately excluded from the safe wave: `20260728_000100_recurring_bookings` and `20260729_000500_commission_rates` (both install triggers on the live `bookings` write path), `20260728_000700_ai_drafts` (replaces three live `messages` policies), `20260728_000401_referrals` (seeds an unapproved $25 credit). None would fail; all four change live behaviour.
