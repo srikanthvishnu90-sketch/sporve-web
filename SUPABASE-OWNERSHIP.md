@@ -70,62 +70,81 @@ correct number of `db push` commands to run against production is zero.**
 
 | surface | owner | status |
 |---|---|---|
-| `supabase/functions/` (edge functions) | **LANDING** (`~/Downloads/sporve-landing`) | decided, on evidence |
-| `supabase/migrations/` (schema) | **UNRESOLVED** | see §4 — owner must decide |
+| `supabase/functions/` (edge functions) | **APP** (`~/SportsMan-main`) | decided, on production evidence |
+| `supabase/migrations/` (schema) | **APP** (`~/SportsMan-main`) | decided, by owner + elimination |
 | Supabase secrets / env vars | owner, by hand in the dashboard | never in a repo |
 | `supabase/config.toml` | each repo keeps its own; it is local config, not a deploy target | — |
 
-### 2.1 Edge functions — LANDING owns them
+### 2.1 APP owns both surfaces
 
-Evidence, gathered 2026-08-11:
+**An earlier draft of this file named LANDING, on line counts. That was wrong,
+and the correction is recorded here rather than quietly overwritten, because the
+reasoning error is the useful part.**
 
-1. **LANDING's copy is the newer one in every function that exists in both.**
-   Ten functions are present in both repos and differ. LANDING's file is larger
-   in all ten. Byte counts of `index.ts`:
+The original argument was that LANDING's `index.ts` is larger in all ten
+functions that exist in both repos, and that size moving the same direction
+across ten independent files is a fork developed on one side. The first half is
+true. The second half does not follow — **file size measures which generation a
+file belongs to, not which generation is deployed.** Checked directly:
 
-   | function | LANDING | APP |
-   |---|---|---|
-   | `ai-gateway` | 43,511 | 14,635 |
-   | `chat-answer` | 18,002 | 6,366 |
-   | `generate-embedding` | 15,871 | 5,204 |
-   | `ai-chat` | 12,741 | 5,086 |
-   | `ai-match` | 12,240 | 9,517 |
-   | `search-parse` | 9,244 | 8,829 |
-   | `search-execute` | 7,947 | 6,869 |
+- APP's shared functions were last modified **2026-08-01**; LANDING's
+  **2026-07-15**. APP is seventeen days *newer*, not stale.
+- The two trees are a genuine **fork**, not an old copy and a new one: APP's
+  `ai-gateway` calls `consume_edge_rate_limit`, LANDING's calls
+  `reserve_ai_capacity`. **Both RPCs exist in production**, so dependency
+  presence does not discriminate either.
 
-   Size alone is weak evidence. Size in the same direction across ten
-   independent files is not — it is a fork that was developed on one side only.
+What settled it was asking production, not the repos:
 
-2. **Production's migration ledger contains exactly LANDING's AI-observability
-   tables.** The tables that `ai-gateway` writes to were created by LANDING's
-   migrations (`20260715000001_ai_observability.sql` and siblings), and those
-   version strings are in the ledger. The deployed functions and LANDING's
-   schema are the same lineage.
+1. **Prod runs 33 edge functions. Four are Stripe** —
+   `stripe-webhook`, `stripe-create-checkout`, `stripe-connect-onboarding`,
+   `stripe-provider-payouts` — and those exist **only in APP**. LANDING could
+   not have deployed them.
+2. **A bulk deploy stamped `1785208914592` (~2026-07-26) covers twenty functions
+   at once.** APP commit `808a793` (2026-07-27) carries a deploy receipt naming
+   all twelve shared functions. `git log --all --grep='Deployed Functions'` in
+   LANDING returns zero.
+3. **Every later single deploy is APP-side** — `draft-recap`, `draft-reply`,
+   `setup-interview`, `camp-recap`, `camp-broadcast`, `waitlist-offer-draft`,
+   `stripe-provider-payouts`.
+4. **LANDING deployed exactly two functions, both earlier and both narrow**:
+   `join-waitlist` (~2026-07-02) and `ai-feedback` (~2026-07-08).
 
-3. **LANDING carries the operational apparatus for these functions** —
-   `supabase/AI-DEPLOYMENT.md`, `supabase/AI-OBSERVABILITY-RUNBOOK.md`, and
-   `scripts/ai-release-safety.mjs`, `scripts/probe-ai-ingress.mjs`,
-   `scripts/run-ai-evals.mjs`, `scripts/run-ai-smoke.mjs`. APP has no `scripts/`
-   directory at all.
+Migrations follow by elimination plus an owner decision: on 2026-08-11 the owner
+confirmed the waitlist landing page **is being taken down**. A repo scheduled
+for decommissioning cannot own production.
 
-**Therefore: `supabase functions deploy` runs from LANDING only.**
+**Therefore: `supabase functions deploy` and `supabase db push` run from APP only.**
 
-APP's `supabase/functions/` (33 directories) is now **reference material, not a
-deploy source**. It is not deleted — it still contains functions LANDING does
-not have, including the Stripe path — but nothing in it may be deployed until
-that function has been reconciled into LANDING or the decision in §4 moves it.
+> What LANDING is still needed for, before anything there is deleted. It holds
+> three things APP lacks, and two of them are CRITICAL-PATH:
+>
+> - **`ai-match` is a rewrite, not a diff.** `matchguard.ts:4-10` states that
+>   production matching no longer calls a model, using a deterministic
+>   `ranking-policy.ts`. Deleting LANDING's copy re-introduces LLM-decided coach
+>   matching.
+> - **`ai-chat` child-safety is enforced only in LANDING.** A
+>   `HEALTH_REQUEST`/`TRAINING_REQUEST` regex preflight returns a canned
+>   "contact a healthcare professional" reply *before* the model runs. APP's
+>   equivalent is system-prompt text — a suggestion, not a control.
+> - `search-parse:181` in LANDING returns `(e as Error).message` to the client,
+>   which leaks internals; APP has a generic 500 body and a `405` method
+>   allowlist. Take the better half of each.
+>
+> Reconcile these into APP **before** LANDING is retired, not after.
 
-> Open sub-question, not settled by the above: APP holds Stripe functions that
-> LANDING does not. Deploying a *money* function from a repo that does not own
-> the function set is exactly the class of accident this file exists to prevent.
-> Resolve it as part of §4 rather than by exception.
+> Also unaccounted for: two functions in production, `AI-Chat` and
+> `Join-Waitlist`, have entrypoint `source/index.ts` with no
+> `supabase/functions/` prefix — they were written in the Supabase dashboard
+> editor and exist in **no repo at all**. Recover their source before deleting
+> them.
 
 ---
 
 ## 3. The hard rules
 
 1. **Only the owning repo runs the deploy command for its surface.**
-   - `supabase functions deploy …` → **LANDING only**.
+   - `supabase functions deploy …` → **APP only** (`~/SportsMan-main`).
    - `supabase db push` → **nobody, today.** After §4 is decided and the
      baseline exists, the repo named there, and only that one.
 2. **`supabase link` in a non-owning repo is itself the violation.** The damage
@@ -157,7 +176,7 @@ that function has been reconciled into LANDING or the decision in §4 moves it.
 
 ### The rule and the reality do not currently agree
 
-Rule 1 says functions deploy from LANDING. Rule 3 records that LANDING is the
+Rule 1 says functions deploy from APP. Rule 3 records that LANDING is the
 repo that is **unlinked**, and APP is the one that is linked. That is
 deliberate, and it is the safe ordering: the *linked* repo is the one whose 73
 unrecorded migrations could destroy prod, so unlinking removed the wrong kind of
@@ -166,10 +185,16 @@ APP must be unlinked. Do not leave both linked.
 
 ---
 
-## 4. Migration ownership — UNRESOLVED
+## 4. Migration ownership — RESOLVED: Option A (APP)
 
-This is a decision the owner has to make. It is recorded here unmade rather than
-guessed, because guessing it wrong costs the production database.
+**Decided 2026-08-11.** The owner confirmed the waitlist landing page is being
+taken down, which eliminates LANDING; production evidence in §2.1 independently
+shows APP is the deploying repo. Option A stands. The analysis below is kept
+because the *Against* column is a live risk register, not a rejected argument —
+every objection to Option A is still true and still has to be worked off.
+
+Neither option was available until prod is dumped to a baseline, and that is
+still true: **Option A is decided, not yet executable.** Backlog 0.2 gates it.
 
 Neither option is available until prod is dumped to a baseline (backlog 0.2).
 Both options begin the same way: dump production, commit it as

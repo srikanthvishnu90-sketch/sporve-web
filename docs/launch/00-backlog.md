@@ -50,7 +50,12 @@ Nothing else is safe until these are done. No feature work in parallel.
 
 ### 0.1 Deploy-target safety
 - [x] `[G]` Unlink `sporve-landing` from prod (`supabase/.temp` → `.temp.unlinked-2026-08-11`)
-- [ ] `[G]` Add `supabase/.temp/` to `.gitignore` in both repos if absent
+- [x] `[G]` Add `supabase/.temp/` to `.gitignore` in both repos — **and fixed a subtle bug in the existing entries.** Both read `supabase/.temp/` with a trailing slash, which matches only a directory of that exact name; the unlink rename `supabase/.temp.unlinked-2026-08-11/` was therefore **not** ignored. Changed to `supabase/.temp*`. Verified: `git check-ignore -v` now matches both spellings in both repos.
+- [x] `[G]` **Closed the MEDIUM `.gitignore` env gap in `SportsMan-main`.** It ignored only the two literal paths `env.json` and `supabase/functions/.env`, so a root `.env`, a `.env.local`, or a `.env` inside any *new* edge-function directory would have been committed by `git add -A`. Added `**/.env`, `**/.env.*`, with `!**/.env.example` preserved. Verified: `git check-ignore -v .env` → `.gitignore:62:**/.env`.
+- [x] `[G]` Write `SUPABASE-OWNERSHIP.md`, byte-identical in all four working trees (md5 `3bac131f…`), naming **APP** as owner of both surfaces with the production evidence and the recorded correction
+- [x] `[G]` Resolve §4 of that doc — migration ownership decided as Option A (APP), with the *Against* column kept as a live risk register
+- [x] `[G]` Write `pre-push` hooks + `scripts/supabase-guard.sh` in both backend repos — **with their real limits documented rather than hidden.** A `pre-push` hook cannot intercept `supabase db push` or `supabase functions deploy`, because git is never invoked and no hook fires. What the hook genuinely does: hard-fail a push whose commits add or modify anything under `supabase/.temp`. The guard script shadows the `supabase` binary as a shell function and refuses `db push` everywhere and `functions deploy` from non-owners; its header lists the four ways to bypass it. It is a seatbelt against muscle memory, not a lock.
+- [ ] `[Y]` **The control that would actually be protective:** move `db push` behind a GitHub Action in APP with the token as a repo secret, so the only path to production is a merged PR, and no laptop holds a credential that can write to prod
 - [x] `[owner+prod]` **OWNERSHIP RESOLVED: `SportsMan-main` owns both migrations and functions.**
 
   Owner's decision (2026-08-11): the owning repo is the Sporve demo app or the
@@ -161,8 +166,16 @@ Nothing else is safe until these are done. No feature work in parallel.
 ### 0.4 Environment
 - [ ] `[owner]` Install Docker Desktop — blocks `db reset`, `db diff`, `db pull`
 - [ ] `[owner]` Install Vercel CLI (`npm i -g vercel`) — unblocks `vercel env pull`, `vercel logs`
-- [ ] `[G]` Verify `supabase --version` is current
-- [ ] `[G]` Document the exact CLI versions that produced the baseline dump
+- [x] `[G]` Record the toolchain → `docs/launch/0-4-environment.md`
+- [ ] `[G]` Document the exact CLI versions that produced the baseline dump (once the dump exists)
+
+### 0.5 Production row counts — the blast radius, now measured
+Owner unblocked these 2026-08-11.
+
+- [x] `[G]` **23 of 27 providers are `approved`, and 20 of those have coordinates.** That is the live exposure of the `providers_select_public` column leak — 20 sets of coordinates, plus `owner_id` and `stripe_account_id`, readable by any anonymous caller. Not theoretical.
+- [x] `[G]` 2 providers have a `stripe_account_id` set
+- [x] `[G]` 9 bookings, 2 athletes, 40 auth users
+- [x] `[G]` **0 orphaned auth users** — defect D1 has not fired in production. The `handle_new_user` exception-swallowing bug is real but has produced no bad rows yet. Fix the trigger; **no repair job is needed.** Downgrade D1b.
 
 ---
 
