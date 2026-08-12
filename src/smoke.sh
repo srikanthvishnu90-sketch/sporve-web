@@ -676,6 +676,25 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)          fail "booking: signed-out probe threw synchronously ($signedout)" ;;
   esac
 
+  # A LIVE listing must never take the demo path. Signed out, it has to ask for
+  # sign-in and replay — not fabricate a "confirmed" booking against a real
+  # coach who will never hear about it.
+  nodemo=$($B js "(function(){
+    /* Read the shipped handler: it must branch on isLive and canBook
+       SEPARATELY. ANDing them is what routed a live listing to the demo. */
+    var s=document.documentElement.innerHTML;
+    var hasSplit=/const isLive=/.test(s)&&/const canBook=/.test(s);
+    var hasAndBug=/const live=p\.live&&s\.live&&window\.SporveBooking/.test(s);
+    if(hasAndBug) return 'ANDED';
+    return hasSplit?'OK':'NOSPLIT';
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$nodemo" | tr -d '[:space:]')" in
+    OK)      pass "booking: a live listing asks for sign-in rather than degrading to a demo booking" ;;
+    ANDED)   fail "booking: live and can-book are ANDed again — a signed-out visitor fabricates a confirmed booking against a real coach" ;;
+    NOSPLIT) fail "booking: the isLive/canBook split is gone ($nodemo)" ;;
+    *)       fail "booking: demo-degradation probe returned nothing ($nodemo)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never

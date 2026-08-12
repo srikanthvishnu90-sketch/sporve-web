@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="839c2e4ffb2683cd">
+<meta name="sporve-build" content="e321d276cf066e91">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -9496,17 +9496,33 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     e.preventDefault();
     const d=Object.fromEntries(new FormData(bf));
     const p=programById(S.modal.programId);
+    if(!p){toast("That listing is no longer available");return;}
     const a=S.athletes.find(x=>x.id===d.athlete);
     const s=slotsFor(p.id).find(x=>x.id===d.slot);
-    if(!p||!s){toast("That session is no longer available");return;}
+    if(!s){toast("That session is no longer available");return;}
 
-    /* A LIVE listing books for real. A seeded one keeps the local path, because
-       there is no row behind it to book — sending a "prog_3" to PostgREST would
-       just 400. The two are distinguished by the flag mod-catalog sets, not by
-       guessing at the id format. */
-    const live=p.live&&s.live&&window.SporveBooking&&window.SporveAuth&&window.SporveAuth.isSignedIn();
+    /* TWO SEPARATE QUESTIONS, and conflating them was a real defect.
 
-    if(live){
+       `isLive` asks what the LISTING is. `canBook` asks whether we can act
+       right now. The first version ANDed them, so a live listing booked by a
+       signed-out visitor fell through to the demo branch and fabricated a
+       "confirmed" booking against a real coach — the family gets a
+       confirmation, the coach never hears, and nothing exists. That is the
+       same lie as the old paymentStatus:"paid", wearing a different hat.
+
+       A live listing that cannot be booked yet asks for sign-in and REPLAYS
+       the booking afterwards. It never silently degrades to a demo. */
+    const isLive=!!(p.live&&s.live);
+    const canBook=!!(window.SporveBooking&&window.SporveAuth&&window.SporveAuth.isSignedIn());
+
+    if(isLive&&!canBook){
+      S.pendingIntent={kind:"book",programId:p.id};
+      S.modal={type:"authsheet"};
+      render();
+      return;
+    }
+
+    if(isLive){
       S.bookBusy=true;render();
       window.SporveBooking.create({sessionId:s.id,programId:p.id,
         athleteId:(a&&a.serverId)||null,tier:d.tier})
