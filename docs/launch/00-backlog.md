@@ -297,7 +297,7 @@ home address.
 - [ ] `[RED]` `is_org_admin(uuid)` is `SECURITY DEFINER` and executable by **anon** `[prod advisor]`
 - [ ] `[RED]` `rls_auto_enable()` is `SECURITY DEFINER` and executable by **anon** `[prod advisor]`
 - [ ] `[RED]` Revoke `execute` from `anon` on both
-- [ ] `[RED]` `find_affiliatable_account` is an account-existence oracle — anyone can self-serve `role='provider'` then become their own org admin
+- [x] ~~`[RED]` `find_affiliatable_account` is an account-existence oracle~~ — **not live.** The function does not exist in production; `20260729_000510_trainer_affiliation` was never applied. Fix the SQL before that migration ships; there is nothing to fix in prod today.
 - [ ] `[Y]` Never use `is_org_member()` for `athletes`, `session_notes`, `parent_updates`, `messages`, `conversations` — key on the specific assignment, or a 50-trainer org becomes 50 readers of one child's notes
 - [ ] `[G]` Enumerate all 97 live policies and classify each: correct / too broad / unknown
 - [ ] `[G]` For each of 36 tables, write down who should read and who should write
@@ -397,8 +397,31 @@ Only possible after Docker is installed and the Phase 0 dumps exist.
 
 ## Phase 5 — COPPA and consent `[CRITICAL-PATH]`
 
-- [ ] `[G]` Determine whether `20260728_000203_coppa_gate.sql` is applied — it is **after** the last ledger entry `20260725033343`, so probably **not**
-- [ ] `[RED]` Apply the consent gate if absent
+- [x] `[G]` **CONFIRMED AGAINST PRODUCTION: the COPPA consent gate is NOT enforced.** `20260728_000203_coppa_gate.sql` creates two functions and two triggers. Production has **none** of them:
+
+  | object | in prod |
+  |---|---|
+  | `enforce_athlete_consent()` | **0** |
+  | `enforce_booking_athlete_consent()` | **0** |
+  | `trg_enforce_athlete_consent` | **0** |
+  | `trg_enforce_booking_athlete_consent` | **0** |
+  | `athletes.parent_consent`, `.consent_at`, `.consent_version` | **3 of 3 present** |
+
+  **The columns exist and nothing checks them.** The consent model is in the
+  schema — it was applied by hand, or came in with an earlier migration — but the
+  enforcement never was. `athletes` carries **zero triggers** in production. So a
+  minor's record can be created with `parent_consent` null, and a booking can be
+  made against that athlete, and the database will accept both silently.
+
+  This is the single highest-severity finding of the launch audit. It is not a
+  bug in the code — the code is written and correct and sitting in a file. It is
+  a **deployment gap**, which is exactly the failure mode the split-brain
+  migration lineage produces: work that looks done in the repo and does not exist
+  in production.
+
+- [ ] `[RED]` Apply `20260728_000203_coppa_gate.sql` to production — **highest priority item in this document**
+- [ ] `[G]` Before applying: check whether existing `athletes` rows would violate the new gate (2 athletes exist; if either has a null `parent_consent`, the trigger will reject future updates to that row)
+- [ ] `[Y]` Add a smoke assertion that both consent triggers exist, so this cannot silently regress
 - [ ] `[Y]` Verifiable parental consent before any athlete under 13 has a record
 - [ ] `[Y]` Consent is recorded with timestamp, method, and the consenting adult
 - [ ] `[Y]` No under-13 data collected before consent
