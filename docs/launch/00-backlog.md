@@ -71,9 +71,13 @@ Nothing else is safe until these are done. No feature work in parallel.
 - [ ] `[Y]` **NEW D1c** — make the signup trigger fail loudly instead of silently
 - [ ] `[G]` **NEW D2** — document that `prevent_profile_role_change` returns `new` (allows) when `auth.uid()` is null, so any of the 14 service-role-holding edge functions can silently rewrite any user's role. Intentional, but the name overstates the protection.
 - [ ] `[Y]` **NEW D3** — `claim_organization_role` has no gate at all: any provider self-declares as an organization. Combined with `find_affiliatable_account` being org-admin gated, that is the account-existence oracle in 2.3. Fix the oracle, not this function.
-- [ ] `[RED]` Dump all 97 live policies to `prod-policies-2026-08-11.sql`
-- [ ] `[RED]` Dump all live function definitions in `public`
-- [ ] `[RED]` Dump all live triggers in `public`
+- [x] `[G]` Dump all 97 live policies → `docs/launch/0-2-prod-inventory.md` §1–2. **No policy anywhere uses `USING (true)`.** All 83 authenticated policies resolve to one of five ownership shapes.
+- [x] `[G]` Dump all 19 live triggers → same file §3
+- [x] `[G]` **Verify the two policies that RLS alone would not make safe** → §4
+  - `bookings_update_searcher` would let a parent set `payment_status='paid'`; `enforce_booking_provider_update` freezes 15 financial/identity columns and runs `status` through an explicit state machine. **Sound.**
+  - `organization_members_update_self` would let a trainer mark themselves background-checked — the worst possible bug in this product; `enforce_org_member` forces `background_check_status := 'none'` on insert and raises on any end-user change. **Sound.**
+- [x] `[G]` Record the systemic caveat → §5. Every guard short-circuits on `auth.uid() is null`, which is required for the background-check webhook but means **none of these triggers defend against a compromised edge function**. 14 functions hold the service-role key.
+- [ ] `[G]` Query the `storage` schema for bucket policies — not covered by §1–5, `provider-media` still open
 - [ ] `[RED]` Full `supabase db dump --schema public` → `00000000000000_prod_baseline.sql`
 - [ ] `[RED]` Full `supabase db dump --data-only` of reference tables (sports, categories)
 - [ ] `[G]` Commit all dumps to the owning repo — this is the first time prod is reproducible
@@ -228,13 +232,12 @@ home address.
 
 - [x] `[G]` Re-check `availability` — **`availability_select_public ... USING (true)` is NOT live in production.** It appears in the migration files but is absent from `pg_policies`, i.e. that migration was never applied. Struck from 2.3 below; keep it from ever being applied as written.
 
-### 2.2 Storage
-- [ ] `[RED]` `provider-media` bucket allows unconditional `anon` read (`20260801_000200:54-57`)
-- [ ] `[RED]` Paths are `{uid}/...` where `uid` is the `owner_id` leaked by 2.1 — enumerable
-- [ ] `[Y]` Move to signed URLs with a TTL
-- [ ] `[Y]` Or randomise path prefixes so they are unguessable
-- [ ] `[G]` Audit every other storage bucket's policy
-- [ ] `[G]` Confirm no bucket allows anon **write**
+### 2.2 Storage — **not live, deferred**
+- [x] `[G]` Audit every storage bucket policy — **`storage.buckets` is EMPTY in production. Zero buckets exist.**
+- [x] `[G]` Confirm no bucket allows anon write — vacuously true; there are no buckets
+- [x] ~~`[RED]` `provider-media` unconditional `anon` read~~ — **authored, not applied.** Not a live exposure. Media upload is not a working feature in prod.
+- [ ] `[Y]` Before that migration is ever applied, fix the policy: signed URLs with a TTL, or unguessable path prefixes instead of `{uid}/...`
+- [ ] `[Y]` Do not use `owner_id` as a storage path component — it is the same value 2.1 leaks
 
 ### 2.3 Policy correctness
 - [x] ~~`[RED]` `availability_select_public ... USING (true)`~~ — **not live**; the migration defining it was never applied. Do not apply it as written.
