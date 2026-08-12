@@ -161,7 +161,9 @@ function ensure(){
 }
 const allReviews=()=>{ensure();return (typeof S!=="undefined"&&Array.isArray(S.reviews))?S.reviews:REVIEWS;};
 const allGoals=()=>{ensure();return (typeof S!=="undefined"&&Array.isArray(S.goals))?S.goals:GOALS;};
-const prog=id=>PROGRAMS.find(p=>p.id===id);
+/* Seeded reviews carry seeded program ids, so this must still resolve after
+   mod-catalog.js swaps PROGRAMS for live rows — see mod-coachops.js. */
+const prog=id=>PROGRAMS.find(p=>p.id===id)||DEMO_CATALOGUE.find(p=>p.id===id);
 
 const initialsOf=name=>String(name).trim().split(/\s+/).map(w=>w[0]||"").slice(0,2).join("").toUpperCase();
 const authorName=u=>u?`${u.firstName} ${u.lastName?u.lastName[0]+".":""}`.trim():"You";

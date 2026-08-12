@@ -89,7 +89,9 @@ const host=()=>(typeof S!=="undefined"&&S)?S:LOCAL;
 const adv=()=>{ensure();return host().adv||LOCAL.adv;};
 const saved=()=>{ensure();return host().savedSearches||LOCAL.savedSearches;};
 const compareIds=()=>{ensure();return host().compareIds||LOCAL.compareIds;};
-const prog=id=>PROGRAMS.find(p=>p.id===id);
+/* A saved search or compare list persisted before the catalogue went live
+   still holds seeded ids, so fall back rather than resolve to undefined. */
+const prog=id=>PROGRAMS.find(p=>p.id===id)||DEMO_CATALOGUE.find(p=>p.id===id);
 const catalogue=()=>(typeof PROGRAMS!=="undefined"&&Array.isArray(PROGRAMS))?PROGRAMS:[];
 
 /* ── bounds derived from the catalogue, never hardcoded ──────────── */

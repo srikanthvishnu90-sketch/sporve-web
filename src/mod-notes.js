@@ -89,13 +89,16 @@ const skillsFor = sport =>
   SKILLS[sport] || ["Technique", "Conditioning", "Game awareness", "Consistency", "Confidence"];
 
 /* ═══════════════════ ROSTER + SESSION LEDGER ═══════════════════ */
-const prog = id => PROGRAMS.find(p => p.id === id) || null;
+/* Live catalogue first, seeded second — see the note in mod-coachops.js. */
+const prog = id => PROGRAMS.find(p => p.id === id) ||
+                   DEMO_CATALOGUE.find(p => p.id === id) || null;
 const sportOf = id => { const p = prog(id); return p ? p.sport : ""; };
 
+/* DEMO_CATALOGUE, not PROGRAMS — see the note in mod-coachops.js. */
 function myListings(){
   const ids = (S && S.listings) || [];
-  const mine = PROGRAMS.filter(p => ids.indexOf(p.id) >= 0);
-  return mine.length ? mine : PROGRAMS.slice(0, 5);
+  const mine = DEMO_CATALOGUE.filter(p => ids.indexOf(p.id) >= 0);
+  return mine.length ? mine : DEMO_CATALOGUE.slice(0, 5);
 }
 
 /* Families this coach actually works with, and the real dates they trained.
@@ -103,7 +106,7 @@ function myListings(){
    demo families on the same published programs. */
 function roster(){
   const m = myListings();
-  const pid = i => (m[i] || m[m.length - 1] || PROGRAMS[0]).id;
+  const pid = i => (m[i] || m[m.length - 1] || DEMO_CATALOGUE[0]).id;
   return [
     { id: "athlete_1", name: "Julian Mercer", parent: "Alex Mercer", programId: pid(0),
       dates: ["2026-06-01", "2026-06-08", "2026-06-15", "2026-06-22", "2026-06-29",
@@ -309,7 +312,7 @@ function athleteProgramId(id){
   const a = athleteById(id);
   if (a) return a.programId;
   const n = notes().find(x => x.athleteId === id) || completed().find(x => x.athleteId === id);
-  return n ? n.programId : (myListings()[0] || PROGRAMS[0]).id;
+  return n ? n.programId : (myListings()[0] || DEMO_CATALOGUE[0]).id;
 }
 function notesFor(id){
   return notes().filter(n => n.athleteId === id).sort((a, b) => a.date.localeCompare(b.date));

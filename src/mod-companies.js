@@ -32,7 +32,16 @@ const sc  = s => (typeof sportColor === "function" ? sportColor(s) : "#223140");
    than falling back to a colour-font glyph on a different optical baseline. */
 const pic = k => (typeof PICON !== "undefined" && PICON[k]) || "";
 const H   = () => S;
-const CAT = () => (typeof PROGRAMS !== "undefined" && PROGRAMS ? PROGRAMS : []);
+/* DEMO_CATALOGUE, not PROGRAMS. This module is ABOUT the six sample businesses
+   declared below — every figure on its two views is counted by matching
+   `p.biz` against a COMPANIES name. Once mod-catalog.js swaps PROGRAMS for live
+   rows, no live listing carries one of those names, so this would count zero
+   programmes and zero sports under six business headings and render a
+   confidently wrong stat block. Pointing it at the seeded array keeps the
+   surface internally consistent; Phase C3 replaces it with real providers. */
+const CAT = () => (typeof DEMO_CATALOGUE !== "undefined" && DEMO_CATALOGUE
+  ? DEMO_CATALOGUE
+  : (typeof PROGRAMS !== "undefined" && PROGRAMS ? PROGRAMS : []));
 const $$  = sel => Array.prototype.slice.call(document.querySelectorAll(sel));
 const usd = n => "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
 

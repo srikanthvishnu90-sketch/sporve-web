@@ -1,0 +1,353 @@
+/* mod-catalog.js — PHASE C1. The listing catalogue, live.
+   ---------------------------------------------------------------------------
+   This is the change that stops the marketplace being a sample. Until now the
+   thirty listings on this page came from `RAW`, a constant in the host. They
+   render beautifully and cannot be booked, because no row behind them exists.
+   After this file they come from `programs` in the production database — the
+   same rows the Flutter app reads, so a listing added there appears here with
+   no sync layer.
+
+   THE ONE RULE THAT MAKES THIS SMALL
+   `PROGRAMS` is read 747 times across the host and ten modules, and several
+   modules capture it at load. So this file NEVER REASSIGNS IT. It empties the
+   array and pushes the live rows into the same object:
+
+       PROGRAMS.length = 0; PROGRAMS.push.apply(PROGRAMS, live);
+
+   Every existing reference — including `const CAT = () => PROGRAMS` inside
+   mod-companies' IIFE — keeps pointing at the array that just changed
+   underneath it. Reassignment would work for the lazy readers and silently
+   strand the eager ones, which is the kind of split-brain that renders half a
+   page from live data and half from the seed.
+
+   WHAT IS ACTUALLY DIFFERENT ABOUT THE LIVE ROWS, measured 2026-08-12:
+
+     seed                          live
+     30 listings / 6 businesses    10 listings / 10 businesses (1 each)
+     ids "prog_1".."prog_30"       uuids
+     2 of 6 businesses unverified  every row background-check verified
+     Miami coordinates             Chicago
+     mixed pricing models          single_session throughout
+     enrolled 4..15                enrolled 0
+
+   The verification difference is not cosmetic. The seed deliberately shipped
+   two businesses WITHOUT background checks so the trust UI had something to
+   say. Production cannot show you an unchecked provider at all — RLS filters
+   them before PostgREST sees the request (20 of 23 providers are visible; the
+   3 without a check are not). So the "not yet checked" state disappears from
+   browse. That is the gate working, not a regression, but it means the
+   contrast that made the badge legible has to come from copy now, not data.
+
+   FAIL-SAFE, AND WHY IT IS NOT OPTIONAL
+   Any failure — offline, CSP, RLS change, a 500 — leaves the seeded catalogue
+   exactly as it is and the page renders as it does today. A marketplace that
+   shows an empty grid when the network hiccups is worse than one showing
+   sample data, and this page's whole architecture is "render from S, always".
+   So hydration is additive and reversible: it either replaces the array
+   wholesale or does not touch it.
+
+   HOW TO TELL WHICH ONE YOU GOT
+   `<html data-catalog>` is set to "live" or "seed". It is set at RUNTIME, so
+   it never appears in the served HTML — grep the rendered DOM, not the
+   response body (see CLAUDE.md §1).
+*/
+(function () {
+  "use strict";
+
+  var API = window.SporveAPI;
+  if (!API) { return; }
+
+  /* Columns are listed explicitly and `*` is never used. Two reasons, both
+     load-bearing: `programs.embedding` is a 768-dimension vector that adds
+     ~10 KB of base64 per row to a payload that is otherwise ~600 bytes, and
+     `providers` has NO blanket select grant for anon — the column-privacy
+     migration revoked it and granted fifteen columns by name, so `*` returns
+     42501 permission denied rather than a trimmed row.
+
+     The `providers(...)` embed is a PostgREST resource embedding over the
+     programs.provider_id foreign key. It resolves in ONE round trip and obeys
+     the same RLS and column grants as a direct read — verified: a provider
+     without a background check yields no program row at all, not a program row
+     with a null provider. */
+  var PROGRAM_COLS = [
+    "id", "title", "description", "sport_type", "skill_level", "age_group",
+    "minimum_age", "maximum_age", "price", "currency", "pricing_model",
+    "max_capacity", "enrolled_count", "average_rating", "total_reviews",
+    "is_featured", "whats_included", "cancellation_policy", "program_type",
+    "city", "state", "latitude", "longitude", "cover_image",
+    "providers(id,business_name,bio,location,provider_type,background_check_status," +
+      "coach_years_coaching,credentials,public_latitude,public_longitude)",
+  ].join(",");
+
+  var SESSION_COLS = "id,program_id,title,start_date,start_time,end_time,timezone,address,capacity";
+
+  function cap(s) {
+    s = String(s || "");
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  /* Map one live row onto the record shape the renderer already knows. Every
+     key here exists because something reads it; adding a live column without a
+     reader belongs in the query, not in this object. */
+  function toProgram(r) {
+    var pv = r.providers || {};
+    var sport = r.sport_type || "Soccer";
+    var img = (typeof phShot === "function") ? phShot(sport) : "";
+    return {
+      id: r.id,
+      biz: pv.business_name || "Sporve provider",
+      /* Derived, not read. `background_check_status` is the column the gate
+         itself keys on; anything else here would be a second definition of
+         "verified" and this repo has been bitten by exactly that before. */
+      verified: pv.background_check_status === "verified",
+      sport: sport,
+      title: r.title || "",
+      desc: r.description || "",
+      price: Number(r.price) || 0,
+      model: r.pricing_model || "single_session",
+      rating: Number(r.average_rating) || 0,
+      reviews: Number(r.total_reviews) || 0,
+      /* The listing's own coordinates: this is where the session happens and a
+         parent has to be able to find it. Note for the backend, deliberately
+         left visible rather than papered over: `programs.latitude/longitude`
+         are readable by anon at full precision, while `providers` coordinates
+         were rounded to 2dp and revoked in the column-privacy migration. The
+         two tables disagree about how precise a public location may be. That
+         is a backend decision, and rounding here would be theatre — the exact
+         value stays fetchable whatever this client does with it. */
+      lng: Number(r.longitude),
+      lat: Number(r.latitude),
+      featured: !!r.is_featured,
+      skill: cap(r.skill_level) || "All Levels",
+      ageGroup: r.age_group || "All Ages",
+      minAge: Number(r.minimum_age) || 0,
+      maxAge: Number(r.maximum_age) || 18,
+      cap: Number(r.max_capacity) || 0,
+      enrolled: Number(r.enrolled_count) || 0,
+      /* cover_image is null on every published row today, so the generated
+         placeholder stays. It is a deterministic per-sport SVG, not a remote
+         fetch — a remote image would be blocked by this page's CSP anyway. */
+      img: r.cover_image || img,
+      gallery: [r.cover_image || img, img, img],
+      whatsIncluded: Array.isArray(r.whats_included) && r.whats_included.length
+        ? r.whats_included : ["Professional coaching"],
+      address: [r.city, r.state].filter(Boolean).join(", ") || (pv.location || ""),
+      cancellationPolicy: r.cancellation_policy || "moderate",
+      /* Live-only extras. Nothing reads these yet; they are what Phase C3
+         (provider detail) and Phase D (booking) need, and carrying them now
+         costs nothing because they are already in the response. */
+      providerId: pv.id || null,
+      providerType: pv.provider_type || "solo",
+      providerBio: pv.bio || "",
+      providerYears: pv.coach_years_coaching || null,
+      providerCredentials: Array.isArray(pv.credentials) ? pv.credentials : [],
+      currency: r.currency || "USD",
+      live: true,
+    };
+  }
+
+  function toSlot(s) {
+    return {
+      id: s.id,
+      programId: s.program_id,
+      title: s.title || "Training Session",
+      date: s.start_date,
+      startTime: s.start_time || "",
+      endTime: s.end_time || "",
+      /* The seed carries a short label ("CST"); live carries an IANA zone
+         ("America/Chicago"). Rendered as-is either way, so trim the zone to its
+         city rather than print a slash in the middle of a time. */
+      tz: String(s.timezone || "").split("/").pop().replace(/_/g, " "),
+      address: s.address || "",
+      capacity: s.capacity || null,
+      live: true,
+    };
+  }
+
+  function mark(state) {
+    try { document.documentElement.setAttribute("data-catalog", state); } catch (e) {}
+  }
+
+  var loaded = false;
+
+  /* A `file://` page never hydrates.
+     ------------------------------------------------------------------------
+     Two reasons, and the second is the one that matters.
+
+     1. It is not a deployment target. Production and every preview serve over
+        https from a real origin under a real CSP; opening index.html off disk
+        is a development convenience.
+
+     2. IT KEEPS CI HONEST. smoke.sh opens the built file directly for most of
+        its run, and roughly nine of its assertions measure RENDERED CONTENT —
+        no emoji, no exclamation marks, every font size on the 8-step scale, no
+        horizontal overflow at 390px, a contrast ratchet that fails if it
+        moves. Those describe the DESIGN SYSTEM, and they can only be asserted
+        against a fixed dataset. Let them read the database instead and a coach
+        writing "Let's go!" in a listing title turns the build red, with no way
+        for the person reading the failure to work out why. The seeded
+        catalogue is the fixture those tests deserve.
+
+     The live path is still tested — smoke's CSP-serving block runs on
+     http://127.0.0.1 with production's real headers, which is where a
+     connect-src or grant regression would actually show up, and where the
+     structural live assertions live. */
+  function offlineByDesign() {
+    try { return window.location.protocol === "file:"; } catch (e) { return false; }
+  }
+
+  /* ── THE SWITCH, AND WHY IT IS OFF ──────────────────────────────────────
+     Everything above works. It is not turned on yet, and that is a decision
+     rather than an oversight.
+
+     An audit of all 747 catalogue reads found that swapping the array is the
+     easy half. The render layer carries assumptions the seed satisfied and
+     production does not, and two of them are visible on the first screen:
+
+       · THE MAP IS HARDCODED TO MIAMI. `const LNG=[-80.345,-80.115],
+         LAT=[25.655,25.870]` and pins are positioned by percentage inside that
+         box. Chicago's (41.9, -87.6) computes to left:-3154%, top:-7456% —
+         every pin lands thousands of percent off-canvas while the header still
+         says "10 programs across Chicagoland". (The seed's coordinates were
+         already Miami while its address strings said Chicago; real coordinates
+         make an existing bug total.)
+
+       · THE "TEAM PROGRAMS" BAND GOES PERMANENTLY EMPTY. `ptypeOf()` sorts a
+         listing into solo/camp/org, and the only route into `org` for a
+         title without "squad|league|club|academy" is `model === "monthly"`.
+         Every live row is `single_session`, so `org` is now unreachable and
+         the browse page renders a heading over "No matching programs right
+         now." forever. Separately mod-companies' `typeOf()` keys off literal
+         "prog_N" ids, so it labels all ten `private` — two type systems that
+         now disagree with each other.
+
+     Both need a product decision (what IS the org bucket when the database has
+     no offering-type column?), not a mechanical patch, so they are the next
+     change rather than this one. Shipping the swap today would trade a page
+     that renders for a page with an empty map and a dead band.
+
+     What ships instead is the mechanism, provable against production:
+
+         https://the-sporve-web.vercel.app/?live=1
+
+     opts a single page load into the live catalogue, so the fetch, the RLS
+     gate, the column grants, the in-place mutation and the fallback can all be
+     verified on the real origin under the real CSP, before any of it is load
+     -bearing for a visitor. Flip DEFAULT_LIVE to true in the change that fixes
+     the map bounds and the offering axis; nothing else here needs to move. */
+  var DEFAULT_LIVE = false;
+
+  function enabled() {
+    if (offlineByDesign()) return false;
+    try {
+      var q = String(window.location.search || "");
+      if (/[?&]live=1\b/.test(q)) return true;
+      if (/[?&]live=0\b/.test(q)) return false;
+    } catch (e) {}
+    return DEFAULT_LIVE;
+  }
+
+  /* Resolves true if the catalogue was replaced, false if the seed stands.
+     It never rejects: a caller that has to remember to catch is a caller that
+     will one day forget, and the consequence would be an unhandled rejection
+     on a page whose only job at that moment is to render. */
+  function hydrate() {
+    if (loaded) return Promise.resolve(true);
+    if (typeof PROGRAMS === "undefined" || !Array.isArray(PROGRAMS)) {
+      mark("seed");
+      return Promise.resolve(false);
+    }
+    if (!enabled()) {
+      mark("seed");
+      return Promise.resolve(false);
+    }
+
+    return Promise.all([
+      API.from("programs",
+        "select=" + encodeURIComponent(PROGRAM_COLS) +
+        "&status=eq.published&order=is_featured.desc,average_rating.desc&limit=200"),
+      API.from("sessions",
+        "select=" + encodeURIComponent(SESSION_COLS) +
+        "&start_date=gte." + todayISO() + "&order=start_date.asc&limit=1000"),
+    ])
+      .then(function (res) {
+        var rows = res[0], slots = res[1];
+        /* An empty catalogue is a FAILURE, not a result. Reaching the server
+           and being told there is nothing to book would blank every grid,
+           every rail and every stat line on the site. Whatever caused it — an
+           RLS change, an unpublish, a bad filter — the seeded page is the
+           better thing to show while it is investigated. */
+        if (!Array.isArray(rows) || rows.length === 0) {
+          mark("seed");
+          return false;
+        }
+
+        var live = rows.map(toProgram);
+
+        /* Slots first: swapping the catalogue before the slot index exists
+           would leave a window in which a live listing resolves to the seed's
+           id-parsing fallback and produces Invalid Date. Microtask-sized, but
+           the ordering is free. */
+        var byProgram = {};
+        (Array.isArray(slots) ? slots : []).forEach(function (s) {
+          if (!s.program_id) return;
+          (byProgram[s.program_id] = byProgram[s.program_id] || []).push(toSlot(s));
+        });
+        if (typeof LIVE_SLOTS === "object" && LIVE_SLOTS) {
+          Object.keys(byProgram).forEach(function (k) { LIVE_SLOTS[k] = byProgram[k]; });
+        }
+
+        /* In place. See the header — this is the whole migration strategy. */
+        PROGRAMS.length = 0;
+        PROGRAMS.push.apply(PROGRAMS, live);
+
+        /* BUSINESSES is derived from PROGRAMS at load and captured by the
+           browse rails, so mutating PROGRAMS alone leaves it describing six
+           businesses that no longer exist. Recomputed in place, same array. */
+        if (typeof rebuildBusinesses === "function") rebuildBusinesses();
+
+        loaded = true;
+        mark("live");
+        return true;
+      })
+      .catch(function () {
+        /* Offline, CSP, 5xx, a revoked grant — all identical from here, and
+           all have the same right answer: leave the seed alone. */
+        mark("seed");
+        return false;
+      });
+  }
+
+  /* The catalogue query asks for sessions from today forward. `TODAY` is the
+     host's fixed demo anchor (2026-08-03) and the real clock is what a live
+     query must use — a hardcoded date would start silently dropping real
+     sessions the moment it fell behind. */
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  /* `ready` settles when hydration is DECIDED — live or seed, success or
+     failure — never rejecting. It exists because the test harness had no way
+     to know when to measure: ci-browse's `goto` waits for the document `load`
+     event, which a fetch started during script init does not delay, so every
+     assertion after a navigation was racing the network. The previous answer
+     to that class of problem in smoke.sh was `sleep 1`, which is a coin flip
+     against a round trip of unbounded length.
+
+     Playwright's page.evaluate auto-awaits a returned promise, so
+     `SporveCatalog.ready.then(s => 'OK:' + s)` turns the race into a
+     deterministic wait with no change to the harness. */
+  var ready = null;
+
+  window.SporveCatalog = {
+    hydrate: function () {
+      if (!ready) ready = hydrate();
+      return ready;
+    },
+    get ready() { return ready || Promise.resolve(false); },
+    isLive: function () { return loaded; },
+    /* Whether this page load INTENDED to go live, independent of whether it
+       succeeded — so a test can tell "opted out" from "tried and fell back". */
+    enabled: enabled,
+  };
+})();

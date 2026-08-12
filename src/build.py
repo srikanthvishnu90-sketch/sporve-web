@@ -17,6 +17,10 @@ ORDER = [
     "mod-api.js",
     # mod-auth.js second: it registers its refresh hook on window.SporveAPI.
     "mod-auth.js",
+    # mod-catalog.js third: it reads window.SporveAPI and mutates the host's
+    # PROGRAMS array, so it must load after the API and before any module that
+    # would otherwise capture a stale catalogue.
+    "mod-catalog.js",
     "mod-safety.js", "mod-reviews.js", "mod-coachops.js",
     "mod-payments.js", "mod-search.js", "mod-coachonboard.js",
     "mod-media.js", "mod-notes.js", "mod-insights.js",

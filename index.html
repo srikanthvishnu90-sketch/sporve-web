@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="665f478d47f106d0">
+<meta name="sporve-build" content="5fb598e891e2d06c">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -3247,6 +3247,30 @@ const PROGRAMS = RAW.map(r=>{
   o.cancellationPolicy = o.id==="prog_2" ? "strict" : "moderate";
   return o;
 });
+
+/* The seeded catalogue, kept as its own array before anything can replace it.
+   ---------------------------------------------------------------------------
+   mod-catalog.js replaces the CONTENTS of PROGRAMS with live rows from the
+   database (in place, so the 747 reads and the modules that captured the array
+   keep working). Two things still need the sample data after that happens:
+
+   1. THE COACH PORTAL. `S.listings` is seeded with the five Apex Performance
+      Club ids below, and four modules do `PROGRAMS.filter(p =>
+      S.listings.includes(p.id))`. Against a live catalogue that filter returns
+      nothing, and each module's `|| PROGRAMS[0]` fallback would quietly hand
+      the demo coach a REAL provider's listing to manage. Showing one operator
+      another operator's business is worse than showing sample data, so the
+      coach side reads DEMO_CATALOGUE and stays explicitly a demo until Phase E
+      makes it live. That boundary is now a named thing in the code rather than
+      an accident of which array happened to be in scope.
+
+   2. THE FALLBACK ITSELF. If the fetch fails, PROGRAMS is never touched and
+      this is the same array — so nothing is lost by holding the reference.
+
+   slice(), not a deep clone: the record objects are shared on purpose. If a
+   later phase mutates a seeded listing, both views should agree. */
+const DEMO_CATALOGUE = PROGRAMS.slice();
+
 /* ONE definition of what makes a business background-checked, used everywhere.
    It was two: this list took `list[0].verified` -- the FIRST listing deciding
    for the whole business, i.e. one program vouching for an operator, which is
@@ -3264,12 +3288,23 @@ const bizVerified=name=>{
   const list=PROGRAMS.filter(p=>p.biz===name);
   return list.length>0&&list.every(p=>p.verified);
 };
-const BUSINESSES=[...new Set(PROGRAMS.map(p=>p.biz))].map(b=>{
-  const list=PROGRAMS.filter(p=>p.biz===b);
-  return {name:b,verified:bizVerified(b),count:list.length,
-    sports:[...new Set(list.map(p=>p.sport))],
-    rating:(list.reduce((s,p)=>s+p.rating,0)/list.length).toFixed(1)};
-});
+/* BUSINESSES is DERIVED from PROGRAMS, and the browse rails capture it. So it
+   cannot stay a one-shot expression: replacing the catalogue underneath it
+   would leave it describing six businesses that no longer exist, and the rails
+   would render headings for listings that are not there. Rebuilt in place —
+   same array object, new contents — for the same reason PROGRAMS is. */
+const BUSINESSES=[];
+function rebuildBusinesses(){
+  const next=[...new Set(PROGRAMS.map(p=>p.biz))].map(b=>{
+    const list=PROGRAMS.filter(p=>p.biz===b);
+    return {name:b,verified:bizVerified(b),count:list.length,
+      sports:[...new Set(list.map(p=>p.sport))],
+      rating:(list.reduce((s,p)=>s+p.rating,0)/list.length).toFixed(1)};
+  });
+  BUSINESSES.length=0;
+  BUSINESSES.push(...next);
+}
+rebuildBusinesses();
 
 /* Browse rails group the catalogue into three provider TYPES. The seed data has
    no stored type — every listing belongs to one of six businesses — so the type
@@ -3327,17 +3362,30 @@ const SESSIONS=[
   {id:"sess_2",programId:"prog_1",title:"Soccer Skill Session 2",date:dayAfter(6),startTime:"05:00 PM",endTime:"06:30 PM",tz:"CST",address:"Lincoln Park, Chicago, IL"},
   {id:"sess_3",programId:"prog_2",title:"Weekly Tennis Practice",date:dayAfter(5),startTime:"04:00 PM",endTime:"05:30 PM",tz:"CST",address:"Lakeview, Chicago, IL"},
 ];
+/* Real sessions, keyed by program id, filled by mod-catalog.js from the
+   `sessions` table. Empty until then, so the seeded path below is unchanged for
+   a page that never reaches the network. */
+const LIVE_SLOTS={};
+
 /* generic slots for every other listing so booking works everywhere */
 function slotsFor(pid){
+  /* Live rows win. They are also the only correct answer for a live listing:
+     the generated fallback below derives its dates from an integer parsed out
+     of "prog_7", and a uuid parses to NaN — which would propagate through
+     dayAfter() and render "Invalid Date" on every card. */
+  const live=LIVE_SLOTS[pid];
+  if(live&&live.length) return live;
   const seeded=SESSIONS.filter(s=>s.programId===pid);
   if(seeded.length) return seeded;
-  const n=parseInt(pid.split("_")[1],10);
+  /* `|| 0` so an id that is not "prog_N" degrades to a valid date rather than
+     NaN. Belt and braces: a live listing should already have returned above. */
+  const n=parseInt(String(pid).split("_")[1],10)||0;
   return [3,7,12].map((d,i)=>({
     id:`${pid}_s${i+1}`,programId:pid,title:"Training Session",
     date:dayAfter(d+(n%4)),
     startTime:["04:00 PM","05:00 PM","10:00 AM"][i],
     endTime:["05:30 PM","06:30 PM","11:30 AM"][i],
-    tz:"CST",address:PROGRAMS.find(p=>p.id===pid).address}));
+    tz:"CST",address:(PROGRAMS.find(p=>p.id===pid)||{}).address||"Chicago, IL"}));
 }
 
 const SEED={
@@ -4332,7 +4380,12 @@ function faqSectionHTML(){
   </section>`;
 }
 function famFrames(){
-  const p=PROGRAMS.find(x=>x.id==="prog_1");
+  /* A marketing frame illustrating one listing. It used to look up the literal
+     id "prog_1", which exists only in the seed — against a live catalogue the
+     find() returns undefined and the next line throws, blanking the landing
+     page. Take the first listing of whatever catalogue is loaded, and fall back
+     to the seeded one so the frame is never empty. */
+  const p=PROGRAMS[0]||DEMO_CATALOGUE[0];
   return `
   <div class="frame"><div class="fbar"><i></i><i></i><i></i></div>
     <div class="fbody">
@@ -6626,7 +6679,10 @@ Marcus Chen, marcus@example.com"></textarea></div>
     </form>`);
 
   if(m.type==="viewasparent"){
-    const p=PROGRAMS.filter(x=>S.listings.includes(x.id))[0];
+    /* The coach's own listing, which is seeded — S.listings holds seed ids, so
+       this must read the demo catalogue or it resolves to undefined and every
+       property access below throws. Same boundary as myListings(). */
+    const p=DEMO_CATALOGUE.filter(x=>S.listings.includes(x.id))[0]||DEMO_CATALOGUE[0];
     return wrap("How families see you",`
       <p style="color:var(--muted);margin-bottom:16px">
         This is your listing exactly as a searching parent sees it.</p>
@@ -9946,6 +10002,363 @@ document.addEventListener("click",e=>{
 
 </script>
 <script>
+/* ---- mod-catalog.js ---- */
+/* mod-catalog.js — PHASE C1. The listing catalogue, live.
+   ---------------------------------------------------------------------------
+   This is the change that stops the marketplace being a sample. Until now the
+   thirty listings on this page came from `RAW`, a constant in the host. They
+   render beautifully and cannot be booked, because no row behind them exists.
+   After this file they come from `programs` in the production database — the
+   same rows the Flutter app reads, so a listing added there appears here with
+   no sync layer.
+
+   THE ONE RULE THAT MAKES THIS SMALL
+   `PROGRAMS` is read 747 times across the host and ten modules, and several
+   modules capture it at load. So this file NEVER REASSIGNS IT. It empties the
+   array and pushes the live rows into the same object:
+
+       PROGRAMS.length = 0; PROGRAMS.push.apply(PROGRAMS, live);
+
+   Every existing reference — including `const CAT = () => PROGRAMS` inside
+   mod-companies' IIFE — keeps pointing at the array that just changed
+   underneath it. Reassignment would work for the lazy readers and silently
+   strand the eager ones, which is the kind of split-brain that renders half a
+   page from live data and half from the seed.
+
+   WHAT IS ACTUALLY DIFFERENT ABOUT THE LIVE ROWS, measured 2026-08-12:
+
+     seed                          live
+     30 listings / 6 businesses    10 listings / 10 businesses (1 each)
+     ids "prog_1".."prog_30"       uuids
+     2 of 6 businesses unverified  every row background-check verified
+     Miami coordinates             Chicago
+     mixed pricing models          single_session throughout
+     enrolled 4..15                enrolled 0
+
+   The verification difference is not cosmetic. The seed deliberately shipped
+   two businesses WITHOUT background checks so the trust UI had something to
+   say. Production cannot show you an unchecked provider at all — RLS filters
+   them before PostgREST sees the request (20 of 23 providers are visible; the
+   3 without a check are not). So the "not yet checked" state disappears from
+   browse. That is the gate working, not a regression, but it means the
+   contrast that made the badge legible has to come from copy now, not data.
+
+   FAIL-SAFE, AND WHY IT IS NOT OPTIONAL
+   Any failure — offline, CSP, RLS change, a 500 — leaves the seeded catalogue
+   exactly as it is and the page renders as it does today. A marketplace that
+   shows an empty grid when the network hiccups is worse than one showing
+   sample data, and this page's whole architecture is "render from S, always".
+   So hydration is additive and reversible: it either replaces the array
+   wholesale or does not touch it.
+
+   HOW TO TELL WHICH ONE YOU GOT
+   `<html data-catalog>` is set to "live" or "seed". It is set at RUNTIME, so
+   it never appears in the served HTML — grep the rendered DOM, not the
+   response body (see CLAUDE.md §1).
+*/
+(function () {
+  "use strict";
+
+  var API = window.SporveAPI;
+  if (!API) { return; }
+
+  /* Columns are listed explicitly and `*` is never used. Two reasons, both
+     load-bearing: `programs.embedding` is a 768-dimension vector that adds
+     ~10 KB of base64 per row to a payload that is otherwise ~600 bytes, and
+     `providers` has NO blanket select grant for anon — the column-privacy
+     migration revoked it and granted fifteen columns by name, so `*` returns
+     42501 permission denied rather than a trimmed row.
+
+     The `providers(...)` embed is a PostgREST resource embedding over the
+     programs.provider_id foreign key. It resolves in ONE round trip and obeys
+     the same RLS and column grants as a direct read — verified: a provider
+     without a background check yields no program row at all, not a program row
+     with a null provider. */
+  var PROGRAM_COLS = [
+    "id", "title", "description", "sport_type", "skill_level", "age_group",
+    "minimum_age", "maximum_age", "price", "currency", "pricing_model",
+    "max_capacity", "enrolled_count", "average_rating", "total_reviews",
+    "is_featured", "whats_included", "cancellation_policy", "program_type",
+    "city", "state", "latitude", "longitude", "cover_image",
+    "providers(id,business_name,bio,location,provider_type,background_check_status," +
+      "coach_years_coaching,credentials,public_latitude,public_longitude)",
+  ].join(",");
+
+  var SESSION_COLS = "id,program_id,title,start_date,start_time,end_time,timezone,address,capacity";
+
+  function cap(s) {
+    s = String(s || "");
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  /* Map one live row onto the record shape the renderer already knows. Every
+     key here exists because something reads it; adding a live column without a
+     reader belongs in the query, not in this object. */
+  function toProgram(r) {
+    var pv = r.providers || {};
+    var sport = r.sport_type || "Soccer";
+    var img = (typeof phShot === "function") ? phShot(sport) : "";
+    return {
+      id: r.id,
+      biz: pv.business_name || "Sporve provider",
+      /* Derived, not read. `background_check_status` is the column the gate
+         itself keys on; anything else here would be a second definition of
+         "verified" and this repo has been bitten by exactly that before. */
+      verified: pv.background_check_status === "verified",
+      sport: sport,
+      title: r.title || "",
+      desc: r.description || "",
+      price: Number(r.price) || 0,
+      model: r.pricing_model || "single_session",
+      rating: Number(r.average_rating) || 0,
+      reviews: Number(r.total_reviews) || 0,
+      /* The listing's own coordinates: this is where the session happens and a
+         parent has to be able to find it. Note for the backend, deliberately
+         left visible rather than papered over: `programs.latitude/longitude`
+         are readable by anon at full precision, while `providers` coordinates
+         were rounded to 2dp and revoked in the column-privacy migration. The
+         two tables disagree about how precise a public location may be. That
+         is a backend decision, and rounding here would be theatre — the exact
+         value stays fetchable whatever this client does with it. */
+      lng: Number(r.longitude),
+      lat: Number(r.latitude),
+      featured: !!r.is_featured,
+      skill: cap(r.skill_level) || "All Levels",
+      ageGroup: r.age_group || "All Ages",
+      minAge: Number(r.minimum_age) || 0,
+      maxAge: Number(r.maximum_age) || 18,
+      cap: Number(r.max_capacity) || 0,
+      enrolled: Number(r.enrolled_count) || 0,
+      /* cover_image is null on every published row today, so the generated
+         placeholder stays. It is a deterministic per-sport SVG, not a remote
+         fetch — a remote image would be blocked by this page's CSP anyway. */
+      img: r.cover_image || img,
+      gallery: [r.cover_image || img, img, img],
+      whatsIncluded: Array.isArray(r.whats_included) && r.whats_included.length
+        ? r.whats_included : ["Professional coaching"],
+      address: [r.city, r.state].filter(Boolean).join(", ") || (pv.location || ""),
+      cancellationPolicy: r.cancellation_policy || "moderate",
+      /* Live-only extras. Nothing reads these yet; they are what Phase C3
+         (provider detail) and Phase D (booking) need, and carrying them now
+         costs nothing because they are already in the response. */
+      providerId: pv.id || null,
+      providerType: pv.provider_type || "solo",
+      providerBio: pv.bio || "",
+      providerYears: pv.coach_years_coaching || null,
+      providerCredentials: Array.isArray(pv.credentials) ? pv.credentials : [],
+      currency: r.currency || "USD",
+      live: true,
+    };
+  }
+
+  function toSlot(s) {
+    return {
+      id: s.id,
+      programId: s.program_id,
+      title: s.title || "Training Session",
+      date: s.start_date,
+      startTime: s.start_time || "",
+      endTime: s.end_time || "",
+      /* The seed carries a short label ("CST"); live carries an IANA zone
+         ("America/Chicago"). Rendered as-is either way, so trim the zone to its
+         city rather than print a slash in the middle of a time. */
+      tz: String(s.timezone || "").split("/").pop().replace(/_/g, " "),
+      address: s.address || "",
+      capacity: s.capacity || null,
+      live: true,
+    };
+  }
+
+  function mark(state) {
+    try { document.documentElement.setAttribute("data-catalog", state); } catch (e) {}
+  }
+
+  var loaded = false;
+
+  /* A `file://` page never hydrates.
+     ------------------------------------------------------------------------
+     Two reasons, and the second is the one that matters.
+
+     1. It is not a deployment target. Production and every preview serve over
+        https from a real origin under a real CSP; opening index.html off disk
+        is a development convenience.
+
+     2. IT KEEPS CI HONEST. smoke.sh opens the built file directly for most of
+        its run, and roughly nine of its assertions measure RENDERED CONTENT —
+        no emoji, no exclamation marks, every font size on the 8-step scale, no
+        horizontal overflow at 390px, a contrast ratchet that fails if it
+        moves. Those describe the DESIGN SYSTEM, and they can only be asserted
+        against a fixed dataset. Let them read the database instead and a coach
+        writing "Let's go!" in a listing title turns the build red, with no way
+        for the person reading the failure to work out why. The seeded
+        catalogue is the fixture those tests deserve.
+
+     The live path is still tested — smoke's CSP-serving block runs on
+     http://127.0.0.1 with production's real headers, which is where a
+     connect-src or grant regression would actually show up, and where the
+     structural live assertions live. */
+  function offlineByDesign() {
+    try { return window.location.protocol === "file:"; } catch (e) { return false; }
+  }
+
+  /* ── THE SWITCH, AND WHY IT IS OFF ──────────────────────────────────────
+     Everything above works. It is not turned on yet, and that is a decision
+     rather than an oversight.
+
+     An audit of all 747 catalogue reads found that swapping the array is the
+     easy half. The render layer carries assumptions the seed satisfied and
+     production does not, and two of them are visible on the first screen:
+
+       · THE MAP IS HARDCODED TO MIAMI. `const LNG=[-80.345,-80.115],
+         LAT=[25.655,25.870]` and pins are positioned by percentage inside that
+         box. Chicago's (41.9, -87.6) computes to left:-3154%, top:-7456% —
+         every pin lands thousands of percent off-canvas while the header still
+         says "10 programs across Chicagoland". (The seed's coordinates were
+         already Miami while its address strings said Chicago; real coordinates
+         make an existing bug total.)
+
+       · THE "TEAM PROGRAMS" BAND GOES PERMANENTLY EMPTY. `ptypeOf()` sorts a
+         listing into solo/camp/org, and the only route into `org` for a
+         title without "squad|league|club|academy" is `model === "monthly"`.
+         Every live row is `single_session`, so `org` is now unreachable and
+         the browse page renders a heading over "No matching programs right
+         now." forever. Separately mod-companies' `typeOf()` keys off literal
+         "prog_N" ids, so it labels all ten `private` — two type systems that
+         now disagree with each other.
+
+     Both need a product decision (what IS the org bucket when the database has
+     no offering-type column?), not a mechanical patch, so they are the next
+     change rather than this one. Shipping the swap today would trade a page
+     that renders for a page with an empty map and a dead band.
+
+     What ships instead is the mechanism, provable against production:
+
+         https://the-sporve-web.vercel.app/?live=1
+
+     opts a single page load into the live catalogue, so the fetch, the RLS
+     gate, the column grants, the in-place mutation and the fallback can all be
+     verified on the real origin under the real CSP, before any of it is load
+     -bearing for a visitor. Flip DEFAULT_LIVE to true in the change that fixes
+     the map bounds and the offering axis; nothing else here needs to move. */
+  var DEFAULT_LIVE = false;
+
+  function enabled() {
+    if (offlineByDesign()) return false;
+    try {
+      var q = String(window.location.search || "");
+      if (/[?&]live=1\b/.test(q)) return true;
+      if (/[?&]live=0\b/.test(q)) return false;
+    } catch (e) {}
+    return DEFAULT_LIVE;
+  }
+
+  /* Resolves true if the catalogue was replaced, false if the seed stands.
+     It never rejects: a caller that has to remember to catch is a caller that
+     will one day forget, and the consequence would be an unhandled rejection
+     on a page whose only job at that moment is to render. */
+  function hydrate() {
+    if (loaded) return Promise.resolve(true);
+    if (typeof PROGRAMS === "undefined" || !Array.isArray(PROGRAMS)) {
+      mark("seed");
+      return Promise.resolve(false);
+    }
+    if (!enabled()) {
+      mark("seed");
+      return Promise.resolve(false);
+    }
+
+    return Promise.all([
+      API.from("programs",
+        "select=" + encodeURIComponent(PROGRAM_COLS) +
+        "&status=eq.published&order=is_featured.desc,average_rating.desc&limit=200"),
+      API.from("sessions",
+        "select=" + encodeURIComponent(SESSION_COLS) +
+        "&start_date=gte." + todayISO() + "&order=start_date.asc&limit=1000"),
+    ])
+      .then(function (res) {
+        var rows = res[0], slots = res[1];
+        /* An empty catalogue is a FAILURE, not a result. Reaching the server
+           and being told there is nothing to book would blank every grid,
+           every rail and every stat line on the site. Whatever caused it — an
+           RLS change, an unpublish, a bad filter — the seeded page is the
+           better thing to show while it is investigated. */
+        if (!Array.isArray(rows) || rows.length === 0) {
+          mark("seed");
+          return false;
+        }
+
+        var live = rows.map(toProgram);
+
+        /* Slots first: swapping the catalogue before the slot index exists
+           would leave a window in which a live listing resolves to the seed's
+           id-parsing fallback and produces Invalid Date. Microtask-sized, but
+           the ordering is free. */
+        var byProgram = {};
+        (Array.isArray(slots) ? slots : []).forEach(function (s) {
+          if (!s.program_id) return;
+          (byProgram[s.program_id] = byProgram[s.program_id] || []).push(toSlot(s));
+        });
+        if (typeof LIVE_SLOTS === "object" && LIVE_SLOTS) {
+          Object.keys(byProgram).forEach(function (k) { LIVE_SLOTS[k] = byProgram[k]; });
+        }
+
+        /* In place. See the header — this is the whole migration strategy. */
+        PROGRAMS.length = 0;
+        PROGRAMS.push.apply(PROGRAMS, live);
+
+        /* BUSINESSES is derived from PROGRAMS at load and captured by the
+           browse rails, so mutating PROGRAMS alone leaves it describing six
+           businesses that no longer exist. Recomputed in place, same array. */
+        if (typeof rebuildBusinesses === "function") rebuildBusinesses();
+
+        loaded = true;
+        mark("live");
+        return true;
+      })
+      .catch(function () {
+        /* Offline, CSP, 5xx, a revoked grant — all identical from here, and
+           all have the same right answer: leave the seed alone. */
+        mark("seed");
+        return false;
+      });
+  }
+
+  /* The catalogue query asks for sessions from today forward. `TODAY` is the
+     host's fixed demo anchor (2026-08-03) and the real clock is what a live
+     query must use — a hardcoded date would start silently dropping real
+     sessions the moment it fell behind. */
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  /* `ready` settles when hydration is DECIDED — live or seed, success or
+     failure — never rejecting. It exists because the test harness had no way
+     to know when to measure: ci-browse's `goto` waits for the document `load`
+     event, which a fetch started during script init does not delay, so every
+     assertion after a navigation was racing the network. The previous answer
+     to that class of problem in smoke.sh was `sleep 1`, which is a coin flip
+     against a round trip of unbounded length.
+
+     Playwright's page.evaluate auto-awaits a returned promise, so
+     `SporveCatalog.ready.then(s => 'OK:' + s)` turns the race into a
+     deterministic wait with no change to the harness. */
+  var ready = null;
+
+  window.SporveCatalog = {
+    hydrate: function () {
+      if (!ready) ready = hydrate();
+      return ready;
+    },
+    get ready() { return ready || Promise.resolve(false); },
+    isLive: function () { return loaded; },
+    /* Whether this page load INTENDED to go live, independent of whether it
+       succeeded — so a test can tell "opted out" from "tried and fell back". */
+    enabled: enabled,
+  };
+})();
+
+</script>
+<script>
 /* ---- mod-safety.js ---- */
 "use strict";
 /* ═══════════════════════════════════════════════════════════════════
@@ -10886,7 +11299,9 @@ function ensure(){
 }
 const allReviews=()=>{ensure();return (typeof S!=="undefined"&&Array.isArray(S.reviews))?S.reviews:REVIEWS;};
 const allGoals=()=>{ensure();return (typeof S!=="undefined"&&Array.isArray(S.goals))?S.goals:GOALS;};
-const prog=id=>PROGRAMS.find(p=>p.id===id);
+/* Seeded reviews carry seeded program ids, so this must still resolve after
+   mod-catalog.js swaps PROGRAMS for live rows — see mod-coachops.js. */
+const prog=id=>PROGRAMS.find(p=>p.id===id)||DEMO_CATALOGUE.find(p=>p.id===id);
 
 const initialsOf=name=>String(name).trim().split(/\s+/).map(w=>w[0]||"").slice(0,2).join("").toUpperCase();
 const authorName=u=>u?`${u.firstName} ${u.lastName?u.lastName[0]+".":""}`.trim():"You";
@@ -11555,8 +11970,18 @@ const WD = [
 const wdName = n => (WD.find(w => w.n === n) || { l: "—" }).l;
 const wdShort = n => (WD.find(w => w.n === n) || { s: "—" }).s;
 
-const prog = id => PROGRAMS.find(p => p.id === id) || null;
-const myListings = () => PROGRAMS.filter(p => S.listings.includes(p.id));
+/* Resolves against the live catalogue first, then the seeded one. Once
+   mod-catalog.js swaps PROGRAMS for live rows, every id this module holds —
+   notes, media, roster entries — is a seeded "prog_N" that no live row
+   matches, and a bare PROGRAMS.find() would start returning null everywhere. */
+const prog = id => PROGRAMS.find(p => p.id === id) ||
+                   DEMO_CATALOGUE.find(p => p.id === id) || null;
+/* The coach portal is still sample data (Phase E makes it live), so it owns
+   seeded listings. Filtering the LIVE catalogue by S.listings returns nothing
+   and the `|| PROGRAMS[0]` fallbacks below would then hand this demo coach a
+   real provider's listing to manage — one operator shown another operator's
+   business. DEMO_CATALOGUE keeps that boundary explicit. */
+const myListings = () => DEMO_CATALOGUE.filter(p => S.listings.includes(p.id));
 
 /* ═══════════════════ POLICY VOCABULARY ═══════════════════ */
 /* Exactly three cancellation policies; each carries its real consequence. */
@@ -11666,8 +12091,8 @@ function seedWaitlist(){
 
 function seedSlots(){
   const mine = myListings();
-  const at = i => (mine[i] || PROGRAMS[i] || PROGRAMS[0]).id;
-  const capOf = i => (mine[i] || PROGRAMS[i] || PROGRAMS[0]).cap;
+  const at = i => (mine[i] || DEMO_CATALOGUE[i] || DEMO_CATALOGUE[0]).id;
+  const capOf = i => (mine[i] || DEMO_CATALOGUE[i] || DEMO_CATALOGUE[0]).cap;
   return [
     { id: "rs_1", name: "Monday evening squad", programId: at(0), weekday: 1, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
     { id: "rs_2", name: "Midweek evening squad", programId: at(0), weekday: 3, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
@@ -12471,7 +12896,7 @@ function wire(){
         return;
       }
     }
-    const base = myListings()[0] || PROGRAMS[0];
+    const base = myListings()[0] || DEMO_CATALOGUE[0];
     if (!base){ render(); return; }
     /* Holding availability writes to the coach's real schedule — a guest gets
        the sheet instead, and the drawn range is discarded rather than half-kept. */
@@ -14239,7 +14664,9 @@ const host=()=>(typeof S!=="undefined"&&S)?S:LOCAL;
 const adv=()=>{ensure();return host().adv||LOCAL.adv;};
 const saved=()=>{ensure();return host().savedSearches||LOCAL.savedSearches;};
 const compareIds=()=>{ensure();return host().compareIds||LOCAL.compareIds;};
-const prog=id=>PROGRAMS.find(p=>p.id===id);
+/* A saved search or compare list persisted before the catalogue went live
+   still holds seeded ids, so fall back rather than resolve to undefined. */
+const prog=id=>PROGRAMS.find(p=>p.id===id)||DEMO_CATALOGUE.find(p=>p.id===id);
 const catalogue=()=>(typeof PROGRAMS!=="undefined"&&Array.isArray(PROGRAMS))?PROGRAMS:[];
 
 /* ── bounds derived from the catalogue, never hardcoded ──────────── */
@@ -16393,8 +16820,10 @@ const SLOTS = [
 const slotRow = k => SLOTS.find(s => s.key === k) || SLOTS[0];
 
 /* ═══════════════════ SEEDS ═══════════════════ */
-const prog = id => PROGRAMS.find(p => p.id === id) || null;
-const myListings = () => PROGRAMS.filter(p => S.listings.includes(p.id));
+/* Live catalogue first, seeded second — see the note in mod-coachops.js. */
+const prog = id => PROGRAMS.find(p => p.id === id) ||
+                   DEMO_CATALOGUE.find(p => p.id === id) || null;
+const myListings = () => DEMO_CATALOGUE.filter(p => S.listings.includes(p.id));
 
 const AGE_REF = new Date(2026, 7, 3);
 function ageFromDob(dob){
@@ -16427,7 +16856,7 @@ function seedSessions(){
    both places. */
 function seedRoster(){
   const mine = myListings();
-  const at = i => (mine[i] || PROGRAMS[i] || PROGRAMS[0]).id;
+  const at = i => (mine[i] || DEMO_CATALOGUE[i] || DEMO_CATALOGUE[0]).id;
   const host = (S.athletes && S.athletes[0]) || null;
   const first = host
     ? { id: host.id,
@@ -16479,7 +16908,7 @@ function seedItems(){
       caption: "Who we coach and how a session runs", createdAt: "2026-06-02T14:20:00.000Z",
       published: true }),
     mk({ id: "md_3", kind: "profile", slot: "facility", mediaType: "photo", durationSec: null,
-      sessionId: null, programId: (myListings()[0] || PROGRAMS[0]).id, athleteIds: [],
+      sessionId: null, programId: (myListings()[0] || DEMO_CATALOGUE[0]).id, athleteIds: [],
       caption: "Main pitch, Lincoln Park — shaded parent seating along the east side",
       createdAt: "2026-06-09T16:10:00.000Z", published: true }),
     mk({ id: "md_4", kind: "profile", slot: "action", mediaType: "photo", durationSec: null,
@@ -17658,13 +18087,16 @@ const skillsFor = sport =>
   SKILLS[sport] || ["Technique", "Conditioning", "Game awareness", "Consistency", "Confidence"];
 
 /* ═══════════════════ ROSTER + SESSION LEDGER ═══════════════════ */
-const prog = id => PROGRAMS.find(p => p.id === id) || null;
+/* Live catalogue first, seeded second — see the note in mod-coachops.js. */
+const prog = id => PROGRAMS.find(p => p.id === id) ||
+                   DEMO_CATALOGUE.find(p => p.id === id) || null;
 const sportOf = id => { const p = prog(id); return p ? p.sport : ""; };
 
+/* DEMO_CATALOGUE, not PROGRAMS — see the note in mod-coachops.js. */
 function myListings(){
   const ids = (S && S.listings) || [];
-  const mine = PROGRAMS.filter(p => ids.indexOf(p.id) >= 0);
-  return mine.length ? mine : PROGRAMS.slice(0, 5);
+  const mine = DEMO_CATALOGUE.filter(p => ids.indexOf(p.id) >= 0);
+  return mine.length ? mine : DEMO_CATALOGUE.slice(0, 5);
 }
 
 /* Families this coach actually works with, and the real dates they trained.
@@ -17672,7 +18104,7 @@ function myListings(){
    demo families on the same published programs. */
 function roster(){
   const m = myListings();
-  const pid = i => (m[i] || m[m.length - 1] || PROGRAMS[0]).id;
+  const pid = i => (m[i] || m[m.length - 1] || DEMO_CATALOGUE[0]).id;
   return [
     { id: "athlete_1", name: "Julian Mercer", parent: "Alex Mercer", programId: pid(0),
       dates: ["2026-06-01", "2026-06-08", "2026-06-15", "2026-06-22", "2026-06-29",
@@ -17878,7 +18310,7 @@ function athleteProgramId(id){
   const a = athleteById(id);
   if (a) return a.programId;
   const n = notes().find(x => x.athleteId === id) || completed().find(x => x.athleteId === id);
-  return n ? n.programId : (myListings()[0] || PROGRAMS[0]).id;
+  return n ? n.programId : (myListings()[0] || DEMO_CATALOGUE[0]).id;
 }
 function notesFor(id){
   return notes().filter(n => n.athleteId === id).sort((a, b) => a.date.localeCompare(b.date));
@@ -18721,8 +19153,10 @@ function median(list){
 const money2 = n => (Number(n) % 1 === 0 ? money(n) : "$" + Number(n).toFixed(2));
 
 /* ── catalogue helpers ───────────────────────────────────────────── */
-const prog = id => PROGRAMS.find(p => p.id === id) || null;
-const myListings = () => PROGRAMS.filter(p => S.listings.indexOf(p.id) >= 0);
+/* Live catalogue first, seeded second — see the note in mod-coachops.js. */
+const prog = id => PROGRAMS.find(p => p.id === id) ||
+                   DEMO_CATALOGUE.find(p => p.id === id) || null;
+const myListings = () => DEMO_CATALOGUE.filter(p => S.listings.indexOf(p.id) >= 0);
 const mySports = () => {
   const out = [];
   myListings().forEach(p => { if (out.indexOf(p.sport) < 0) out.push(p.sport); });
@@ -19664,7 +20098,16 @@ const sc  = s => (typeof sportColor === "function" ? sportColor(s) : "#223140");
    than falling back to a colour-font glyph on a different optical baseline. */
 const pic = k => (typeof PICON !== "undefined" && PICON[k]) || "";
 const H   = () => S;
-const CAT = () => (typeof PROGRAMS !== "undefined" && PROGRAMS ? PROGRAMS : []);
+/* DEMO_CATALOGUE, not PROGRAMS. This module is ABOUT the six sample businesses
+   declared below — every figure on its two views is counted by matching
+   `p.biz` against a COMPANIES name. Once mod-catalog.js swaps PROGRAMS for live
+   rows, no live listing carries one of those names, so this would count zero
+   programmes and zero sports under six business headings and render a
+   confidently wrong stat block. Pointing it at the seeded array keeps the
+   surface internally consistent; Phase C3 replaces it with real providers. */
+const CAT = () => (typeof DEMO_CATALOGUE !== "undefined" && DEMO_CATALOGUE
+  ? DEMO_CATALOGUE
+  : (typeof PROGRAMS !== "undefined" && PROGRAMS ? PROGRAMS : []));
 const $$  = sel => Array.prototype.slice.call(document.querySelectorAll(sel));
 const usd = n => "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
 
@@ -20963,6 +21406,16 @@ function hydrateAuth(){
     .catch(()=>{ /* stay a guest; RLS is the real control either way */ });
 }
 hydrateAuth();
+
+/* Same shape as hydrateAuth, same trade: paint the seeded catalogue first,
+   then re-render if live rows arrive. render() is called ONLY on success —
+   a fallback changed nothing, so repainting would be a wasted frame and a
+   visible flash for no gain. Off by default; see mod-catalog.js for why. */
+function hydrateCatalog(){
+  if(!window.SporveCatalog) return;
+  window.SporveCatalog.hydrate().then(live=>{ if(live) render(); });
+}
+hydrateCatalog();
 
 /* Wrap render rather than editing it: every mutation path in the host and in
    every module already ends in render(), so this catches all of them without

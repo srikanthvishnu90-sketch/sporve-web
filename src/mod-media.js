@@ -86,8 +86,10 @@ const SLOTS = [
 const slotRow = k => SLOTS.find(s => s.key === k) || SLOTS[0];
 
 /* ═══════════════════ SEEDS ═══════════════════ */
-const prog = id => PROGRAMS.find(p => p.id === id) || null;
-const myListings = () => PROGRAMS.filter(p => S.listings.includes(p.id));
+/* Live catalogue first, seeded second — see the note in mod-coachops.js. */
+const prog = id => PROGRAMS.find(p => p.id === id) ||
+                   DEMO_CATALOGUE.find(p => p.id === id) || null;
+const myListings = () => DEMO_CATALOGUE.filter(p => S.listings.includes(p.id));
 
 const AGE_REF = new Date(2026, 7, 3);
 function ageFromDob(dob){
@@ -120,7 +122,7 @@ function seedSessions(){
    both places. */
 function seedRoster(){
   const mine = myListings();
-  const at = i => (mine[i] || PROGRAMS[i] || PROGRAMS[0]).id;
+  const at = i => (mine[i] || DEMO_CATALOGUE[i] || DEMO_CATALOGUE[0]).id;
   const host = (S.athletes && S.athletes[0]) || null;
   const first = host
     ? { id: host.id,
@@ -172,7 +174,7 @@ function seedItems(){
       caption: "Who we coach and how a session runs", createdAt: "2026-06-02T14:20:00.000Z",
       published: true }),
     mk({ id: "md_3", kind: "profile", slot: "facility", mediaType: "photo", durationSec: null,
-      sessionId: null, programId: (myListings()[0] || PROGRAMS[0]).id, athleteIds: [],
+      sessionId: null, programId: (myListings()[0] || DEMO_CATALOGUE[0]).id, athleteIds: [],
       caption: "Main pitch, Lincoln Park — shaded parent seating along the east side",
       createdAt: "2026-06-09T16:10:00.000Z", published: true }),
     mk({ id: "md_4", kind: "profile", slot: "action", mediaType: "photo", durationSec: null,

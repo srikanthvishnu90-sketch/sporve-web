@@ -3198,6 +3198,30 @@ const PROGRAMS = RAW.map(r=>{
   o.cancellationPolicy = o.id==="prog_2" ? "strict" : "moderate";
   return o;
 });
+
+/* The seeded catalogue, kept as its own array before anything can replace it.
+   ---------------------------------------------------------------------------
+   mod-catalog.js replaces the CONTENTS of PROGRAMS with live rows from the
+   database (in place, so the 747 reads and the modules that captured the array
+   keep working). Two things still need the sample data after that happens:
+
+   1. THE COACH PORTAL. `S.listings` is seeded with the five Apex Performance
+      Club ids below, and four modules do `PROGRAMS.filter(p =>
+      S.listings.includes(p.id))`. Against a live catalogue that filter returns
+      nothing, and each module's `|| PROGRAMS[0]` fallback would quietly hand
+      the demo coach a REAL provider's listing to manage. Showing one operator
+      another operator's business is worse than showing sample data, so the
+      coach side reads DEMO_CATALOGUE and stays explicitly a demo until Phase E
+      makes it live. That boundary is now a named thing in the code rather than
+      an accident of which array happened to be in scope.
+
+   2. THE FALLBACK ITSELF. If the fetch fails, PROGRAMS is never touched and
+      this is the same array — so nothing is lost by holding the reference.
+
+   slice(), not a deep clone: the record objects are shared on purpose. If a
+   later phase mutates a seeded listing, both views should agree. */
+const DEMO_CATALOGUE = PROGRAMS.slice();
+
 /* ONE definition of what makes a business background-checked, used everywhere.
    It was two: this list took `list[0].verified` -- the FIRST listing deciding
    for the whole business, i.e. one program vouching for an operator, which is
@@ -3215,12 +3239,23 @@ const bizVerified=name=>{
   const list=PROGRAMS.filter(p=>p.biz===name);
   return list.length>0&&list.every(p=>p.verified);
 };
-const BUSINESSES=[...new Set(PROGRAMS.map(p=>p.biz))].map(b=>{
-  const list=PROGRAMS.filter(p=>p.biz===b);
-  return {name:b,verified:bizVerified(b),count:list.length,
-    sports:[...new Set(list.map(p=>p.sport))],
-    rating:(list.reduce((s,p)=>s+p.rating,0)/list.length).toFixed(1)};
-});
+/* BUSINESSES is DERIVED from PROGRAMS, and the browse rails capture it. So it
+   cannot stay a one-shot expression: replacing the catalogue underneath it
+   would leave it describing six businesses that no longer exist, and the rails
+   would render headings for listings that are not there. Rebuilt in place —
+   same array object, new contents — for the same reason PROGRAMS is. */
+const BUSINESSES=[];
+function rebuildBusinesses(){
+  const next=[...new Set(PROGRAMS.map(p=>p.biz))].map(b=>{
+    const list=PROGRAMS.filter(p=>p.biz===b);
+    return {name:b,verified:bizVerified(b),count:list.length,
+      sports:[...new Set(list.map(p=>p.sport))],
+      rating:(list.reduce((s,p)=>s+p.rating,0)/list.length).toFixed(1)};
+  });
+  BUSINESSES.length=0;
+  BUSINESSES.push(...next);
+}
+rebuildBusinesses();
 
 /* Browse rails group the catalogue into three provider TYPES. The seed data has
    no stored type — every listing belongs to one of six businesses — so the type
@@ -3278,17 +3313,30 @@ const SESSIONS=[
   {id:"sess_2",programId:"prog_1",title:"Soccer Skill Session 2",date:dayAfter(6),startTime:"05:00 PM",endTime:"06:30 PM",tz:"CST",address:"Lincoln Park, Chicago, IL"},
   {id:"sess_3",programId:"prog_2",title:"Weekly Tennis Practice",date:dayAfter(5),startTime:"04:00 PM",endTime:"05:30 PM",tz:"CST",address:"Lakeview, Chicago, IL"},
 ];
+/* Real sessions, keyed by program id, filled by mod-catalog.js from the
+   `sessions` table. Empty until then, so the seeded path below is unchanged for
+   a page that never reaches the network. */
+const LIVE_SLOTS={};
+
 /* generic slots for every other listing so booking works everywhere */
 function slotsFor(pid){
+  /* Live rows win. They are also the only correct answer for a live listing:
+     the generated fallback below derives its dates from an integer parsed out
+     of "prog_7", and a uuid parses to NaN — which would propagate through
+     dayAfter() and render "Invalid Date" on every card. */
+  const live=LIVE_SLOTS[pid];
+  if(live&&live.length) return live;
   const seeded=SESSIONS.filter(s=>s.programId===pid);
   if(seeded.length) return seeded;
-  const n=parseInt(pid.split("_")[1],10);
+  /* `|| 0` so an id that is not "prog_N" degrades to a valid date rather than
+     NaN. Belt and braces: a live listing should already have returned above. */
+  const n=parseInt(String(pid).split("_")[1],10)||0;
   return [3,7,12].map((d,i)=>({
     id:`${pid}_s${i+1}`,programId:pid,title:"Training Session",
     date:dayAfter(d+(n%4)),
     startTime:["04:00 PM","05:00 PM","10:00 AM"][i],
     endTime:["05:30 PM","06:30 PM","11:30 AM"][i],
-    tz:"CST",address:PROGRAMS.find(p=>p.id===pid).address}));
+    tz:"CST",address:(PROGRAMS.find(p=>p.id===pid)||{}).address||"Chicago, IL"}));
 }
 
 const SEED={
@@ -4283,7 +4331,12 @@ function faqSectionHTML(){
   </section>`;
 }
 function famFrames(){
-  const p=PROGRAMS.find(x=>x.id==="prog_1");
+  /* A marketing frame illustrating one listing. It used to look up the literal
+     id "prog_1", which exists only in the seed — against a live catalogue the
+     find() returns undefined and the next line throws, blanking the landing
+     page. Take the first listing of whatever catalogue is loaded, and fall back
+     to the seeded one so the frame is never empty. */
+  const p=PROGRAMS[0]||DEMO_CATALOGUE[0];
   return `
   <div class="frame"><div class="fbar"><i></i><i></i><i></i></div>
     <div class="fbody">
@@ -6577,7 +6630,10 @@ Marcus Chen, marcus@example.com"></textarea></div>
     </form>`);
 
   if(m.type==="viewasparent"){
-    const p=PROGRAMS.filter(x=>S.listings.includes(x.id))[0];
+    /* The coach's own listing, which is seeded — S.listings holds seed ids, so
+       this must read the demo catalogue or it resolves to undefined and every
+       property access below throws. Same boundary as myListings(). */
+    const p=DEMO_CATALOGUE.filter(x=>S.listings.includes(x.id))[0]||DEMO_CATALOGUE[0];
     return wrap("How families see you",`
       <p style="color:var(--muted);margin-bottom:16px">
         This is your listing exactly as a searching parent sees it.</p>
@@ -9601,6 +9657,16 @@ function hydrateAuth(){
     .catch(()=>{ /* stay a guest; RLS is the real control either way */ });
 }
 hydrateAuth();
+
+/* Same shape as hydrateAuth, same trade: paint the seeded catalogue first,
+   then re-render if live rows arrive. render() is called ONLY on success —
+   a fallback changed nothing, so repainting would be a wasted frame and a
+   visible flash for no gain. Off by default; see mod-catalog.js for why. */
+function hydrateCatalog(){
+  if(!window.SporveCatalog) return;
+  window.SporveCatalog.hydrate().then(live=>{ if(live) render(); });
+}
+hydrateCatalog();
 
 /* Wrap render rather than editing it: every mutation path in the host and in
    every module already ends in render(), so this catches all of them without

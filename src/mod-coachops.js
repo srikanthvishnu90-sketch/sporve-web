@@ -64,8 +64,18 @@ const WD = [
 const wdName = n => (WD.find(w => w.n === n) || { l: "—" }).l;
 const wdShort = n => (WD.find(w => w.n === n) || { s: "—" }).s;
 
-const prog = id => PROGRAMS.find(p => p.id === id) || null;
-const myListings = () => PROGRAMS.filter(p => S.listings.includes(p.id));
+/* Resolves against the live catalogue first, then the seeded one. Once
+   mod-catalog.js swaps PROGRAMS for live rows, every id this module holds —
+   notes, media, roster entries — is a seeded "prog_N" that no live row
+   matches, and a bare PROGRAMS.find() would start returning null everywhere. */
+const prog = id => PROGRAMS.find(p => p.id === id) ||
+                   DEMO_CATALOGUE.find(p => p.id === id) || null;
+/* The coach portal is still sample data (Phase E makes it live), so it owns
+   seeded listings. Filtering the LIVE catalogue by S.listings returns nothing
+   and the `|| PROGRAMS[0]` fallbacks below would then hand this demo coach a
+   real provider's listing to manage — one operator shown another operator's
+   business. DEMO_CATALOGUE keeps that boundary explicit. */
+const myListings = () => DEMO_CATALOGUE.filter(p => S.listings.includes(p.id));
 
 /* ═══════════════════ POLICY VOCABULARY ═══════════════════ */
 /* Exactly three cancellation policies; each carries its real consequence. */
@@ -175,8 +185,8 @@ function seedWaitlist(){
 
 function seedSlots(){
   const mine = myListings();
-  const at = i => (mine[i] || PROGRAMS[i] || PROGRAMS[0]).id;
-  const capOf = i => (mine[i] || PROGRAMS[i] || PROGRAMS[0]).cap;
+  const at = i => (mine[i] || DEMO_CATALOGUE[i] || DEMO_CATALOGUE[0]).id;
+  const capOf = i => (mine[i] || DEMO_CATALOGUE[i] || DEMO_CATALOGUE[0]).cap;
   return [
     { id: "rs_1", name: "Monday evening squad", programId: at(0), weekday: 1, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
     { id: "rs_2", name: "Midweek evening squad", programId: at(0), weekday: 3, start: "17:00", end: "18:30", capacity: capOf(0), effectiveFrom: "2026-08-03", effectiveUntil: "2026-11-27" },
@@ -980,7 +990,7 @@ function wire(){
         return;
       }
     }
-    const base = myListings()[0] || PROGRAMS[0];
+    const base = myListings()[0] || DEMO_CATALOGUE[0];
     if (!base){ render(); return; }
     /* Holding availability writes to the coach's real schedule — a guest gets
        the sheet instead, and the drawn range is discarded rather than half-kept. */
