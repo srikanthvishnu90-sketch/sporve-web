@@ -616,6 +616,37 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)        fail "catalog: dangling-reference probe returned nothing ($dangling)" ;;
   esac
 
+  # API.from must FORWARD its options. It took (table, query) and silently
+  # dropped a third argument, so every write built as
+  # from(t, q, {method:"PATCH", body}) went out as a GET — PostgREST answered
+  # 200 with the row UNCHANGED, the caller's .then() saw a valid record and
+  # reported success, and the edit never happened. Read paths cannot catch this
+  # because they pass no options.
+  fwd=$($B js "(function(){
+    var seen=null, real=window.fetch;
+    window.fetch=function(u,o){ seen=(o&&o.method)||'GET'; return Promise.resolve(new Response('[]',{status:200,headers:{'Content-Type':'application/json'}})); };
+    return window.SporveAPI.from('providers','id=eq.00000000-0000-0000-0000-000000000000',{method:'PATCH',body:{bio:'x'}})
+      .catch(function(){})
+      .then(function(){ window.fetch=real; return 'METHOD:'+seen; });
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$fwd" | tr -d '[:space:]')" in
+    METHOD:PATCH) pass "api: from() forwards method and body — writes are not silently downgraded to reads" ;;
+    METHOD:GET)   fail "api: from() DROPPED its options — every write silently becomes a GET and reports success" ;;
+    *)            fail "api: option-forwarding probe returned nothing ($fwd)" ;;
+  esac
+
+  # A brand-new coach must never be publicly listed. Defaults are
+  # status='pending' and background_check_status='none', and
+  # providers_select_public requires approved AND a cleared check.
+  gate=$($B js "(function(){
+    if(!window.SporveCoach) return 'NOMODULE';
+    var f=window.SporveCoach.publicState;
+    return typeof f==='function'?'OK':'NOSTATE';})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$gate" | tr -d '[:space:]')" in
+    OK) pass "coach: the account module exposes a public-visibility state" ;;
+    *)  fail "coach: SporveCoach.publicState missing ($gate)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never

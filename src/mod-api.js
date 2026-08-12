@@ -135,9 +135,18 @@
     onUnauthorized: function (cb) { onUnauthorized = typeof cb === "function" ? cb : null; },
 
     /* PostgREST. `query` is a raw query string, e.g.
-       "select=id,title&status=eq.published&limit=20" */
-    from: function (table, query) {
-      return request("/rest/v1/" + table + (query ? "?" + query : ""));
+       "select=id,title&status=eq.published&limit=20"
+
+       `opts` is optional and reaches the same {method, headers, body} shape
+       every other call here uses. It was NOT forwarded originally, which made
+       writes fail in the most misleading way available: a caller passing
+       {method:"PATCH", body:{...}} had the whole object dropped, so the
+       request went out as a GET, PostgREST answered 200 with the row
+       UNCHANGED, and the caller's .then() saw a perfectly valid record and
+       reported success. Nothing threw, nothing logged, and the edit simply did
+       not happen. Read paths could never have caught it — they pass no opts. */
+    from: function (table, query, opts) {
+      return request("/rest/v1/" + table + (query ? "?" + query : ""), opts);
     },
 
     /* A SECURITY DEFINER function, e.g. search_listings / search_relax. */

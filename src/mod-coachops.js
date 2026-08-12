@@ -116,7 +116,7 @@ function sampleValues(){
   const u = S.auth && S.auth.user;
   const coach = (u && u.role === "provider" && u.firstName)
     ? (u.firstName + " " + (u.lastName || "")).trim()
-    : SEED.providerProfile.businessName;
+    : ((typeof coachBusinessName==="function")?coachBusinessName():SEED.providerProfile.businessName);
   return {
     athlete_first_name: String(b.athlete || "").split(" ")[0] || b.athlete,
     session_date: fmtDate(b.date),

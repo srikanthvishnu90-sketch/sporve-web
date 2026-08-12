@@ -71,7 +71,7 @@ const firstName = s => String(s || "").trim().split(/\s+/)[0] || String(s || "")
 function coachName(){
   const u = S.auth && S.auth.user;
   if (u && u.role === "provider" && u.firstName) return (u.firstName + " " + (u.lastName || "")).trim();
-  return SEED.providerProfile.businessName;
+  return (typeof coachBusinessName==="function")?coachBusinessName():SEED.providerProfile.businessName;
 }
 
 /* ── phrasing ────────────────────────────────────────────────────── */

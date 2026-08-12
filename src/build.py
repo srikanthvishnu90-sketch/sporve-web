@@ -21,6 +21,8 @@ ORDER = [
     # PROGRAMS array, so it must load after the API and before any module that
     # would otherwise capture a stale catalogue.
     "mod-catalog.js",
+    # mod-coachaccount.js fourth: needs SporveAPI and SporveAuth on window.
+    "mod-coachaccount.js",
     "mod-safety.js", "mod-reviews.js", "mod-coachops.js",
     "mod-payments.js", "mod-search.js", "mod-coachonboard.js",
     "mod-media.js", "mod-notes.js", "mod-insights.js",

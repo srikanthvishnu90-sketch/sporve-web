@@ -3491,6 +3491,14 @@ const S={
   calMonth:TODAY.slice(0,7),       // provider schedule: month in view, "YYYY-MM"
   schedTab:"month",                // provider schedule sub-tab: month | slots
   coachPromptShown:false,          // auth sheet already offered on the coach side
+  /* The coach's own provider row, mirrored from the server for render. Derived,
+     so it is EPHEMERAL and re-fetched at boot — a stale copy in sessionStorage
+     would let a coach see an approval state the server has since changed. */
+  coachProvider:null,
+  /* Survives the trip to the confirmation email and back, which is why it is
+     NOT ephemeral: signup returns no session, so the provider row cannot be
+     created until the coach clicks the link and comes back authenticated. */
+  pendingBusinessName:"",
   coachQuery:"",                   // coach-side search box
   coachSearchKind:"all",           // all | player | team | camp | staff
   coachSearchFocus:false,          // keep the caret in the box across re-renders
@@ -3628,12 +3636,49 @@ function coachLockHTML(title,what){
    different things: the page CTAs navigated, the Coaches-menu row only raised
    the sheet without ever navigating, and the product-page CTA opened an
    onboarding wizard. All three now come through here. */
+/* The business name to show in the coach portal.
+   ---------------------------------------------------------------------------
+   A real coach's own row wins; the seeded demo business is the fallback, and
+   only that. Every surface used SEED.providerProfile.businessName directly, so
+   a coach who had just signed up and named their business was shown "Apex
+   Performance Club" on their own dashboard. */
+function coachBusinessName(){
+  const p=S.coachProvider;
+  if(p&&p.business_name) return p.business_name;
+  return SEED.providerProfile.businessName;
+}
+
+/* Whether this coach is publicly listed yet, so the portal can say so
+   honestly. A new signup is status='pending' with background_check_status
+   'none', which providers_select_public correctly hides — the dashboard must
+   not imply they are live. */
+function coachPublicState(){
+  return (window.SporveCoach&&S.coachProvider)
+    ? window.SporveCoach.publicState()
+    : {live:true,reason:null};   // the seeded demo coach reads as live
+}
+
 function enterCoachPortal(){
-  S.portal="coach";S.signupRole="coach";S.coachTab="dashboard";S.modal=null;
-  go("dashboard");
-  if(!isVerified()&&!S.coachPromptShown){
-    S.coachPromptShown=true;S.modal={type:"authsheet"};render();
+  /* IDENTITY FIRST. This used to flip S.portal to "coach" and route to the
+     dashboard before asking who you were, so a stranger who had never signed
+     in was shown Apex Performance Club's dashboard — another operator's
+     listings, schedule and earnings — behind a login sheet. The sheet was
+     decoration over a portal that had already opened.
+
+     A guest now gets the coach gate and nothing else. The portal flips in
+     runIntent("coachOnboard") once there is a real session. */
+  S.signupRole="coach";
+  if(!isVerified()){
+    /* coachgate is a ROUTE, not a modal — it is a full-page split with the
+       pitch on the left and the form on the right. Parking the intent as DATA
+       (not a closure) is what lets it survive the Google OAuth redirect. */
+    S.pendingIntent={kind:"coachOnboard"};
+    S.modal=null;
+    go("coachgate");
+    return;
   }
+  S.portal="coach";S.coachTab="dashboard";S.modal=null;
+  go("dashboard");
 }
 
 /* INTENT REGISTRY — the fix for "sign in with Google loses your booking".
@@ -3652,7 +3697,9 @@ const INTENTS = {
   book:    a => { S.modal={type:"book", programId:a.programId}; render(); },
   message: a => { S.modal={type:"message", coachId:a.coachId}; render(); },
   save:    a => { if(!S.favorites.includes(a.id)) S.favorites=[...S.favorites,a.id]; toast("Saved to your list"); },
-  coachOnboard: () => startCoachOnboarding(),
+  /* Was startCoachOnboarding(), which flipped the portal and showed the seeded
+     Apex dashboard. Now creates the coach's OWN provider row first. */
+  coachOnboard: () => enterCoachWorkspace(),
 };
 function runIntent(intent){
   if(!intent) return;
@@ -3721,10 +3768,44 @@ function doSignUp(email, password, meta){
     .catch(e=>{ authFail(e&&e.message); return false; });
 }
 
+/* Coach signup. Same door as doSignUp, plus the two things a coach needs that
+   a family does not: role=provider in the user metadata that handle_new_user()
+   reads to build the profiles row, and a business name carried through to the
+   `providers` record created after confirmation.
+
+   The business name is stashed on S rather than passed forward, because
+   mailer_autoconfirm is FALSE: signup returns NO session, the coach has to
+   click an emailed link, and the provider row cannot be created until there is
+   an authenticated request to attach owner_id = auth.uid() to. S is persisted,
+   so the name survives the trip to the inbox and back. */
+function doCoachSignUp(email, password, businessName){
+  S.pendingBusinessName = businessName || "";
+  return doSignUp(email, password, { role:"provider", business_name: businessName||"" });
+}
+
+/* Called once a coach has a real session. Creates their provider row if it is
+   their first time, then opens the portal on THEIR business. */
+function enterCoachWorkspace(){
+  S.portal="coach"; S.signupRole="coach"; S.modal=null;
+  if(!window.SporveCoach){ S.coachTab="dashboard"; go("dashboard"); return; }
+  window.SporveCoach.ensure(S.pendingBusinessName||"")
+    .then(p=>{
+      S.pendingBusinessName="";
+      S.coachProvider = p || null;
+      /* A coach with an incomplete profile lands on the wizard; one who has
+         finished it lands on the dashboard. */
+      S.coachTab = (p && p.onboarding_completed) ? "dashboard" : (modView("onboard")?"onboard":"dashboard");
+      go("dashboard");
+    })
+    .catch(()=>{ S.coachTab="dashboard"; go("dashboard"); });
+}
+
 function doSignOut(){
   /* Clear the transport FIRST. If only S.auth were reset, the UI would say
      guest while every fetch still carried a valid bearer — the two-store
      disagreement this release exists to remove. */
+  if(window.SporveCoach) window.SporveCoach.clear();
+  S.coachProvider=null; S.pendingBusinessName="";
   if(window.SporveAuth) window.SporveAuth.signOut();
   S.auth={status:"guest",user:null};
   S.pendingIntent=null; S.authError=null; S.authBusy=false;
@@ -5611,7 +5692,7 @@ function coachHTML(){
     <nav class="rail" aria-label="Coach sections">
       <button class="railhead" data-viewas="1">
         <span class="avatar" style="width:38px;height:38px">AP</span>
-        <span><b>${esc(SEED.providerProfile.businessName)}</b>
+        <span><b>${esc(coachBusinessName())}</b>
           <span>View public profile ▸</span></span>
       </button>
       <div class="raildiv"></div>
@@ -8315,9 +8396,18 @@ function coachGateHTML(){
   : `
       <h1 class="cg-h1">Log in or sign up</h1>
       <p class="cg-sub">Coach on Sporve — set your availability, take bookings, and get paid, all in one place.</p>
+      ${/* A real account needs a password and a business name — the single
+           "phone or email" box could never create one, because the form behind
+           it fabricated a session from the seed rather than calling GoTrue.
+           Business name is asked here because providers.business_name is NOT
+           NULL, so it is the one field required to create the row at all. */""}
       <form class="cg-form" id="cgForm">
-        <input class="cg-input" id="cgId" type="text" placeholder="Phone number or email" autocomplete="username" aria-label="Phone number or email" required>
-        <button class="cg-continue" type="submit">Continue</button>
+        <input class="cg-input" id="cgId" type="email" placeholder="Email address" autocomplete="username" aria-label="Email address" required>
+        <input class="cg-input" id="cgPw" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password" minlength="8" required>
+        <input class="cg-input" id="cgBiz" type="text" placeholder="Business or coaching name" autocomplete="organization" aria-label="Business or coaching name">
+        ${S.authError?`<div class="err" role="alert" style="margin:2px 0 6px">${esc(S.authError)}</div>`:""}
+        <button class="cg-continue" type="submit"${S.authBusy?" disabled":""}>${S.authBusy?"Working…":"Continue"}</button>
+        <p class="cg-fine" style="margin-top:10px">New here? Leave the name blank to sign in, or fill it in to create a coaching account.</p>
       </form>
       <div class="cg-or">or</div>
       <div class="cg-oauth">
@@ -8778,10 +8868,20 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   /* Become a coach opens the signup wizard directly — there is no marketing
      page in front of it any more. */
   $("[data-becomecoach]").forEach(b=>b.onclick=()=>enterCoachPortal());
+  /* REAL coach auth. This used to be
+       completeAuth({...SEED.user, role:"provider"})
+     which fabricated a verified session out of the seed no matter what was
+     typed — no password checked, no account created, nothing persisted. */
   $("#cgForm").forEach(f=>f.onsubmit=e=>{e.preventDefault();
-    const id=(document.getElementById("cgId")||{}).value||"";
-    S.pendingIntent=startCoachOnboarding;
-    completeAuth({...SEED.user,email:id.includes("@")?id:SEED.user.email,role:"provider"});});
+    const email=((document.getElementById("cgId")||{}).value||"").trim();
+    const pw=((document.getElementById("cgPw")||{}).value||"");
+    const biz=((document.getElementById("cgBiz")||{}).value||"").trim();
+    S.pendingIntent={kind:"coachOnboard"};
+    /* A business name is the signal for "create an account". Sign-in has no
+       use for it, and asking an existing coach to retype their business name
+       to log in would be absurd. */
+    if(biz) doCoachSignUp(email,pw,biz); else doSignIn(email,pw);
+  });
   $("[data-cg-google]").forEach(b=>b.onclick=()=>{
     /* Park the intent as DATA before navigating away — a closure would not
        survive the redirect. saveState() is forced because the browser is about
@@ -8791,7 +8891,11 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     if(window.SporveAuth) window.location.href=window.SporveAuth.oauthUrl("google", window.location.origin);
   });
   $("[data-cg-apple]").forEach(b=>b.onclick=()=>toast("Apple sign-in isn't wired up yet"));
-  $("[data-cg-demo]").forEach(b=>b.onclick=()=>{S.pendingIntent=startCoachOnboarding;completeAuth({...SEED.user,role:"provider"});});
+  /* The demo account stays, and stays a MOCK — it is the only way to look
+     around the coach portal without creating a real provider record. It is
+     labelled as such in the markup, and it is the one place completeAuth() is
+     still called with seed data on purpose. */
+  $("[data-cg-demo]").forEach(b=>b.onclick=()=>{S.pendingIntent={kind:"coachOnboard"};completeAuth({...SEED.user,role:"provider"});});
   $("[data-cg-proceed]").forEach(b=>b.onclick=()=>startCoachOnboarding());
   $("[data-cg-signout]").forEach(b=>b.onclick=()=>{
     /* Drop the pending intent with the identity. Keeping it means the action
@@ -9708,6 +9812,7 @@ const EPHEMERAL = new Set([
      as before — but a DESCRIPTOR ({kind:"book",…}) survives, which is what lets
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
+  "coachProvider",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
   /* From the ported coach-portal work. coachSearchFocus is a one-render flag

@@ -1,0 +1,249 @@
+/* mod-coachaccount.js — a real coach account.
+   ---------------------------------------------------------------------------
+   WHAT WAS THERE BEFORE
+
+   "Become a coach" called enterCoachPortal(), which set S.portal="coach" and
+   routed to the dashboard BEFORE asking who you were. So a stranger who had
+   never signed in saw Apex Performance Club's dashboard — a seeded business
+   that does not exist — with its listings, its schedule and its earnings,
+   behind a login sheet. Signing in did not help: the form called
+
+       completeAuth({...SEED.user, role:"provider"})
+
+   which fabricates a verified session out of the seed regardless of what you
+   typed. No password was checked, no account was created, nothing was written.
+   Whatever a coach filled in vanished on reload, because there was nowhere for
+   it to go.
+
+   WHAT THIS DOES
+
+   Signup and sign-in go to GoTrue for real, with role=provider in the user
+   metadata that handle_new_user() reads to build the profiles row. Then the
+   coach gets a `providers` record they own, and every field they fill in is
+   PATCHed onto it.
+
+   THE BACKEND WAS ALREADY READY, which is worth stating because it is why this
+   file is short. RLS on `providers`, verified 2026-08-12:
+
+     providers_insert_owner   INSERT  authenticated  check (owner_id = auth.uid())
+     providers_select_owner   SELECT  authenticated  using (owner_id = auth.uid())
+     providers_update_owner   UPDATE  authenticated  using (owner_id = auth.uid())
+     providers_select_public  SELECT  anon+auth      using (status='approved'
+                                                       and provider_safety_cleared(id))
+
+   So a coach can create and edit exactly their own row and nobody else's, and
+   the server enforces it — this client could be hostile and the rule holds.
+
+   A NEW COACH IS NOT PUBLIC, AND THAT IS THE POINT. The column defaults are
+   status='pending', background_check_status='none', verification_status=
+   'unverified'. providers_select_public requires 'approved' AND a cleared
+   safety check, so a freshly created coach is invisible to browse and search
+   until a human approves them and the check clears. Signing up does not put an
+   unchecked adult in front of a family, which is the whole product promise.
+
+   IMAGES. `providers.avatar_url` / `logo_url` and the `provider-media` bucket
+   were added 2026-08-12 — the project previously had NO storage buckets at
+   all, so an uploaded photo had nowhere to go. Writes are owner-scoped by path:
+   the first folder segment must equal auth.uid(), so a coach cannot overwrite
+   another coach's headshot by guessing a filename.
+*/
+(function () {
+  "use strict";
+
+  var API = window.SporveAPI, AUTH = window.SporveAuth;
+  if (!API || !AUTH) { return; }
+
+  /* The coach's own provider row, once loaded. Null while signed out or while
+     a signed-in provider has not created one yet. */
+  var provider = null;
+
+  function uid() { return AUTH.userId(); }
+
+  /* Columns a coach may set about themselves. An allowlist rather than passing
+     the form object straight through: `status`, `verification_status` and
+     `background_check_status` all live on this table, and a PATCH built from
+     arbitrary keys is how a coach approves themselves. RLS would still let the
+     write through — it scopes rows, not columns — so this is the guard that
+     matters. Server-side column grants are the belt to this braces. */
+  var EDITABLE = [
+    "business_name", "bio", "sports", "location", "provider_type",
+    "coach_years_coaching", "coach_years_played", "credentials",
+    "avatar_url", "logo_url", "faq", "buffer_minutes",
+  ];
+
+  function pick(patch) {
+    var out = {};
+    Object.keys(patch || {}).forEach(function (k) {
+      if (EDITABLE.indexOf(k) >= 0 && patch[k] !== undefined) out[k] = patch[k];
+    });
+    return out;
+  }
+
+  var ACCOUNT = {
+    /* Sign up as a coach. mailer_autoconfirm is FALSE in this project, so this
+       resolves {needsConfirmation:true} and NO session — the provider row
+       cannot be created until they click the emailed link, because
+       owner_id = auth.uid() requires an authenticated request. */
+    signUp: function (email, password, businessName) {
+      return AUTH.signUp(email, password, {
+        role: "provider",
+        business_name: String(businessName || "").trim(),
+      });
+    },
+
+    signIn: function (email, password) { return AUTH.signIn(email, password); },
+
+    /* The coach's own row. Selected by owner_id rather than trusting a stored
+       id: the session is the source of truth for who you are. */
+    load: function () {
+      if (!uid()) { provider = null; return Promise.resolve(null); }
+      return API.from("providers",
+        "select=id,business_name,bio,sports,location,provider_type,status," +
+        "verification_status,background_check_status,onboarding_completed," +
+        "coach_years_coaching,coach_years_played,credentials,avatar_url,logo_url" +
+        "&owner_id=eq." + encodeURIComponent(uid()) + "&limit=1"
+      ).then(function (rows) {
+        provider = (rows && rows[0]) || null;
+        return provider;
+      });
+    },
+
+    /* Get the coach's provider row, creating it only if it is genuinely absent.
+       ---------------------------------------------------------------------
+       IT USUALLY EXISTS ALREADY. handle_new_user() fires on auth.users insert
+       and, when the metadata says role=provider, inserts a providers row
+       itself — named from raw_user_meta_data->>'name', or 'My Academy' when
+       that is empty. It reads 'name', NOT the 'business_name' this client
+       sends, so a coach who typed "QA Probe Athletics" got a business called
+       "My Academy" and no error anywhere: the row was created, just not by us
+       and not with their name.
+
+       So the job here is mostly to RENAME. If the coach typed a name during
+       signup it is their stated intent and it wins — applied once, then
+       forgotten, so a later rename in settings is not overwritten on next
+       login.
+
+       The insert path is kept for the case the trigger did not run (an account
+       that became a provider later). `on conflict (owner_id)` in the trigger
+       tells us owner_id is UNIQUE, so a race here loses cleanly rather than
+       producing two businesses for one coach. */
+    ensure: function (businessName) {
+      if (!uid()) return Promise.reject(new Error("not signed in"));
+      var wanted = String(businessName || "").trim();
+      return ACCOUNT.load().then(function (existing) {
+        if (existing) {
+          if (wanted && existing.business_name !== wanted) {
+            return ACCOUNT.save({ business_name: wanted });
+          }
+          return existing;
+        }
+        return API.from("providers", "", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: {
+            owner_id: uid(),
+            business_name: String(businessName || "").trim() || "My coaching business",
+            /* Everything else takes its column default: pending, unverified,
+               background check 'none'. Deliberately not set here — a client
+               that names those columns is a client one typo away from
+               self-approval. */
+          },
+        }).then(function (rows) {
+          provider = (rows && rows[0]) || null;
+          return provider;
+        });
+      });
+    },
+
+    /* Persist a patch. This is what makes what a coach types survive a reload,
+       which it previously did not do at all. */
+    save: function (patch) {
+      var body = pick(patch);
+      if (!uid()) return Promise.reject(new Error("not signed in"));
+      if (!Object.keys(body).length) return Promise.resolve(provider);
+      if (!provider) {
+        return ACCOUNT.ensure(body.business_name).then(function () {
+          return ACCOUNT.save(patch);
+        });
+      }
+      return API.from("providers",
+        "id=eq." + encodeURIComponent(provider.id),
+        { method: "PATCH", headers: { Prefer: "return=representation" }, body: body }
+      ).then(function (rows) {
+        provider = (rows && rows[0]) || provider;
+        return provider;
+      });
+    },
+
+    /* Upload a headshot or logo and record its URL.
+
+       The path MUST start with the user's id: the storage policy checks
+       (storage.foldername(name))[1] = auth.uid(), so any other prefix is
+       rejected by the server. The timestamp keeps a re-upload from being
+       cached under the old URL. */
+    uploadImage: function (file, kind) {
+      var id = uid();
+      if (!id) return Promise.reject(new Error("not signed in"));
+      if (!file) return Promise.reject(new Error("no file"));
+      var ok = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+      if (ok.indexOf(file.type) < 0) {
+        return Promise.reject(new Error("Use a JPEG, PNG, WebP or AVIF image."));
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        return Promise.reject(new Error("That image is over 5 MB."));
+      }
+      var ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+      var path = id + "/" + (kind === "logo" ? "logo" : "avatar") + "-" + Date.now() + "." + ext;
+      var sess = AUTH.session();
+
+      /* Raw fetch, not API.from: this is the Storage API, the body is binary
+         rather than JSON, and the shared wrapper always sets
+         Content-Type: application/json. */
+      return fetch(API.url + "/storage/v1/object/" + encodeURIComponent("provider-media") + "/" + path, {
+        method: "POST",
+        headers: {
+          apikey: API.anonKey,
+          Authorization: "Bearer " + (sess && sess.access_token),
+          "Content-Type": file.type,
+          "x-upsert": "true",
+        },
+        body: file,
+      }).then(function (r) {
+        if (!r.ok) {
+          return r.text().then(function (t) {
+            throw new Error("Upload failed" + (t ? ": " + t.slice(0, 120) : "."));
+          });
+        }
+        var url = API.url + "/storage/v1/object/public/provider-media/" + path;
+        var patch = {};
+        patch[kind === "logo" ? "logo_url" : "avatar_url"] = url;
+        return ACCOUNT.save(patch).then(function () { return url; });
+      });
+    },
+
+    current: function () { return provider; },
+    clear: function () { provider = null; },
+
+    /* What the dashboard should call the business. Falls back to the profile
+       name, then to a neutral string — never to the seeded "Apex Performance
+       Club", which is another operator's business. */
+    displayName: function () {
+      if (provider && provider.business_name) return provider.business_name;
+      return "Your coaching business";
+    },
+
+    /* Whether this coach is publicly visible, and if not, why. The dashboard
+       has to be able to say "pending review" honestly rather than implying a
+       new signup is already listed. */
+    publicState: function () {
+      if (!provider) return { live: false, reason: "no-profile" };
+      if (provider.status !== "approved") return { live: false, reason: "pending-approval" };
+      if (provider.background_check_status !== "verified") {
+        return { live: false, reason: "pending-check" };
+      }
+      return { live: true, reason: null };
+    },
+  };
+
+  window.SporveCoach = ACCOUNT;
+})();
