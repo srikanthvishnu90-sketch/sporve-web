@@ -3753,7 +3753,7 @@ function cardHTML(p){
     <div class="ttl">${esc(p.title)}</div>
     <div class="meta num">Ages ${p.minAge}–${p.maxAge} · ${esc(p.skill)}</div>
     ${p.verified
-      ? `<div class="verifline">${ICON.shield} Verification pending</div>`
+      ? `<div class="verifline">${ICON.shield} Background-checked</div>`
       : `<div class="pendline">${ICON.shield} Verification pending</div>`}
     <div class="price num"><b>${money(p.price)}</b> <span style="color:var(--muted)">${modelLabel(p.model)}</span></div>
   </div>`;
@@ -3781,7 +3781,7 @@ function featureCardHTML(p){
     <div class="featfoot">
       <span class="featloc">${ICON.pin}${esc(p.address)}</span>
       ${p.verified
-        ? `<span class="verifline" style="padding:0">${ICON.shield} Verification pending</span>`
+        ? `<span class="verifline" style="padding:0">${ICON.shield} Background-checked</span>`
         : `<span class="pendline" style="padding:0">${ICON.shield} Verification pending</span>`}
       <span class="featprice num">${money(p.price)} / ${esc(modelLabel(p.model).replace(/^per /,""))}</span>
     </div>
@@ -4853,7 +4853,7 @@ function detailHTML(id){
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:9px">
             <span class="pill" style="background:${sportColor(p.sport)}1A;color:${sportColor(p.sport)}">
               ${sportGlyph(p.sport)} ${esc(p.sport)}</span>
-            ${p.verified?`<span class="pill gold">${ICON.shield} Verification pending</span>`
+            ${p.verified?`<span class="pill gold">${ICON.shield} Background-checked</span>`
                         :`<span class="pill warn">${ICON.shield} Verification pending</span>`}
             ${p.featured?`<span class="pill slate">Featured</span>`:""}
           </div>
@@ -5184,7 +5184,7 @@ function mapHTML(){
             style="left:${px(p).toFixed(2)}%;top:${py(p).toFixed(2)}%;--pc:${sportColor(p.sport)}"
             data-pin="${p.id}" aria-label="${esc(p.title)}, ${money(p.price)}">
             <span class="num">${money(p.price)}</span></button>`).join("")}
-        <div class="mapnote">Pins use each listing's real coordinates from the app's seed data.</div>
+        <div class="mapnote">${catalogueIsLive()?"Pins use each listing's real coordinates.":"Pins use each listing's real coordinates from the app's seed data."}</div>
       </div>
       <aside class="mapside">
         ${sel?`<div class="card" style="gap:11px">
@@ -5195,7 +5195,7 @@ function mapHTML(){
               <span class="rate num">${ICON.star}&nbsp;${sel.rating}</span></div>
             <div class="ttl">${esc(sel.title)}</div>
             <div class="meta num">Ages ${sel.minAge}–${sel.maxAge} · ${esc(sel.address)}</div>
-            ${sel.verified?`<div class="verifline">${ICON.shield} Verification pending</div>`
+            ${sel.verified?`<div class="verifline">${ICON.shield} Background-checked</div>`
                           :`<div class="pendline">${ICON.shield} Verification pending</div>`}
             <div class="price num"><b>${money(sel.price)}</b> <span style="color:var(--muted)">${modelLabel(sel.model)}</span></div>
             <button class="btn wide sm" data-open="${sel.id}">View program</button>
@@ -5244,7 +5244,7 @@ function assistantHTML(){
                      <b>${esc(p.title)}</b>
                      <span class="num" style="color:var(--muted);font-size:var(--text-sm)">${esc(p.biz)} · ${money(p.price)} ${modelLabel(p.model)}</span>
                      <span class="num" style="font-size:var(--text-sm);color:var(--muted)">${ICON.star} ${p.rating} · ages ${p.minAge}–${p.maxAge}</span>
-                     ${p.verified?`<span class="pill gold" style="width:fit-content">${ICON.shield} Verification pending</span>`:""}
+                     ${p.verified?`<span class="pill gold" style="width:fit-content">${ICON.shield} Background-checked</span>`:""}
                    </span></button>`}).join("")}</div>`:""}
              </div>`).join("")
         :`<div style="margin:auto;text-align:center;max-width:420px;padding:20px">
@@ -6389,7 +6389,7 @@ function modalHTML(){
         <img src="${p.img}" alt="" style="width:70px;height:70px;border-radius:var(--r-m);object-fit:cover">
         <div><b>${esc(p.title)}</b>
           <div style="color:var(--muted);font-size:var(--text-sm)">${esc(p.biz)} · ${esc(p.sport)}</div>
-          ${p.verified?`<span class="pill gold" style="margin-top:5px">${ICON.shield} Verification pending</span>`:""}</div>
+          ${p.verified?`<span class="pill gold" style="margin-top:5px">${ICON.shield} Background-checked</span>`:""}</div>
       </div>
       <form id="bookForm" style="margin-top:18px">
         <div class="field"><label>Athlete</label>
@@ -6704,7 +6704,7 @@ Marcus Chen, marcus@example.com"></textarea></div>
             <b>${esc(p.biz)}</b><span class="num">${ICON.star} ${p.rating}</span></div>
           <div style="color:var(--muted);font-size:var(--text-base);margin-top:3px">${esc(p.title)}</div>
           <div class="num" style="color:var(--muted);font-size:var(--text-sm)">Ages ${p.minAge}–${p.maxAge} · ${esc(p.skill)}</div>
-          <span class="pill gold" style="margin-top:8px">${ICON.shield} Verification pending</span>
+          ${p.verified?`<span class="pill gold" style="margin-top:8px">${ICON.shield} Background-checked</span>`:""}
           <div class="num" style="font-weight:700;margin-top:9px">${money(p.price)} ${modelLabel(p.model)}</div>
         </div>
       </div>

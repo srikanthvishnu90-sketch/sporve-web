@@ -431,7 +431,7 @@
         </div>
         <div class="sf-states" data-rev>
           <div class="prodcard sf-static">
-            <span class="pill gold">${ICON.shield} Verification pending</span>
+            <span class="pill gold">${ICON.shield} Background-checked</span>
             <span>Check passed, and re-run on schedule.</span>
           </div>
           <div class="prodcard sf-static">

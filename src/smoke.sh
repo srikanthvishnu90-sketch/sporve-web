@@ -477,6 +477,24 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)                fail "catalog: provenance label disagrees with the data source ($provenance)" ;;
   esac
 
+  # The trust badge must not be inverted. Seven sites rendered a GOLD pill —
+  # the positive styling — carrying the words "Verification pending", so every
+  # background-checked provider was labelled unverified, on every card on the
+  # marketplace and on the very page that explains what the badge means. Both
+  # branches of the ternary had been given the same string; only the class
+  # differed. This is the product's core claim, so it gets an assertion.
+  badge=$($B js "(function(){S.route={name:'explore',arg:null};render();
+    var gold=[].slice.call(document.querySelectorAll('.verifline,.pill.gold'));
+    var wrong=gold.filter(function(e){return /Verification pending/i.test(e.textContent);}).length;
+    var right=gold.filter(function(e){return /Background-checked/i.test(e.textContent);}).length;
+    return wrong?'INVERTED:'+wrong:'OK:'+right;})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$badge" | tr -d '[:space:]')" in
+    OK:0)       fail "catalog: no verified badge rendered at all — 10 background-checked providers and not one shield" ;;
+    OK:*)       pass "catalog: $(printf '%s' "$badge" | cut -d: -f2) verified listings badged 'Background-checked', none inverted" ;;
+    INVERTED:*) fail "catalog: $(printf '%s' "$badge" | cut -d: -f2) verified provider(s) labelled 'Verification pending' — the trust badge is inverted" ;;
+    *)          fail "catalog: badge probe returned nothing ($badge)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws.
   $B console --clear >/dev/null 2>&1
   $B js "S.route={name:'explore',arg:null};render();S.route={name:'home',arg:null};render();S.route={name:'map',arg:null};render();1" >/dev/null 2>&1
