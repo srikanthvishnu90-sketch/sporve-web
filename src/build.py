@@ -23,6 +23,8 @@ ORDER = [
     "mod-catalog.js",
     # mod-coachaccount.js fourth: needs SporveAPI and SporveAuth on window.
     "mod-coachaccount.js",
+    # mod-booking.js fifth: the booking write path, needs API + auth.
+    "mod-booking.js",
     "mod-safety.js", "mod-reviews.js", "mod-coachops.js",
     "mod-payments.js", "mod-search.js", "mod-coachonboard.js",
     "mod-media.js", "mod-notes.js", "mod-insights.js",

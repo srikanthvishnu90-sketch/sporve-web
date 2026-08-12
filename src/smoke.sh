@@ -647,6 +647,35 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)  fail "coach: SporveCoach.publicState missing ($gate)" ;;
   esac
 
+  # BOOKING [CRITICAL-PATH]. The module must exist, must reject rather than
+  # THROW when signed out, and must never send a price — the server decides it
+  # (trg_set_booking_price), and a client that sends one is a client someone
+  # will one day trust.
+  # Read the SHIPPED function rather than trying to drive it: create() rejects
+  # before any fetch when signed out, so a network stub never sees a body, and
+  # faking a session to get past that would test the fake.
+  bk=$($B js "(function(){
+    if(!window.SporveBooking) return 'NOMODULE';
+    var src=window.SporveBooking.create.toString();
+    if(/original_price|final_price|\bprice\b/.test(src)) return 'SENDSPRICE';
+    if(!/session_id/.test(src)) return 'NOSESSION';
+    return 'OK';
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$bk" | tr -d '[:space:]')" in
+    OK)         pass "booking: the write path sends identifiers only — never a price" ;;
+    SENDSPRICE) fail "booking: the client is sending a PRICE — the server sets it, and a client-supplied price is a discount anyone can grant themselves" ;;
+    NOMODULE)   fail "booking: SporveBooking is missing from the built page" ;;
+    NOSESSION)  fail "booking: create() no longer sends session_id — the booking would not attach to a session" ;;
+    *)          fail "booking: price probe returned nothing ($bk)" ;;
+  esac
+
+  signedout=$($B js "window.SporveBooking.create({sessionId:'x'}).then(function(){return 'RESOLVED';}).catch(function(e){return 'REJECTED:'+e.message;})" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$signedout" | tr -d '[:space:]')" in
+    REJECTED:*) pass "booking: a signed-out booking rejects cleanly instead of throwing past every handler" ;;
+    RESOLVED)   fail "booking: a signed-out booking RESOLVED — it must not" ;;
+    *)          fail "booking: signed-out probe threw synchronously ($signedout)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never
