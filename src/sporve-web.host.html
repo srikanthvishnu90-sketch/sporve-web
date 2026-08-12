@@ -5180,7 +5180,13 @@ function mapHTML(){
     <div class="maplayout">
       <div class="mapcanvas" role="application" aria-label="Program map">
         <div class="mapgrid" aria-hidden="true"></div>
-        ${list.map(p=>`<button class="pin ${S.mapPick===p.id?"on":""}"
+        ${/* A listing with no coordinates cannot be plotted. Without this
+             filter it projects to left:NaN%, the browser discards the invalid
+             declaration, and the pin renders at the canvas origin — so several
+             unplottable listings silently stack on top of each other in the
+             corner and read as a real cluster. Every published row has
+             coordinates today; nothing guarantees the next one will. */""}
+        ${list.filter(p=>Number.isFinite(p.lng)&&Number.isFinite(p.lat)).map(p=>`<button class="pin ${S.mapPick===p.id?"on":""}"
             style="left:${px(p).toFixed(2)}%;top:${py(p).toFixed(2)}%;--pc:${sportColor(p.sport)}"
             data-pin="${p.id}" aria-label="${esc(p.title)}, ${money(p.price)}">
             <span class="num">${money(p.price)}</span></button>`).join("")}
