@@ -495,13 +495,21 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)          fail "catalog: badge probe returned nothing ($badge)" ;;
   esac
 
-  # Nothing above is worth anything if the live render throws.
-  $B console --clear >/dev/null 2>&1
-  $B js "S.route={name:'explore',arg:null};render();S.route={name:'home',arg:null};render();S.route={name:'map',arg:null};render();1" >/dev/null 2>&1
-  liveerr=$($B console 2>/dev/null | grep -c "error" || true)
-  [ "$liveerr" = "0" ] \
-    && pass "catalog: home, explore and map render clean against live data" \
-    || fail "catalog: $liveerr console error(s) rendering live data"
+  # Nothing above is worth anything if the live render throws. The 13-route
+  # sweep near the top of this file runs on file://, which never hydrates — so
+  # without this, eleven of the thirteen visitor-reachable routes had never
+  # been rendered against a real row. A uuid where a "prog_N" was expected, a
+  # null the seed always filled, a business name twice as long as any sample:
+  # none of those are visible to a seeded run.
+  LIVEFAIL=0
+  for r in $ROUTES; do
+    $B console --clear >/dev/null 2>&1
+    $B js "S.auth={status:'guest'};S.portal='family';S.route={name:'$r',arg:null};render();'ok'" >/dev/null 2>&1
+    n=$($B console --errors 2>&1 | grep "\[error\]" | grep -vc "Failed to load resource")
+    [ "$n" -eq 0 ] || { fail "catalog: JS error(s) on route '$r' against LIVE data ($n)"; LIVEFAIL=$((LIVEFAIL+1)); }
+  done
+  [ "$LIVEFAIL" -eq 0 ] \
+    && pass "catalog: all $(echo $ROUTES | wc -w | tr -d ' ') visitor routes render clean against live data"
 
   # Leave the harness on a file:// page so later checks are unaffected.
   $B goto "file://$(pwd)/index.html" >/dev/null 2>&1
