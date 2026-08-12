@@ -264,6 +264,30 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     && pass "api: SporveAPI is present in the built page" \
     || fail "api: SporveAPI missing — mod-api.js did not inline"
 
+  # The auth layer must be present and wired to the API layer. `onUnauthorized`
+  # being registered is the load-bearing bit: without it an expired token is a
+  # dead end for the user, which is the single most likely real-world failure.
+  auth=$($B js "typeof window.SporveAuth==='object'&&typeof window.SporveAuth.signIn==='function'&&typeof window.SporveAuth.restore==='function'" 2>/dev/null | tr -d '[:space:]')
+  [ "$auth" = "true" ] \
+    && pass "auth: SporveAuth is present in the built page" \
+    || fail "auth: SporveAuth missing — mod-auth.js did not inline"
+
+  # A signed-out visitor must read as guest, never as verified. If this ever
+  # says true with no session, every auth-gated surface is open to everyone.
+  guest=$($B js "window.SporveAuth.isSignedIn()===false&&window.SporveAuth.userId()===null" 2>/dev/null | tr -d '[:space:]')
+  [ "$guest" = "true" ] \
+    && pass "auth: no session reads as signed-out (fails closed)" \
+    || fail "auth: isSignedIn() is true with no session — auth-gated surfaces would be open"
+
+  # Wrong credentials must reject with a human-readable message, not a raw code
+  # and not a silent resolve. Uses a deliberately non-existent account.
+  badlogin=$($B js "window.SporveAuth.signIn('nobody-'+Date.now()+'@gmail.com','wrongpassword123').then(()=>'FAIL:accepted').catch(e=>'OK:'+(e.code||'?')+':'+(e.message||'').slice(0,40))" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$badlogin" | tr -d '[:space:]')" in
+    OK:invalid_credentials:*) pass "auth: wrong credentials rejected with a usable message" ;;
+    FAIL:*) fail "auth: a bad password was ACCEPTED" ;;
+    *) fail "auth: unexpected sign-in failure shape — $badlogin" ;;
+  esac
+
   ping=$($B js "window.SporveAPI.ping().then(r=>'OK:'+r.programs).catch(e=>'ERR:'+e.status+':'+e.message)" 2>/dev/null | tr -d '\r')
   case "$(printf '%s' "$ping" | tr -d '[:space:]')" in
     OK:0)  fail "api: reached the backend but zero published programs — the marketplace has no inventory" ;;

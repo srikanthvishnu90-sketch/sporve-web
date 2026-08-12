@@ -66,7 +66,13 @@
   }
   ApiError.prototype = Object.create(Error.prototype);
 
-  function request(path, opts) {
+  /* Set by mod-auth.js. Called when a request comes back 401/PGRST301 — an
+     expired access token — so the request can be retried once with a fresh one.
+     Kept as a hook rather than a direct import because mod-api.js inlines FIRST
+     and must not depend on a module that may not exist. */
+  var onUnauthorized = null;
+
+  function rawRequest(path, opts) {
     opts = opts || {};
     var headers = authHeaders();
     headers["Content-Type"] = "application/json";
@@ -99,8 +105,34 @@
       });
   }
 
+  /* An access token lives ~1 hour. The failure that matters is not sign-in —
+     it is a parent who opens a tab, is interrupted, returns, and taps Book.
+     Without this they get "something went wrong" and no route out.
+
+     PGRST301 is PostgREST's code for a JWT it cannot accept, which is what an
+     expired token produces. Retry EXACTLY ONCE: if the refreshed token is also
+     rejected the problem is not staleness, and looping would hammer the API
+     and hide the real error. mod-auth's refresh() de-dupes concurrent callers,
+     so three parallel 401s trigger one refresh, not three — which matters
+     because GoTrue rotates refresh tokens and the 2nd would be spent. */
+  function request(path, opts) {
+    return rawRequest(path, opts).catch(function (err) {
+      var expired = err instanceof ApiError && err.status === 401 &&
+                    (err.code === "PGRST301" || err.code === "PGRST303");
+      if (!expired || !onUnauthorized) throw err;
+      return Promise.resolve()
+        .then(function () { return onUnauthorized(); })
+        .then(function () { return rawRequest(path, opts); })
+        .catch(function () { throw err; });   // surface the ORIGINAL error
+    });
+  }
+
   var API = {
     url: SUPABASE_URL,
+    anonKey: SUPABASE_ANON,
+
+    /* mod-auth.js registers its refresh here. */
+    onUnauthorized: function (cb) { onUnauthorized = typeof cb === "function" ? cb : null; },
 
     /* PostgREST. `query` is a raw query string, e.g.
        "select=id,title&status=eq.published&limit=20" */
