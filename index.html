@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="ff1a2c235385abfa">
+<meta name="sporve-build" content="81e42066ae908dc7">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -3326,6 +3326,33 @@ const PTYPE_LABEL={
    all 20 approved providers — so the live marketplace is ten solo trainers, the
    camps and teams bands have nothing in them, and the honest render is to show
    one band rather than three with two permanently empty (see kindBandHTML). */
+/* THE COACH'S OWN LISTINGS. One definition, because there were seven.
+   ---------------------------------------------------------------------------
+   `S.listings` is built once at boot from the seeded catalogue
+   (`p.biz==="Apex Performance Club"`), is never recomputed, and is PERSISTED —
+   it is not in EPHEMERAL. So it holds "prog_1".."prog_5" forever.
+
+   Seven places filtered the LIVE catalogue by those ids and got nothing back.
+   Empty is not the interesting part; what the surfaces then say is:
+
+     · the Listings tab renders "Everything is full — Every live listing is at
+       capacity." over zero listings, which is flatly false
+     · gettingStarted() flips "Set services & pricing" to not-done, so an
+       APPROVED provider is told "You're N steps from going live" and every
+       dashboard figure renders as an em-dash
+     · the profile dial drops 20 points and asks him to price services he has
+       five of
+     · the Reviews tab reads "Listings reviewed 0 of 0"
+
+   None of that throws, which is why it survived a green smoke run — an empty
+   array is a perfectly valid input that produces confidently wrong copy.
+
+   The coach portal is sample data until Phase E, so it reads the sample
+   catalogue. One function, so the next surface cannot pick the wrong array. */
+function coachListings(){
+  return DEMO_CATALOGUE.filter(p=>S.listings.includes(p.id));
+}
+
 /* Whether the catalogue currently in PROGRAMS came from the database. Read at
    render time, never cached — hydration resolves after the first paint, so a
    value captured at boot would always say "seed". */
@@ -3576,7 +3603,7 @@ function minsOf(t){
 /* Every session across the coach's own listings, in clock order. Shared by the
    month grid and the day sheet so the two can never disagree. */
 function providerSessions(){
-  return PROGRAMS.filter(p=>S.listings.includes(p.id))
+  return coachListings()
     .flatMap(p=>slotsFor(p.id).map(s=>({...s,p})))
     .sort((a,b)=>a.date.localeCompare(b.date)||minsOf(a.startTime)-minsOf(b.startTime));
 }
@@ -4736,10 +4763,21 @@ function exploreHTML(){
         <button class="fchip" data-openfilters="1">${ICON.sliders} More filters${
           (window.MOD_SEARCH&&MOD_SEARCH.activeCount&&MOD_SEARCH.activeCount())?
           `<span class="badge num">${MOD_SEARCH.activeCount()}</span>`:""}</button>
+        ${/* A filter chip that CANNOT match anything is a dead end dressed as a
+             control: the visitor taps it, the grid empties, and the only thing
+             they learn is that the site does not work. Two of these four were
+             exactly that against live inventory — every published row is
+             `single_session`, so "Monthly" returned nothing, and the cheapest
+             listing is $60, so "Under $50" did too.
+
+             So each chip is shown only if the catalogue can answer it. This is
+             the same rule as the empty kind-band above: offer what you have.
+             `verified` stays unconditional — it is the trust control, and its
+             presence is a statement of policy rather than of inventory. */""}
         ${chip("verified","Background-checked only",f.verifiedOnly)}
-        ${chip("under50","Under $50",f.maxPrice===50)}
-        ${chip("single","Single session",f.model==="single_session")}
-        ${chip("monthly","Monthly",f.model==="monthly")}
+        ${PROGRAMS.some(p=>p.price<50)?chip("under50","Under $50",f.maxPrice===50):""}
+        ${PROGRAMS.some(p=>p.model==="single_session")?chip("single","Single session",f.model==="single_session"):""}
+        ${PROGRAMS.some(p=>p.model==="monthly")?chip("monthly","Monthly",f.model==="monthly"):""}
         ${dirty?`<button class="fchip" data-filter="clear">Clear all</button>`:""}
         <span class="fcount num">${list.length} of ${PROGRAMS.length} programs</span>
       </div>
@@ -5292,7 +5330,12 @@ function assistantHTML(){
           : `<div style="max-width:88%;align-self:flex-start;display:flex;flex-direction:column;gap:11px">
                <div class="bub them">${esc(m.text)}</div>
                ${(m.picks||[]).length?`<div class="pickgrid">${m.picks.map(id=>{
-                 const p=PROGRAMS.find(x=>x.id===id);
+                 /* Picks are ids parked in PERSISTED chat state, so a
+                    conversation from before the catalogue changed carries ids
+                    no live row matches. Unguarded, the next line threw and
+                    took the whole assistant route down. */
+                 const p=PROGRAMS.find(x=>x.id===id)||DEMO_CATALOGUE.find(x=>x.id===id);
+                 if(!p) return "";
                  return `<button class="pickcard" data-open="${p.id}">
                    <img src="${p.img}" alt="">
                    <span class="pi">
@@ -5468,7 +5511,7 @@ function scheduleHTML(){
 function coachSearchIndex(){
   const mineIds=S.listings||[];
   const out=[];
-  PROGRAMS.forEach(p=>out.push({
+  DEMO_CATALOGUE.forEach(p=>out.push({
     kind:"camp",label:"Camp",title:p.title,
     sub:`${p.sport} · ages ${p.minAge}–${p.maxAge}`,
     meta:`${money(p.price)} ${modelLabel(p.model)}`,
@@ -5596,7 +5639,7 @@ function coachHTML(){
 /* ── Getting started: 7 real steps, derived from actual state ─────── */
 function gettingStarted(){
   const pp=SEED.providerProfile;
-  const mine=PROGRAMS.filter(p=>S.listings.includes(p.id));
+  const mine=coachListings();
   const mediaPct=(window.MOD_MEDIA&&window.MOD_MEDIA.strength)?window.MOD_MEDIA.strength().pct:0;
   const steps=[
     ["Create your profile",!!pp.businessName,"profile"],
@@ -5623,7 +5666,7 @@ function spark(vals,color){
 /* ═══════════════ COACH DASHBOARD — the §1–§7 canvas ═══════════════ */
 function dashboardHTML(){
   const pp=SEED.providerProfile;
-  const mine=PROGRAMS.filter(p=>S.listings.includes(p.id));
+  const mine=coachListings();
   const gs=gettingStarted();
   const live=gs.done>=6;                         // operating mode vs launch mode
   const first=(S.auth.user&&S.auth.user.firstName)||"Marcus";
@@ -5807,7 +5850,7 @@ function dashboardHTML(){
 /* Profile strength — pulls media's real contribution when that module is loaded */
 function profileStrengthHTML(){
   const pp=SEED.providerProfile;
-  const mine=PROGRAMS.filter(p=>S.listings.includes(p.id));
+  const mine=coachListings();
   const media=(window.MOD_MEDIA&&window.MOD_MEDIA.strength)?window.MOD_MEDIA.strength():{pct:0,next:"Add profile photos"};
   const parts=[["Business details",!!pp.bio&&!!pp.location,20],
                ["Sports listed",(pp.sports||[]).length>0,15],
@@ -5858,7 +5901,7 @@ function actionQueue(){
      to read, and an empty queue is the honest guest state. */
   if(isCoachGuest()) return [];
   const out=[];
-  const mine=PROGRAMS.filter(p=>S.listings.includes(p.id));
+  const mine=coachListings();
   const pending=S.trainers.filter(t=>t.bg!=="verified");
   (S.waitlistEntries||[]).filter(w=>w.status==="waiting").slice(0,1).forEach(w=>{
     const p=PROGRAMS.find(x=>x.id===w.programId);
@@ -5886,7 +5929,7 @@ function actionQueue(){
   return out;
 }
 function coachBody(t){
-  const mine=PROGRAMS.filter(p=>S.listings.includes(p.id));
+  const mine=coachListings();
   const pp=SEED.providerProfile;
   const mv=modView(t); if(mv) return mv();
   if(t==="search") return coachSearchHTML();
@@ -6436,7 +6479,11 @@ function modalHTML(){
     </form>`);
 
   if(m.type==="book"){
-    const p=PROGRAMS.find(x=>x.id===m.programId);
+    /* Reached from a card click (a live id) but also from a seeded booking's
+       "View program", so fall back before dereferencing. */
+    const p=PROGRAMS.find(x=>x.id===m.programId)||DEMO_CATALOGUE.find(x=>x.id===m.programId);
+    if(!p) return wrap("Program unavailable",
+      `<p style="color:var(--muted)">That listing is no longer available.</p>`);
     const slots=slotsFor(p.id);
     const fee=Math.round(p.price*FEE_RATE);
     return wrap("Request to book",`

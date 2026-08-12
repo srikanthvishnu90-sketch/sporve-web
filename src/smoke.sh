@@ -435,19 +435,28 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
   # under a comment claiming Chicago; real coordinates projected to
   # left:-3154%, top:-7456% and the map rendered empty under a header counting
   # ten programs. Bounds are derived now, so this asserts the derivation.
+  # Measure the RENDERED pins, not the formula. The first version of this check
+  # recomputed the projection with the same arithmetic the page uses, so it
+  # agreed with itself by construction and would have passed against the old
+  # hardcoded Miami box. Read the actual geometry the browser laid out.
   mappins=$($B js "(function(){try{
     S.route={name:'map',arg:null}; render();
-    var pins=[].slice.call(document.querySelectorAll('[style*=left]')).map(function(e){return e.style.left;})
-      .filter(function(v){return /%\$/.test(v);}).map(parseFloat).filter(function(n){return !isNaN(n);});
-    var b=mapBounds(PROGRAMS);
-    var xs=PROGRAMS.map(function(p){return ((p.lng-b.LNG[0])/(b.LNG[1]-b.LNG[0]))*100;});
-    var ys=PROGRAMS.map(function(p){return (1-(p.lat-b.LAT[0])/(b.LAT[1]-b.LAT[0]))*100;});
-    var bad=xs.concat(ys).filter(function(n){return !isFinite(n)||n<0||n>100;});
-    return bad.length?'OFFCANVAS:'+bad.length+':'+Math.round(bad[0]):'OK:'+xs.length;
+    var canvas=document.querySelector('.mapcanvas');
+    if(!canvas) return 'NOCANVAS';
+    var cb=canvas.getBoundingClientRect();
+    var pins=[].slice.call(canvas.querySelectorAll('.pin'));
+    if(!pins.length) return 'NOPINS';
+    var off=pins.filter(function(el){
+      var r=el.getBoundingClientRect();
+      return r.left<cb.left-1||r.right>cb.right+1||r.top<cb.top-1||r.bottom>cb.bottom+1;
+    });
+    return off.length?'OFFCANVAS:'+off.length+'of'+pins.length:'OK:'+pins.length;
   }catch(e){return 'THREW:'+e.message;}})()" 2>/dev/null | tr -d '\r')
   case "$(printf '%s' "$mappins" | tr -d '[:space:]')" in
-    OK:*)         pass "catalog: all $(printf '%s' "$mappins" | cut -d: -f2) live map pins project onto the canvas" ;;
-    OFFCANVAS:*)  fail "catalog: $(printf '%s' "$mappins" | cut -d: -f2) map coordinate(s) land off-canvas (first at $(printf '%s' "$mappins" | cut -d: -f3)%) — the bbox does not match the data" ;;
+    OK:*)         pass "catalog: all $(printf '%s' "$mappins" | cut -d: -f2) rendered map pins sit inside the canvas" ;;
+    OFFCANVAS:*)  fail "catalog: $(printf '%s' "$mappins" | cut -d: -f2) map pins laid out OFF the canvas — the bbox does not match the data" ;;
+    NOPINS)       fail "catalog: the map rendered no pins at all for a catalogue that has listings" ;;
+    NOCANVAS)     fail "catalog: the map canvas did not render" ;;
     THREW:*)      fail "catalog: map projection threw — $mappins" ;;
     *)            fail "catalog: map probe returned nothing ($mappins)" ;;
   esac
@@ -493,6 +502,57 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     OK:*)       pass "catalog: $(printf '%s' "$badge" | cut -d: -f2) verified listings badged 'Background-checked', none inverted" ;;
     INVERTED:*) fail "catalog: $(printf '%s' "$badge" | cut -d: -f2) verified provider(s) labelled 'Verification pending' — the trust badge is inverted" ;;
     *)          fail "catalog: badge probe returned nothing ($badge)" ;;
+  esac
+
+  # THE FAILURE MODE THAT SURVIVES A GREEN RUN. Seven coach surfaces filtered
+  # the LIVE catalogue by S.listings — seeded ids that no live row matches — and
+  # got back an empty array. Nothing threw. The tabs simply rendered confident,
+  # false copy: "Everything is full — Every live listing is at capacity" over
+  # zero listings, and an approved provider told he was N steps from going live.
+  # An empty array is a valid input, so only asserting on the words catches it.
+  coachcopy=$($B js "(function(){try{
+    S.auth={status:'verified'};S.portal='coach';
+    var bad=[];
+    ['listings','dashboard','reviews','schedule'].forEach(function(t){
+      S.coachTab=t;S.route={name:'dashboard',arg:null};render();
+      var txt=document.getElementById('app').innerText;
+      /* The claim is false when NOTHING is actually at capacity — which is
+         exactly what an empty listing array produces, since 'none of zero
+         listings has a free slot' is vacuously true. */
+      if(/Everything is full/i.test(txt)&&!coachListings().some(function(p){return p.enrolled>=p.cap;})) bad.push(t+':falsely-full');
+      if(/steps from going live/i.test(txt)) bad.push(t+':launch-mode');
+      if(/Listings reviewed 0 of 0/i.test(txt)) bad.push(t+':zero-of-zero');
+    });
+    return bad.length?'WRONG:'+bad.join(','):'OK:'+coachListings().length;
+  }catch(e){return 'THREW:'+e.message;}})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$coachcopy" | tr -d '[:space:]')" in
+    OK:0)     fail "catalog: the coach owns zero listings — the portal will render launch-mode copy to an approved provider" ;;
+    OK:*)     pass "catalog: coach surfaces read their own $(printf '%s' "$coachcopy" | cut -d: -f2) listings, no false empty-state copy" ;;
+    WRONG:*)  fail "catalog: coach surfaces render false copy against live data (${coachcopy#*WRONG:})" ;;
+    THREW:*)  fail "catalog: coach copy probe threw — $coachcopy" ;;
+    *)        fail "catalog: coach copy probe returned nothing ($coachcopy)" ;;
+  esac
+
+  # No filter chip may be a dead end. Tap it, get an empty grid, learn only
+  # that the site is broken. "Monthly" and "Under \$50" were both unmatched by
+  # every live row.
+  chips=$($B js "(function(){try{
+    S.auth={status:'guest'};S.portal='family';S.filters={maxPrice:null,verifiedOnly:false,model:null};
+    S.route={name:'explore',arg:null};render();
+    var dead=[].slice.call(document.querySelectorAll('[data-filter]')).filter(function(el){
+      var f=el.getAttribute('data-filter');
+      if(f==='under50') return !PROGRAMS.some(function(p){return p.price<50;});
+      if(f==='single')  return !PROGRAMS.some(function(p){return p.model==='single_session';});
+      if(f==='monthly') return !PROGRAMS.some(function(p){return p.model==='monthly';});
+      return false;
+    }).map(function(el){return el.getAttribute('data-filter');});
+    return dead.length?'DEAD:'+dead.join(','):'OK';
+  }catch(e){return 'THREW:'+e.message;}})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$chips" | tr -d '[:space:]')" in
+    OK)      pass "catalog: every filter chip on browse can actually match something" ;;
+    DEAD:*)  fail "catalog: filter chip(s) ${chips#*DEAD:} match nothing in the catalogue — tapping one empties the grid for no reason" ;;
+    THREW:*) fail "catalog: chip probe threw — $chips" ;;
+    *)       fail "catalog: chip probe returned nothing ($chips)" ;;
   esac
 
   # Nothing above is worth anything if the live render throws. The 13-route
