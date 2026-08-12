@@ -561,6 +561,35 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)       fail "catalog: chip probe returned nothing ($chips)" ;;
   esac
 
+  # EVERY kind tab must have a band to jump to. This is the check I should have
+  # written the first time: hiding empty BANDS left the TABS pointing at
+  # anchors that no longer exist, so "Camps" and "Team" scrolled nowhere and
+  # did nothing — no grid, no empty state, no feedback at all. The chip check
+  # above passed the whole time, because tabs are a different mechanism.
+  # Assert the relationship, not each side.
+  tabs=$($B js "(function(){try{
+    S.auth={status:'guest'};S.portal='family';S.kind=null;S.sports=[];S.query='';
+    S.filters={maxPrice:null,verifiedOnly:false,model:null};
+    S.route={name:'explore',arg:null};render();
+    var dangling=[].slice.call(document.querySelectorAll('[data-kindjump]'))
+      .map(function(e){return e.getAttribute('data-kindjump');})
+      .filter(function(id){return id!=='browse'&&!document.getElementById(id);});
+    var bands=[].slice.call(document.querySelectorAll('.kind-band')).map(function(e){return e.id;});
+    var tabIds=[].slice.call(document.querySelectorAll('[data-kindtab]'))
+      .map(function(e){return e.getAttribute('data-kindtab');}).filter(function(i){return i!=='browse';});
+    var orphanBands=bands.filter(function(b){return tabIds.length&&tabIds.indexOf(b)<0;});
+    if(dangling.length) return 'DANGLING:'+dangling.join(',');
+    if(orphanBands.length) return 'ORPHANBAND:'+orphanBands.join(',');
+    return 'OK:'+bands.length+'bands/'+tabIds.length+'tabs';
+  }catch(e){return 'THREW:'+e.message;}})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$tabs" | tr -d '[:space:]')" in
+    OK:*)         pass "catalog: browse tabs and bands agree ($(printf '%s' "$tabs" | cut -d: -f2))" ;;
+    DANGLING:*)   fail "catalog: kind tab(s) ${tabs#*DANGLING:} jump to a band that is not rendered — clicking does nothing at all" ;;
+    ORPHANBAND:*) fail "catalog: band(s) ${tabs#*ORPHANBAND:} have no tab pointing at them" ;;
+    THREW:*)      fail "catalog: tab/band probe threw — $tabs" ;;
+    *)            fail "catalog: tab/band probe returned nothing ($tabs)" ;;
+  esac
+
   # Seeded records outlive the catalogue swap and keep their seeded ids:
   # S.bookings, S.conversations, chat picks, waitlist entries. They resolve
   # through programById(), which falls back to the demo catalogue. The failure

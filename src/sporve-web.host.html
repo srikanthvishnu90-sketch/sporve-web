@@ -3864,6 +3864,18 @@ function railSectionHTML(type,list){
    `title` carries verbatim <em> markup, so it is intentionally NOT esc()'d; the
    plain-text sub is. The leading .band-rule hairline is hidden on the first band
    by CSS (:first-of-type), so exactly two of the three rules paint. */
+/* The browse bands, and the tabs that jump to them, from ONE declaration.
+   `title` carries verbatim <em> markup and is intentionally not esc()'d; `sub`
+   and `tab` are plain text. See exploreHTML() for why this is shared. */
+const KIND_BANDS=[
+  {id:"private",type:"solo",tab:"Private",title:"Private training <em>near you</em>",
+   sub:"One coach, one athlete. The fastest way to fix a specific skill."},
+  {id:"camps",type:"camp",tab:"Camps",title:"Camps <em>this season</em>",
+   sub:"Multi-day blocks during breaks and summers. High reps, full progressions."},
+  {id:"teams",type:"org",tab:"Team",title:"Team <em>programs</em>",
+   sub:"Recurring group sessions at the same age and level, all season."},
+];
+
 function kindBandHTML(id,title,sub,type,full){
   const items=full.filter(p=>ptypeOf(p)===type);
   /* Two different kinds of empty, and they deserve different answers.
@@ -4702,10 +4714,22 @@ function exploreHTML(){
      (#private/#camps/#teams), plus an "All coaches" jump to the top of browse.
      An IntersectionObserver in wireKindBands() drives the .on / aria-selected
      state from the band in view; "All coaches" starts active. */
-  const kinds=[["browse","All coaches"],["private","Private"],["camps","Camps"],["teams","Team"]];
-  const kt=`<div class="kindtabs" role="tablist" aria-label="Coaching type">
+  /* ONE source for the tabs and the bands below, because they were two and
+     they disagreed. Each tab is a jump link to a band anchor; once a band with
+     no listings stopped rendering, "Camps" and "Team" pointed at elements that
+     do not exist, so clicking them scrolled nowhere and did nothing at all —
+     no grid, no empty state, no feedback. Worse than the empty grid it
+     replaced. Deriving both from KIND_BANDS makes that disagreement
+     unrepresentable rather than merely fixed. */
+  const shownKinds=KIND_BANDS.filter(k=>PROGRAMS.some(p=>ptypeOf(p)===k.type));
+  /* With one kind, the tab row is "All coaches / Private" over a single band —
+     a control whose two options select the same ten listings. Drop it. */
+  const kinds=shownKinds.length>1
+    ? [["browse","All coaches"]].concat(shownKinds.map(k=>[k.id,k.tab]))
+    : [];
+  const kt=kinds.length?`<div class="kindtabs" role="tablist" aria-label="Coaching type">
     ${kinds.map(([sec,l],i)=>`<button class="kindtab ${i===0?"on":""}" role="tab"
-       aria-selected="${i===0}" data-kindtab="${sec}" data-kindjump="${sec}">${esc(l)}</button>`).join("")}</div>`;
+       aria-selected="${i===0}" data-kindtab="${sec}" data-kindjump="${sec}">${esc(l)}</button>`).join("")}</div>`:"";
 
   return `
   ${/* Founding-cohort promo strip removed per owner (2026-08-09). */""}
@@ -4754,13 +4778,8 @@ function exploreHTML(){
         <span class="fcount num">${list.length} of ${PROGRAMS.length} programs</span>
       </div>
 
-      ${list.length?`
-        ${kindBandHTML("private","Private training <em>near you</em>",
-            "One coach, one athlete. The fastest way to fix a specific skill.","solo",list)}
-        ${kindBandHTML("camps","Camps <em>this season</em>",
-            "Multi-day blocks during breaks and summers. High reps, full progressions.","camp",list)}
-        ${kindBandHTML("teams","Team <em>programs</em>",
-            "Recurring group sessions at the same age and level, all season.","org",list)}`
+      ${list.length?
+        KIND_BANDS.map(k=>kindBandHTML(k.id,k.title,k.sub,k.type,list)).join("")
         :`<div class="empty"><div class="big">${ICON.search}</div><h3>No programs match those filters</h3>
           <p style="margin-top:6px">Try clearing a filter or picking a different sport.</p>
           <button class="btn ghost sm" data-filter="clear" style="margin-top:18px">Clear all filters</button></div>`}
