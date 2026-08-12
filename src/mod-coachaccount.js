@@ -221,6 +221,32 @@
       });
     },
 
+    /* STRIPE CONNECT — the step that turns a 409 at checkout into a payment.
+       -----------------------------------------------------------------------
+       Of 23 approved providers, ZERO had stripe_charges_enabled, so
+       stripe-create-checkout correctly refused every booking with "This coach
+       can't accept payments yet." Nothing in either client called this
+       function; the coach had no way to connect a bank at all.
+
+       The Edge Function owns everything that matters — it creates or reuses the
+       Stripe account, writes stripe_account_id with the service role, and
+       returns chargesEnabled read from STRIPE, not from our column. This client
+       sends a return URL and follows a link.
+
+       `returnUrl` must be in CONNECT_RETURN_ORIGINS, which was NOT SET at all
+       until 2026-08-12 — the function 503'd before it even reached auth, which
+       is why this looked like a missing feature rather than a missing variable.
+
+       Resolves {accountId, chargesEnabled, onboardingUrl}. onboardingUrl is
+       absent once Stripe is satisfied, which is the signal that the coach is
+       done rather than a failure. */
+    connectPayouts: function () {
+      var no = guard(); if (no) return no;
+      return API.fn("stripe-connect-onboarding", {
+        returnUrl: window.location.origin + "/?connect=done",
+      });
+    },
+
     current: function () { return provider; },
     clear: function () { provider = null; },
 

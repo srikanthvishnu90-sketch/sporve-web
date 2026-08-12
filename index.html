@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="a06bb3071423e557">
+<meta name="sporve-build" content="d669a2d2ff42cdeb">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -1189,6 +1189,16 @@ img{max-width:100%;display:block}
 .kcard .btn{align-self:flex-start;margin-top:4px}
 .kcard-soon{align-self:flex-start;margin-top:4px;font-size:var(--text-sm);
   font-weight:700;color:var(--muted)}
+
+/* Payouts panel */
+.paypanel{margin:16px 0 20px;display:flex;flex-direction:column;gap:10px}
+.pay-head{display:flex;align-items:center;gap:10px}
+.pay-head b{font-size:var(--text-lg)}
+.pay-head .pill{margin-left:auto}
+.pay-ok{display:flex;align-items:center;gap:7px;color:var(--gold-ink);font-weight:600;font-size:var(--text-sm)}
+.pay-warn{color:var(--muted);font-size:var(--text-sm);max-width:62ch}
+.paypanel .btn{align-self:flex-start}
+.pay-fine{color:var(--muted);font-size:var(--text-xs);max-width:62ch}
 .aidock{position:fixed;right:22px;bottom:22px;z-index:85;
   display:flex;flex-direction:column;align-items:flex-end;gap:12px}
 /* The button was --ink, which is #000 — invisible against the coach portal's
@@ -6149,9 +6159,42 @@ function gettingStarted(){
     ["Set services & pricing",mine.length>0,"listings"],
     ["Set availability",(S.recurringSlots||[]).length>0,"slots"],
     ["Pass your background check",pp.status==="approved","profile"],
-    ["Connect payouts",!!pp.stripeAccountId,"finances"],
+    /* chargesEnabled, not "an account exists". A coach can start Stripe
+       onboarding and abandon it half way — the account id is written, but
+       Stripe still refuses charges, and checkout still 409s. Ticking this on
+       the id alone would tell a coach they were ready to be paid when the
+       platform would refuse their first booking. */
+    ["Connect payouts",!!(S.coachProvider&&S.coachProvider.stripe_charges_enabled)||!!(pp.stripeAccountId&&!S.coachProvider),"finances"],
   ];
   return {steps,done:steps.filter(s=>s[1]).length,total:steps.length};
+}
+
+/* PAYOUTS — the coach-facing half of Stripe Connect.
+   State comes from the provider row; the ACTION goes to the Edge Function,
+   which reads chargesEnabled from Stripe itself rather than trusting our
+   column. Three states, because "not started" and "started but incomplete"
+   need different words: a coach who abandoned onboarding half way has an
+   account id and still cannot be paid. */
+function payoutsPanelHTML(){
+  const pv=S.coachProvider;
+  const live=!!(pv&&pv.stripe_charges_enabled);
+  const started=!!(pv&&pv.stripe_account_id);
+  const busy=!!S.connectBusy;
+  const body=live
+    ? `<p class="pay-ok">${ICON.shield} Payouts are active. Families can book and pay you.</p>`
+    : `<p class="pay-warn">${started
+        ? "Stripe still needs a few details before it will release payments. Until then a family cannot check out with you."
+        : "You cannot take bookings until Stripe has your bank details. Sporve never sees them."}</p>
+       <button class="btn" data-connectpayouts="1"${busy?" disabled":""}>
+         ${busy?"Opening Stripe…":(started?"Finish payout setup":"Connect payouts")}</button>`;
+  return `<section class="panel paypanel">
+    <div class="pay-head"><b>Payouts</b>
+      <span class="pill ${live?"gold":"warn"}">${live?"Active":started?"Incomplete":"Not connected"}</span></div>
+    ${body}
+    ${S.connectError?`<div class="err" role="alert" style="margin-top:10px">${esc(S.connectError)}</div>`:""}
+    <p class="pay-fine">Sporve takes ${FEE_PCT}% of each booking. The rest reaches your account
+      through Stripe, which holds your bank details — not us.</p>
+  </section>`;
 }
 
 /* ── inline sparkline, no chart library ───────────────────────────── */
@@ -6737,6 +6780,7 @@ function coachBody(t){
     const gross=S.bookings.filter(b=>S.listings.includes(b.programId)).reduce((s,b)=>s+b.price,0);
     const fee=Math.round(gross*FEE_RATE), net=gross-fee;
     return `<div class="sec-head" style="margin-top:18px"><h1>Finances</h1></div>
+      ${payoutsPanelHTML()}
       <div class="stats">
         ${[["Gross",money(gross),"all bookings"],["Platform fee",money(fee),"itemized per booking"],
            ["Net payout",money(net),"to your account"],["Payouts",pp.stripeAccountId?"Connected":"Not set up",pp.stripeAccountId?"Payouts enabled":"Finish setup to get paid"]]
@@ -9604,6 +9648,23 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const el=document.querySelector(".kind-band");
     if(el) el.scrollIntoView({behavior:"smooth",block:"start"});
   });
+  /* Start (or resume) Stripe Connect onboarding. Stripe hosts the form; we
+     never see a bank detail. onboardingUrl is ABSENT once Stripe is satisfied,
+     which is success, not failure — reload the row and say so. */
+  $("[data-connectpayouts]").forEach(b=>b.onclick=()=>{
+    if(!window.SporveCoach) return;
+    S.connectBusy=true;S.connectError=null;render();
+    window.SporveCoach.connectPayouts()
+      .then(r=>{
+        if(r&&r.onboardingUrl){window.location.href=r.onboardingUrl;return;}
+        return window.SporveCoach.load().then(pv=>{
+          S.coachProvider=pv;S.connectBusy=false;
+          toast(r&&r.chargesEnabled?"Payouts are active":"Stripe still needs a few details");
+          render();
+        });
+      })
+      .catch(e=>{S.connectBusy=false;S.connectError=(e&&e.message)||"Could not reach Stripe.";render();});
+  });
   $("[data-aitoggle]").forEach(b=>b.onclick=()=>{S.aiOpen=!S.aiOpen;render();});
   /* Attach and dictate are in the reference image, so the controls are there —
      but neither is wired to anything yet. They SAY so rather than failing
@@ -11333,6 +11394,32 @@ document.addEventListener("click",e=>{
         var patch = {};
         patch[kind === "logo" ? "logo_url" : "avatar_url"] = url;
         return ACCOUNT.save(patch).then(function () { return url; });
+      });
+    },
+
+    /* STRIPE CONNECT — the step that turns a 409 at checkout into a payment.
+       -----------------------------------------------------------------------
+       Of 23 approved providers, ZERO had stripe_charges_enabled, so
+       stripe-create-checkout correctly refused every booking with "This coach
+       can't accept payments yet." Nothing in either client called this
+       function; the coach had no way to connect a bank at all.
+
+       The Edge Function owns everything that matters — it creates or reuses the
+       Stripe account, writes stripe_account_id with the service role, and
+       returns chargesEnabled read from STRIPE, not from our column. This client
+       sends a return URL and follows a link.
+
+       `returnUrl` must be in CONNECT_RETURN_ORIGINS, which was NOT SET at all
+       until 2026-08-12 — the function 503'd before it even reached auth, which
+       is why this looked like a missing feature rather than a missing variable.
+
+       Resolves {accountId, chargesEnabled, onboardingUrl}. onboardingUrl is
+       absent once Stripe is satisfied, which is the signal that the coach is
+       done rather than a failure. */
+    connectPayouts: function () {
+      var no = guard(); if (no) return no;
+      return API.fn("stripe-connect-onboarding", {
+        returnUrl: window.location.origin + "/?connect=done",
       });
     },
 
@@ -22619,7 +22706,7 @@ const EPHEMERAL = new Set([
      as before — but a DESCRIPTOR ({kind:"book",…}) survives, which is what lets
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
-  "coachProvider", "cobFocusStep", "bookBusy",
+  "coachProvider", "cobFocusStep", "bookBusy", "connectBusy", "connectError",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
   /* From the ported coach-portal work. coachSearchFocus is a one-render flag
