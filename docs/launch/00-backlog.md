@@ -56,10 +56,12 @@ Nothing else is safe until these are done. No feature work in parallel.
 - [ ] `[Y]` Write `SUPABASE-OWNERSHIP.md` in both repos naming the owner and the rule
 - [ ] `[Y]` Add a pre-push git hook in the non-owning repo that rejects `supabase db push`
 - [ ] `[Y]` Add a pre-push hook rejecting `supabase functions deploy` in the non-owning repo
-- [ ] `[RED]` Rotate the Supabase service-role key (it is in `.env` files in two repos)
-- [ ] `[RED]` Rotate the Anthropic API key — pasted in plaintext in a chat session
+- [x] ~~`[RED]` Rotate the Supabase service-role key (it is in `.env` files in two repos)~~ — **this item was wrong.** No service-role key exists on disk in any of the three repos. Every one of the ~90 files matching `service_role` uses it as a Vault secret *name* or a `Deno.env.get()` lookup, e.g. `SportsMan-main/supabase/migrations/20260701_000000_lifecycle_process_cron.sql:39` reads it out of `vault.decrypted_secrets`. Verified independently with a regex requiring real three-segment JWT structure: **zero hits.** Nothing to rotate.
+- [x] `[G]` Grep all three repos for committed secrets, and `git log -S` for any ever committed → `docs/launch/0-1-secrets-sweep.md`. **Zero credentials were ever committed to any repo.** Every pickaxe hit resolved to a placeholder (`sk-ant-xxxx…`), a scanner's own detection regex, prose in a doc, or — memorably — the Skia symbol `sk_test_bit` in `app/canvaskit/*.symbols`, which greps like a Stripe test key and is not one. `the-sporve-web` history is clean on every pattern.
+- [x] `[G]` Confirm the `eyJ…` runs in `the-sporve-web/index.html:36` are base64 font bytes, not JWTs — they contain `+` and `/` and have no three-part structure. Recorded so the next sweep does not re-flag them.
+- [ ] `[G]` **MEDIUM — the one real finding.** `SportsMan-main/.gitignore` ignores only two literal paths: `env.json` and `supabase/functions/.env`. Verified with `git check-ignore`: a root-level `.env`, `.env.local`, `.env.production`, or a `.env` inside any *new* edge-function directory would be swept up by `git add -A` silently. Nothing has leaked — this is a trap that has not sprung. Two-line fix, deferred only to avoid disturbing a running auditor.
+- [ ] `[RED]` Rotate the Anthropic API key — pasted in plaintext in a chat session. **Still the only genuine credential exposure found.**
 - [ ] `[RED]` Set a $25/mo spend cap on a **separate** Anthropic workspace (org-wide would kill `ai-gateway`)
-- [ ] `[G]` Grep both repos for committed secrets; `git log -S` for any that were ever committed
 
 ### 0.2 Recover what exists only in production
 - [x] `[G]` `pg_get_functiondef` → `claim_provider_role()` — **recovered**, saved to `docs/launch/prod-recovered-functions.sql`
