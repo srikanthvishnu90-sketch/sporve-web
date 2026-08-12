@@ -934,6 +934,35 @@ function submitApplication(){
 
   d.submittedAt = now;
 
+  /* PERSIST. Everything above builds an object inside S and stops there — this
+     whole 1,115-line wizard had ZERO references to the API, so a coach filled
+     in seven steps, hit submit, and every answer lived only in sessionStorage.
+     Close the tab and the application was gone.
+
+     Only the fields the coach owns are sent. `status`, `verification_status`
+     and `background_check_status` are deliberately NOT included: they are the
+     approval decision, they belong to Sporve, and a client that names those
+     columns is one typo from a coach approving themselves. The server defaults
+     (pending / unverified / none) stand until a human moves them.
+
+     Fire-and-report, not fire-and-forget: a failed save tells the coach their
+     application did not reach us, because silently losing an application is
+     how someone waits two weeks for a reply to something we never received. */
+  if (window.SporveCoach && window.SporveAuth && window.SporveAuth.isSignedIn()){
+    window.SporveCoach.save({
+      business_name: trim(d.businessName),
+      bio: trim(d.bio || ""),
+      location: location,
+      sports: d.sports.slice(),
+      coach_years_coaching: intOf(d.years) || null,
+      credentials: (d.credentials || []).slice(),
+    }).then(() => {
+      toast("Application saved to your account");
+    }).catch(() => {
+      toast("Saved on this device, but we could not reach Sporve — reopen to retry");
+    });
+  }
+
   S.portal = "coach";
   S.coachTab = "dashboard";
   S.route = { name: "dashboard", arg: null };

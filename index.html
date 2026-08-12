@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="1b8535427f1e6cdc">
+<meta name="sporve-build" content="a87a411c2e254e0a">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -17069,6 +17069,35 @@ function submitApplication(){
   }));
 
   d.submittedAt = now;
+
+  /* PERSIST. Everything above builds an object inside S and stops there — this
+     whole 1,115-line wizard had ZERO references to the API, so a coach filled
+     in seven steps, hit submit, and every answer lived only in sessionStorage.
+     Close the tab and the application was gone.
+
+     Only the fields the coach owns are sent. `status`, `verification_status`
+     and `background_check_status` are deliberately NOT included: they are the
+     approval decision, they belong to Sporve, and a client that names those
+     columns is one typo from a coach approving themselves. The server defaults
+     (pending / unverified / none) stand until a human moves them.
+
+     Fire-and-report, not fire-and-forget: a failed save tells the coach their
+     application did not reach us, because silently losing an application is
+     how someone waits two weeks for a reply to something we never received. */
+  if (window.SporveCoach && window.SporveAuth && window.SporveAuth.isSignedIn()){
+    window.SporveCoach.save({
+      business_name: trim(d.businessName),
+      bio: trim(d.bio || ""),
+      location: location,
+      sports: d.sports.slice(),
+      coach_years_coaching: intOf(d.years) || null,
+      credentials: (d.credentials || []).slice(),
+    }).then(() => {
+      toast("Application saved to your account");
+    }).catch(() => {
+      toast("Saved on this device, but we could not reach Sporve — reopen to retry");
+    });
+  }
 
   S.portal = "coach";
   S.coachTab = "dashboard";
