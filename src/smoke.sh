@@ -763,6 +763,39 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)              fail "coach: dock probe returned nothing ($dock)" ;;
   esac
 
+  # THE SEARCH SPEC'S NON-NEGOTIABLES. Each of these is a rule, not a taste:
+  # a background-check FILTER advertises that unvetted adults exist; a second
+  # filter entry point makes neither authoritative; an age select in the bar
+  # treats a child as a query parameter.
+  sb=$($B js "(function(){
+    S.auth={status:'guest'};S.portal='family';S.sports=[];S.segOpen=null;
+    S.route={name:'explore',arg:null};render();
+    var app=document.getElementById('app');
+    if(/Background-checked only/i.test(app.innerText)) return 'BGFILTER';
+    if(document.querySelector('.sb select')) return 'AGEINBAR';
+    var entries=document.querySelectorAll('[data-openfilters]').length;
+    var n=PROGRAMS.length;
+    if(n<25&&entries) return 'FILTERSHOWN';
+    if(n>=25&&entries!==1) return 'ENTRIES:'+entries;
+    if(document.querySelectorAll('.sb-seg').length!==3) return 'SEGMENTS';
+    document.querySelector('[data-seg=\"sport\"]').click();
+    var rows=document.querySelectorAll('.sb-row');
+    if(!rows.length) return 'EMPTYPANEL';
+    if(!document.querySelector('.sb-rt em').textContent.trim()) return 'NODESCRIPTOR';
+    return 'OK:'+rows.length;
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$sb" | tr -d '[:space:]')" in
+    OK:*)         pass "search: one bar, 3 segments, no background-check filter, panel has $(printf '%s' "$sb" | cut -d: -f2) rows with real descriptors" ;;
+    BGFILTER)     fail "search: a 'Background-checked only' filter is back — it advertises that unvetted coaches exist" ;;
+    AGEINBAR)     fail "search: an age select is in the search bar — the athlete is a profile, not a query parameter" ;;
+    FILTERSHOWN)  fail "search: the Filters button shows under 25 results — filtering a short list only produces empty states" ;;
+    ENTRIES:*)    fail "search: there are $(printf '%s' "$sb" | cut -d: -f2) filter entry points; there must be exactly one" ;;
+    SEGMENTS)     fail "search: the bar does not have three segments" ;;
+    EMPTYPANEL)   fail "search: a segment panel rendered empty — an empty dropdown is a dead end" ;;
+    NODESCRIPTOR) fail "search: panel rows have no supporting line — it is required to carry supply signal" ;;
+    *)            fail "search: probe returned nothing ($sb)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never

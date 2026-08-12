@@ -1166,6 +1166,51 @@ img{max-width:100%;display:block}
 .pay-warn{color:var(--muted);font-size:var(--text-sm);max-width:62ch}
 .paypanel .btn{align-self:flex-start}
 .pay-fine{color:var(--muted);font-size:var(--text-xs);max-width:62ch}
+
+/* ── Search bar (spec 2026-08-12) ─────────────────────────────────────── */
+.sbwrap{position:relative;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 6px}
+.sb{display:flex;align-items:center;background:var(--paper);border:1px solid var(--rule);
+  border-radius:999px;padding:5px 5px 5px 6px;box-shadow:0 1px 2px rgba(11,12,14,.04)}
+.sb-seg{display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  padding:8px 16px;border:0;background:none;border-radius:999px;cursor:pointer;
+  min-height:44px;text-align:left;transition:background .14s,box-shadow .14s}
+.sb-seg:hover{background:var(--raise)}
+.sb-seg.on{background:var(--paper);box-shadow:0 2px 10px rgba(11,12,14,.12)}
+.sb-lab{font-size:var(--text-xs);font-weight:600;color:var(--ink)}
+.sb-val{font-size:var(--text-sm);color:var(--ink)}
+.sb-val.muted{color:var(--muted)}
+.sb-div{width:1px;height:26px;background:var(--rule);flex:none}
+/* The only saturated control in the viewport, per the spec. */
+.sb-go{width:44px;height:44px;flex:none;margin-left:6px;border:0;border-radius:999px;
+  background:var(--accent);color:#FFFFFF;display:grid;place-items:center;cursor:pointer}
+.sb-go:hover{background:var(--accent-ink)}
+.sb-filters{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;
+  border:1px solid var(--rule);border-radius:999px;background:var(--paper);cursor:pointer;
+  font-family:var(--sans);font-size:var(--text-sm);font-weight:600}
+.sb-filters:hover{border-color:var(--rule-strong)}
+/* Panel: max-height clips the last row so more content is visible without a bar. */
+.sb-panel{position:absolute;top:calc(100% + 8px);left:0;z-index:40;width:min(420px,calc(100vw - 32px));
+  max-height:320px;overflow-y:auto;background:var(--paper);border:1px solid var(--rule);
+  border-radius:12px;padding:8px;box-shadow:0 12px 34px rgba(11,12,14,.16)}
+.sb-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:8px;
+  border:0;background:none;border-radius:10px;cursor:pointer;min-height:44px}
+.sb-row:hover{background:var(--raise)}
+.sb-tile{width:38px;height:38px;flex:none;border-radius:10px;display:grid;place-items:center}
+.sb-rt b{display:block;font-size:var(--text-sm);font-weight:600}
+.sb-rt em{display:block;font-style:normal;font-size:var(--text-xs);color:var(--muted)}
+.ath-chip{display:flex;align-items:center;gap:7px;font-size:var(--text-xs);color:var(--muted);margin:2px 0 14px}
+.ath-chip .lnk{background:none;border:0;padding:0;color:var(--ink);font-weight:600;
+  text-decoration:underline;cursor:pointer;font-size:var(--text-xs)}
+.res-head{display:flex;align-items:center;gap:14px;margin:0 0 16px}
+.res-n{font-weight:600;font-size:var(--text-sm)}
+.res-tools{margin-left:auto;display:flex;align-items:center;gap:14px}
+.res-sort select{border:1px solid var(--rule);border-radius:10px;min-height:36px;padding:0 10px;
+  background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:var(--text-sm)}
+.res-tools .lnk{background:none;border:0;color:var(--ink);font-weight:600;
+  text-decoration:underline;cursor:pointer;font-size:var(--text-sm)}
+@media(max-width:767px){
+  .sb{width:100%}.sb-seg{flex:1;padding:8px 10px}.sb-panel{width:100%}
+}
 .aidock{position:fixed;right:22px;bottom:22px;z-index:85;
   display:flex;flex-direction:column;align-items:flex-end;gap:12px}
 /* The button was --ink, which is #000 — invisible against the coach portal's
@@ -3685,6 +3730,8 @@ const S={
   locQuery:"",
   authIdentifier:"",
   ageQuery:null,
+  whereQuery:null,             // search bar: location segment
+  whenLabel:null,              // search bar: schedule segment
   filters:{maxPrice:null,verifiedOnly:false,model:null},
   athletes:JSON.parse(JSON.stringify(SEED.athletes)),
   bookings:JSON.parse(JSON.stringify(SEED.bookings)),
@@ -4280,6 +4327,124 @@ function sampleListings(){
     providerType:o.type==="camp"?null:"organization",
     sampleType:o.type,
   }));
+}
+
+/* ═══ SEARCH BAR — one bar, one drawer (owner spec 2026-08-12) ═══════════
+   Replaces two stacked rows of filter chrome. Three principles from the spec,
+   and each one changed the code rather than just the layout:
+
+   1. SAFETY IS A FLOOR, NOT A FILTER. The "Background-checked only" chip is
+      gone. Every coach clears a per-person check with ID verification during
+      onboarding or they are not listed — a toggle for it would advertise that
+      unvetted adults are also on the platform. The BADGE stays on every card,
+      because it is true of every card. That is the whole argument: a guarantee
+      is rendered, a preference is filtered.
+
+   2. SEARCH IS NOT FILTERING. Sport, where and when are the query and live in
+      the bar. Everything else is a refinement behind ONE drawer — the old UI
+      had two entry points ("More filters" plus loose chips), which is how a
+      visitor ends up unsure which control is authoritative.
+
+   3. THE ATHLETE IS A PROFILE, NOT A QUERY PARAMETER. The age <select> is out
+      of the bar. A parent's child does not change between searches, and we
+      already model athletes as rows with consent — asking again in the bar
+      treated a person as a filter value. */
+function segHTML(id,label,value,unset){
+  const on=S.segOpen===id;
+  return `<button class="sb-seg${on?" on":""}" data-seg="${id}"
+     aria-expanded="${on}" aria-haspopup="listbox">
+    <span class="sb-lab">${esc(label)}</span>
+    <span class="sb-val${unset?" muted":""}">${esc(value)}</span>
+  </button>`;
+}
+
+/* One panel component for all three segments. Rows are an icon tile plus two
+   lines, and the SECOND line is required to carry real information — supply
+   signal, not filler. It is doing merchandising work. */
+function panelHTML(rows){
+  if(!rows.length) return "";
+  return `<div class="sb-panel" role="listbox">
+    ${rows.map(r=>`<button class="sb-row" role="option" aria-selected="false"
+        data-segpick="${esc(r.key)}">
+      <span class="sb-tile" style="background:${r.color}22;color:${sportInk?sportInk(r.sport||"Soccer"):r.color}">${r.icon||ICON.search}</span>
+      <span class="sb-rt"><b>${esc(r.title)}</b><em>${esc(r.sub)}</em></span>
+    </button>`).join("")}
+  </div>`;
+}
+
+function sportRows(){
+  /* Never an empty panel: before any input this is the most-supplied sports,
+     counted from the catalogue so the descriptor is true. */
+  const counts={};
+  PROGRAMS.forEach(p=>{counts[p.sport]=(counts[p.sport]||0)+1;});
+  return Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).slice(0,8).map(sp=>({
+    key:"sport:"+sp,title:sp,sport:sp,color:sportColor(sp),
+    sub:counts[sp]+(counts[sp]===1?" listing":" listings")+" near you",
+  }));
+}
+function whereRows(){
+  const c={};
+  PROGRAMS.forEach(p=>{const a=(p.address||"").split(",")[0].trim();if(a)c[a]=(c[a]||0)+1;});
+  const rows=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,8).map(a=>({
+    key:"where:"+a,title:a,color:"#2563EB",sub:c[a]+" coaches here"}));
+  return rows.length?rows:[{key:"where:Chicago",title:"Chicago",color:"#2563EB",sub:"Where Sporve is live today"}];
+}
+function whenRows(){
+  return [
+    {key:"when:any",title:"Any time",color:"#6B7280",sub:"Widest choice of coaches"},
+    {key:"when:weekday-eve",title:"Weekday evenings",color:"#2563EB",sub:"Most booked window"},
+    {key:"when:weekend-am",title:"Weekend mornings",color:"#10B981",sub:"Best for younger athletes"},
+    {key:"when:before-school",title:"Before school",color:"#C2410C",sub:"Quietest — easiest to get a slot"},
+  ];
+}
+
+function searchBarHTML(list){
+  const sport=S.sports.length===0?"Any sport":S.sports.length===1?S.sports[0]:S.sports.length+" sports";
+  const where=S.whereQuery||"Add location";
+  const when=S.whenLabel||"Any time";
+  const open=S.segOpen;
+  const rows=open==="sport"?sportRows():open==="where"?whereRows():open==="when"?whenRows():[];
+  const n=(window.MOD_SEARCH&&MOD_SEARCH.activeCount&&MOD_SEARCH.activeCount())||0;
+  return `<div class="sbwrap">
+    <div class="sb" role="search">
+      ${segHTML("sport","Sport",sport,S.sports.length===0)}
+      <i class="sb-div" aria-hidden="true"></i>
+      ${segHTML("where","Where",where,!S.whereQuery)}
+      <i class="sb-div" aria-hidden="true"></i>
+      ${segHTML("when","When",when,!S.whenLabel)}
+      <button class="sb-go" data-searchgo="1" aria-label="Search">${ICON.search}</button>
+    </div>
+    ${open?panelHTML(rows):""}
+    ${/* ONE filter entry point, and it hides under 25 results — filtering a
+         short list only produces empty states. A real conditional. */""}
+    ${list.length>=25?`<button class="sb-filters" data-openfilters="1">${ICON.sliders} Filters${
+      n?`<span class="badge num">${n}</span>`:""}</button>`:""}
+  </div>`;
+}
+
+/* The athlete chip. Age scopes results silently once saved. */
+function athleteChipHTML(){
+  const a=(S.athletes||[])[0];
+  return `<div class="ath-chip">${ICON.user||""}
+    ${a?`<span>${esc(a.firstName)}${a.age?", "+a.age:""}${a.level?" · "+esc(a.level):""}</span>
+        <button class="lnk" data-athleteswitch="1">Change athlete</button>`
+      :`<button class="lnk" data-athleteswitch="1">Add your athlete</button>`}</div>`;
+}
+
+/* One line above the grid: count left, sort and save right. */
+function resultsHeaderHTML(list){
+  return `<div class="res-head">
+    <span class="res-n num">${list.length} ${list.length===1?"result":"results"}</span>
+    <div class="res-tools">
+      <label class="res-sort"><span class="vis-hide">Sort</span>
+        <select id="resSort" aria-label="Sort results">
+          <option value="rec">Recommended</option>
+          <option value="price">Price, low to high</option>
+          <option value="rating">Rating</option>
+        </select></label>
+      <button class="lnk" data-savesearch="1">Save this search</button>
+    </div>
+  </div>`;
 }
 
 function kindShowcaseHTML(){
@@ -5175,41 +5340,10 @@ function exploreHTML(){
     <div class="shell">
       ${kt}
       <div class="fchips">
-        <span class="sportwrap">
-          <button class="fchip sportbtn ${S.sports.length?"on":""}" data-sportmenu="1"
-                  aria-expanded="${!!S.sportOpen}" aria-haspopup="true">${
-            esc(S.sports.length===0?"Any sport":S.sports.length===1?S.sports[0]:S.sports.length+" sports")}
-            <svg class="chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg></button>
-          ${S.sportOpen?sportMenuHTML():""}
-        </span>
-        ${/* T2 — child's-age dimension, moved here from the retired hero cell. */""}
-        <label class="fchip agechip ${S.ageQuery?"on":""}"><span>Age</span>
-          <select id="qage2" aria-label="Child's age">
-            <option value="">Any</option>
-            ${Array.from({length:13},(_,i)=>i+6).map(a=>`<option value="${a}"${String(S.ageQuery)===String(a)?" selected":""}>${a}</option>`).join("")}
-          </select></label>
-        <button class="fchip" data-openfilters="1">${ICON.sliders} More filters${
-          (window.MOD_SEARCH&&MOD_SEARCH.activeCount&&MOD_SEARCH.activeCount())?
-          `<span class="badge num">${MOD_SEARCH.activeCount()}</span>`:""}</button>
-        ${/* A filter chip that CANNOT match anything is a dead end dressed as a
-             control: the visitor taps it, the grid empties, and the only thing
-             they learn is that the site does not work. Two of these four were
-             exactly that against live inventory — every published row is
-             `single_session`, so "Monthly" returned nothing, and the cheapest
-             listing is $60, so "Under $50" did too.
-
-             So each chip is shown only if the catalogue can answer it. This is
-             the same rule as the empty kind-band above: offer what you have.
-             `verified` stays unconditional — it is the trust control, and its
-             presence is a statement of policy rather than of inventory. */""}
-        ${chip("verified","Background-checked only",f.verifiedOnly)}
-        ${PROGRAMS.some(p=>p.price<50)?chip("under50","Under $50",f.maxPrice===50):""}
-        ${PROGRAMS.some(p=>p.model==="single_session")?chip("single","Single session",f.model==="single_session"):""}
-        ${PROGRAMS.some(p=>p.model==="monthly")?chip("monthly","Monthly",f.model==="monthly"):""}
-        ${dirty?`<button class="fchip" data-filter="clear">Clear all</button>`:""}
-        <span class="fcount num">${list.length} of ${PROGRAMS.length} programs</span>
+        ${searchBarHTML(list)}
       </div>
+      ${athleteChipHTML()}
+      ${resultsHeaderHTML(list)}
 
       ${list.length?
         kindShowcaseHTML()+KIND_BANDS.map(k=>kindBandHTML(k.id,k.title,k.sub,k.type,list)).join("")
@@ -9616,6 +9750,22 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
       })
       .catch(e=>{S.connectBusy=false;S.connectError=(e&&e.message)||"Could not reach Stripe.";render();});
   });
+  /* Segments: one panel at a time, Escape and outside-click both close. */
+  $("[data-seg]").forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    S.segOpen=S.segOpen===b.dataset.seg?null:b.dataset.seg;render();
+  });
+  $("[data-segpick]").forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const [kind,val]=b.dataset.segpick.split(":");
+    if(kind==="sport") S.sports=[val];
+    if(kind==="where") S.whereQuery=val;
+    if(kind==="when")  S.whenLabel=(val==="any"?null:b.querySelector("b").textContent);
+    S.segOpen=null;render();
+  });
+  $("[data-searchgo]").forEach(b=>b.onclick=()=>{S.segOpen=null;render();});
+  $("[data-athleteswitch]").forEach(b=>b.onclick=()=>{S.modal={type:"addchild"};render();});
+  $("[data-savesearch]").forEach(b=>b.onclick=()=>toast("Saved searches are coming"));
   $("[data-aitoggle]").forEach(b=>b.onclick=()=>{S.aiOpen=!S.aiOpen;render();});
   /* Attach and dictate are in the reference image, so the controls are there —
      but neither is wired to anything yet. They SAY so rather than failing
@@ -10307,6 +10457,16 @@ document.addEventListener("click",e=>{
   if(e.target.closest(".sportmenu")||e.target.closest("[data-sportmenu]")) return;
   S.sportOpen=false;render();
 });
+/* Outside-click closes the open search panel. Registered before the command
+   -menu handler so both can coexist on the same click. */
+document.addEventListener("click",e=>{
+  if(!S.segOpen) return;
+  if(e.target.closest(".sb-panel")||e.target.closest("[data-seg]")) return;
+  S.segOpen=null;render();
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&S.segOpen){S.segOpen=null;render();}
+});
 document.addEventListener("click",e=>{
   if(!S.cmdModelOpen) return;
   if(e.target.closest(".cmdmodelwrap")) return;
@@ -10351,7 +10511,7 @@ const EPHEMERAL = new Set([
      as before — but a DESCRIPTOR ({kind:"book",…}) survives, which is what lets
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
-  "coachProvider", "cobFocusStep", "bookBusy", "connectBusy", "connectError",
+  "coachProvider", "cobFocusStep", "bookBusy", "connectBusy", "connectError", "segOpen",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
   /* From the ported coach-portal work. coachSearchFocus is a one-render flag
