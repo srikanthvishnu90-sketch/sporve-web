@@ -221,21 +221,19 @@
          "prog_N" ids, so it labels all ten `private` — two type systems that
          now disagree with each other.
 
-     Both need a product decision (what IS the org bucket when the database has
-     no offering-type column?), not a mechanical patch, so they are the next
-     change rather than this one. Shipping the swap today would trade a page
-     that renders for a page with an empty map and a dead band.
+     BOTH ARE NOW FIXED, and the switch is on:
 
-     What ships instead is the mechanism, provable against production:
+       · map bounds are DERIVED from the listings (mapBounds() in the host),
+         so they cannot drift from the data again
+       · ptypeOf() reads `providers.provider_type`, a real column, in
+         preference to guessing from the title; and a band with nothing in the
+         whole catalogue renders NOTHING rather than a heading over a
+         permanent empty state. Production is currently twenty solo providers,
+         so browse shows one honest band instead of three with two dead.
 
-         https://the-sporve-web.vercel.app/?live=1
-
-     opts a single page load into the live catalogue, so the fetch, the RLS
-     gate, the column grants, the in-place mutation and the fallback can all be
-     verified on the real origin under the real CSP, before any of it is load
-     -bearing for a visitor. Flip DEFAULT_LIVE to true in the change that fixes
-     the map bounds and the offering axis; nothing else here needs to move. */
-  var DEFAULT_LIVE = false;
+     `?live=0` still forces the seeded catalogue for a single page load, which
+     is how to compare the two or get a deterministic page for a screenshot. */
+  var DEFAULT_LIVE = true;
 
   function enabled() {
     if (offlineByDesign()) return false;

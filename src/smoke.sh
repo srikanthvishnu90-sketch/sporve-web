@@ -329,14 +329,23 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
   # title can never turn this build red. Structure is asserted against live
   # data; content is asserted against the seed.
 
-  # A default page load must NOT go live. This is the switch, and a switch that
-  # silently flips is worse than no switch.
-  offbydefault=$($B js "window.SporveCatalog.ready.then(live=>'OK:'+live+':'+document.documentElement.getAttribute('data-catalog')+':'+PROGRAMS.length).catch(e=>'THREW:'+e.message)" 2>/dev/null | tr -d '\r')
-  case "$(printf '%s' "$offbydefault" | tr -d '[:space:]')" in
-    OK:false:seed:30) pass "catalog: a default load stays on the seeded catalogue" ;;
-    OK:true:*)        fail "catalog: hydrated without being asked — DEFAULT_LIVE flipped on unnoticed" ;;
-    THREW:*)          fail "catalog: hydration threw — $offbydefault" ;;
-    *)                fail "catalog: unexpected default state ($offbydefault)" ;;
+  # A default page load now goes live — that is the product. An ordinary
+  # visitor on the real origin must get real, bookable inventory.
+  bydefault=$($B js "window.SporveCatalog.ready.then(live=>'OK:'+live+':'+document.documentElement.getAttribute('data-catalog')+':'+PROGRAMS.length).catch(e=>'THREW:'+e.message)" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$bydefault" | tr -d '[:space:]')" in
+    OK:true:live:*) pass "catalog: a default load serves the live catalogue ($(printf '%s' "$bydefault" | cut -d: -f4) listings)" ;;
+    OK:false:seed:*) fail "catalog: a default load fell back to sample data — the marketplace is showing listings nobody can book" ;;
+    THREW:*)        fail "catalog: hydration threw — $bydefault" ;;
+    *)              fail "catalog: unexpected default state ($bydefault)" ;;
+  esac
+
+  # The escape hatch must keep working: ?live=0 is how you get a deterministic
+  # page for a screenshot or a side-by-side comparison.
+  $B goto "http://127.0.0.1:$CSPPORT/index.html?live=0" >/dev/null 2>&1
+  forced=$($B js "window.SporveCatalog.ready.then(live=>'OK:'+live+':'+document.documentElement.getAttribute('data-catalog')+':'+PROGRAMS.length)" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$forced" | tr -d '[:space:]')" in
+    OK:false:seed:30) pass "catalog: ?live=0 forces the seeded catalogue" ;;
+    *)                fail "catalog: ?live=0 did not pin the seed ($forced)" ;;
   esac
 
   # ?live=1 must reach production data and REPLACE the array in place. Array
@@ -422,12 +431,58 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)        fail "catalog: coach-listing probe returned nothing ($coachpin)" ;;
   esac
 
+  # Every map pin must land ON the canvas. The bbox was hardcoded to Miami
+  # under a comment claiming Chicago; real coordinates projected to
+  # left:-3154%, top:-7456% and the map rendered empty under a header counting
+  # ten programs. Bounds are derived now, so this asserts the derivation.
+  mappins=$($B js "(function(){try{
+    S.route={name:'map',arg:null}; render();
+    var pins=[].slice.call(document.querySelectorAll('[style*=left]')).map(function(e){return e.style.left;})
+      .filter(function(v){return /%\$/.test(v);}).map(parseFloat).filter(function(n){return !isNaN(n);});
+    var b=mapBounds(PROGRAMS);
+    var xs=PROGRAMS.map(function(p){return ((p.lng-b.LNG[0])/(b.LNG[1]-b.LNG[0]))*100;});
+    var ys=PROGRAMS.map(function(p){return (1-(p.lat-b.LAT[0])/(b.LAT[1]-b.LAT[0]))*100;});
+    var bad=xs.concat(ys).filter(function(n){return !isFinite(n)||n<0||n>100;});
+    return bad.length?'OFFCANVAS:'+bad.length+':'+Math.round(bad[0]):'OK:'+xs.length;
+  }catch(e){return 'THREW:'+e.message;}})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$mappins" | tr -d '[:space:]')" in
+    OK:*)         pass "catalog: all $(printf '%s' "$mappins" | cut -d: -f2) live map pins project onto the canvas" ;;
+    OFFCANVAS:*)  fail "catalog: $(printf '%s' "$mappins" | cut -d: -f2) map coordinate(s) land off-canvas (first at $(printf '%s' "$mappins" | cut -d: -f3)%) — the bbox does not match the data" ;;
+    THREW:*)      fail "catalog: map projection threw — $mappins" ;;
+    *)            fail "catalog: map probe returned nothing ($mappins)" ;;
+  esac
+
+  # No band may render a heading over a permanent empty state. Production has
+  # only solo providers, so camps and teams must not appear at all — a promise
+  # the inventory cannot keep is worse than an honest single band.
+  deadband=$($B js "(function(){try{
+    S.route={name:'explore',arg:null}; render();
+    var empties=document.querySelectorAll('.kindrow-empty').length;
+    var bands=document.querySelectorAll('.kind-band').length;
+    if(!bands) return 'NOBANDS';
+    return empties?'DEAD:'+empties:'OK:'+bands;
+  }catch(e){return 'THREW:'+e.message;}})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$deadband" | tr -d '[:space:]')" in
+    OK:*)    pass "catalog: browse renders $(printf '%s' "$deadband" | cut -d: -f2) band(s), none of them empty" ;;
+    DEAD:*)  fail "catalog: $(printf '%s' "$deadband" | cut -d: -f2) band(s) render a heading over 'No matching programs' — a category the catalogue cannot fill" ;;
+    NOBANDS) fail "catalog: browse rendered no bands at all — the grid is empty" ;;
+    *)       fail "catalog: band probe returned nothing ($deadband)" ;;
+  esac
+
+  # Real listings must not be labelled as samples.
+  provenance=$($B js "(function(){S.route={name:'explore',arg:null};render();
+    return 'live='+catalogueIsLive()+' pills='+document.querySelectorAll('.kind-band .demo-pill').length;})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$provenance" | tr -d '[:space:]')" in
+    live=truepills=0) pass "catalog: live listings carry no 'Demo data' label" ;;
+    *)                fail "catalog: provenance label disagrees with the data source ($provenance)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws.
   $B console --clear >/dev/null 2>&1
-  $B js "S.route='explore';render();S.route='home';render();1" >/dev/null 2>&1
+  $B js "S.route={name:'explore',arg:null};render();S.route={name:'home',arg:null};render();S.route={name:'map',arg:null};render();1" >/dev/null 2>&1
   liveerr=$($B console 2>/dev/null | grep -c "error" || true)
   [ "$liveerr" = "0" ] \
-    && pass "catalog: home and explore render clean against live data" \
+    && pass "catalog: home, explore and map render clean against live data" \
     || fail "catalog: $liveerr console error(s) rendering live data"
 
   # Leave the harness on a file:// page so later checks are unaffected.

@@ -3271,7 +3271,23 @@ const PTYPE_LABEL={
   camp:["Camps, clinics & classes","Multi-week camps and drop-in clinics"],
   org:["Clubs, academies & travel teams","Ongoing squads, leagues, and academies"],
 };
+/* `providers.provider_type` is a REAL column and beats guessing from a title.
+   The regex below exists because the seed has no such field; where the database
+   answers the question, do not infer it. Today production returns `solo` for
+   all 20 approved providers — so the live marketplace is ten solo trainers, the
+   camps and teams bands have nothing in them, and the honest render is to show
+   one band rather than three with two permanently empty (see kindBandHTML). */
+/* Whether the catalogue currently in PROGRAMS came from the database. Read at
+   render time, never cached — hydration resolves after the first paint, so a
+   value captured at boot would always say "seed". */
+function catalogueIsLive(){
+  return !!(window.SporveCatalog&&window.SporveCatalog.isLive());
+}
+const PTYPE_FROM_PROVIDER={solo:"solo",individual:"solo",camp:"camp",
+  org:"org",business:"org",facility:"org",club:"org",academy:"org"};
 function ptypeOf(p){
+  const declared=PTYPE_FROM_PROVIDER[String(p&&p.providerType||"").toLowerCase()];
+  if(declared) return declared;
   const t=(p.title+" "+p.skill).toLowerCase();
   if(/\bcamp\b|clinic|class|intro|foundation|fundamental|learn-to|\bbasics\b/.test(t)) return "camp";
   if(p.model==="monthly"||/squad|league|\bclub\b|academy|\bteam\b|dojo|institute/.test(t)) return "org";
@@ -3802,12 +3818,27 @@ function railSectionHTML(type,list){
    by CSS (:first-of-type), so exactly two of the three rules paint. */
 function kindBandHTML(id,title,sub,type,full){
   const items=full.filter(p=>ptypeOf(p)===type);
+  /* Two different kinds of empty, and they deserve different answers.
+
+     A type the FILTER excluded still renders its empty state — that is
+     information about the filter, and the band reappears when it is cleared.
+
+     A type with nothing in the entire catalogue is not a category on this
+     marketplace at all, and rendering a heading over a permanent "No matching
+     programs right now." is just a promise the inventory cannot keep. Today
+     production is ten solo trainers, so camps and teams simply do not exist
+     yet; the page should say what it has rather than what it wishes it had. */
+  if(!items.length&&!PROGRAMS.some(p=>ptypeOf(p)===type)) return "";
   return `<section class="kind-band" id="${id}">
     <div class="band-rule" aria-hidden="true"></div>
     <div class="band-head">
       <div>
         <h2 class="band-title">${title}</h2>
-        <div class="band-sub"><span>${esc(sub)}</span><span class="demo-pill">Demo data</span></div>
+        ${/* The pill is a claim about provenance, so it has to track the actual
+             source. Marking real, bookable listings from ten background-checked
+             Chicago providers as "Demo data" is the same honesty failure in the
+             opposite direction as the coach dashboard's seeded figures. */""}
+        <div class="band-sub"><span>${esc(sub)}</span>${catalogueIsLive()?"":`<span class="demo-pill">Demo data</span>`}</div>
       </div>
       <div class="band-tools">
         <button class="seeall" data-kindjump="${id}">See all ${items.length}</button>
@@ -5114,10 +5145,31 @@ function messagesHTML(){
   </main>`;
 }
 
-/* ── map (real lng/lat from the seed, projected to a Chicago bbox) ──── */
+/* ── map: bounds DERIVED from the listings, never hardcoded ──────────
+   This box used to be the literal Miami extent (-80.345..-80.115,
+   25.655..25.870) under a comment claiming it was Chicago. The seeded
+   coordinates were Miami too, so the pins landed and nobody noticed the
+   comment was wrong. Real Chicago coordinates (41.9, -87.6) project to
+   left:-3154%, top:-7456% inside that box — every pin thousands of percent
+   off-canvas, an empty map under a header counting ten programs.
+
+   Derived bounds cannot drift from the data by construction. The padding is
+   floored at 0.01° so a single pin, or several at one address, still has a
+   non-zero span to divide by — otherwise every coordinate maps to NaN and no
+   pin renders at all. */
+function mapBounds(list){
+  const lngs=list.map(p=>p.lng).filter(Number.isFinite);
+  const lats=list.map(p=>p.lat).filter(Number.isFinite);
+  /* Chicagoland, used only when nothing has usable coordinates. */
+  if(!lngs.length) return {LNG:[-87.94,-87.52],LAT:[41.64,42.02]};
+  const lo=Math.min(...lngs), hi=Math.max(...lngs);
+  const la=Math.min(...lats), lb=Math.max(...lats);
+  const padLng=Math.max((hi-lo)*0.15,0.01), padLat=Math.max((lb-la)*0.15,0.01);
+  return {LNG:[lo-padLng,hi+padLng],LAT:[la-padLat,lb+padLat]};
+}
 function mapHTML(){
   const list=visiblePrograms();
-  const LNG=[-80.345,-80.115], LAT=[25.655,25.870];
+  const {LNG,LAT}=mapBounds(list.length?list:PROGRAMS);
   const px=p=>((p.lng-LNG[0])/(LNG[1]-LNG[0]))*100;
   const py=p=>(1-(p.lat-LAT[0])/(LAT[1]-LAT[0]))*100;
   const sel=S.mapPick?PROGRAMS.find(p=>p.id===S.mapPick):null;
