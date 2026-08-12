@@ -372,12 +372,23 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
   # plausible, bookable-looking dates for sessions that do not exist, which
   # fail at the insert after the family has picked a time and reached checkout.
   liveslots=$($B js "(function(){try{
+    /* Shape is not enough: /^\d{4}-\d{2}-\d{2}\$/ accepts 2026-02-30 and
+       2026-13-01, and Date() silently normalises both to a DIFFERENT day — so
+       the check would pass while a card showed the wrong date. Round-trip
+       through UTC and require the components to come back unchanged. */
+    var validDate=function(v){
+      var m=/^(\d{4})-(\d{2})-(\d{2})\$/.exec(String(v));
+      if(!m) return false;
+      var d=new Date(v+'T00:00:00Z');
+      return d.getUTCFullYear()===+m[1] && d.getUTCMonth()+1===+m[2] && d.getUTCDate()===+m[3];
+    };
+    if(validDate('2026-02-30')||validDate('2026-13-01')||!validDate('2026-02-28')) return 'SELFTEST';
     var total=0, empty=0;
     for(var i=0;i<PROGRAMS.length;i++){
       var s=slotsFor(PROGRAMS[i].id);
       if(!s||!s.length){ empty++; continue; }
       if(s.some(function(x){return !x.live;})) return 'FABRICATED:'+PROGRAMS[i].id;
-      if(s.some(function(x){return !/^\d{4}-\d{2}-\d{2}$/.test(String(x.date));})) return 'BADDATE:'+PROGRAMS[i].id;
+      if(s.some(function(x){return !validDate(x.date);})) return 'BADDATE:'+PROGRAMS[i].id;
       total+=s.length;
     }
     if(empty===PROGRAMS.length) return 'NOSLOTS';
@@ -388,7 +399,8 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     OK:*)        pass "catalog: live sessions resolve; $(printf '%s' "$liveslots" | cut -d: -f3) listing(s) correctly show no openings" ;;
     NOSLOTS)     fail "catalog: no live listing has a bookable session — nothing on the page can be booked" ;;
     FABRICATED:*) fail "catalog: a live listing was given INVENTED session dates (${liveslots#*FABRICATED:}) — it would fail at checkout" ;;
-    BADDATE:*)   fail "catalog: a live slot carries an unparseable date (${liveslots#*BADDATE:})" ;;
+    BADDATE:*)   fail "catalog: a live slot carries an impossible or unparseable date (${liveslots#*BADDATE:})" ;;
+    SELFTEST)    fail "catalog: the date validator itself is wrong — it accepted 2026-02-30 or rejected a real date" ;;
     THREW:*)     fail "catalog: slotsFor threw on a live listing — $liveslots" ;;
     *)           fail "catalog: slot probe returned nothing ($liveslots)" ;;
   esac
