@@ -3824,6 +3824,30 @@ function coachPublicState(){
     : {live:true,reason:null};   // the seeded demo coach reads as live
 }
 
+/* Where Google sends the visitor back to.
+   ---------------------------------------------------------------------------
+   ALWAYS this page's own origin, computed at call time — never a constant, and
+   never another Sporve property. The reported symptom was a coach signing in
+   with Google and landing on the WAITLIST at sporve.vercel.app, which is a
+   different product with no relationship to this site.
+
+   That does not come from here: this repo contains zero references to
+   sporve.vercel.app (grepped). It comes from GoTrue. `redirect_to` is passed
+   through untouched at /authorize and only VALIDATED at /callback, where an
+   origin missing from the project's Redirect URLs allow-list is discarded and
+   replaced with SITE_URL. If SITE_URL is the waitlist, that is exactly where
+   every OAuth sign-in lands, regardless of what this client asked for.
+
+   So the allow-list is the fix and it is a dashboard setting. What this
+   function adds is the half that IS in our control: a precise return URL, so
+   that once the origin is allowed the coach arrives back here and the parked
+   intent replays them into their dashboard rather than the marketing home. */
+function oauthReturnUrl(){
+  /* pathname + search, no hash: GoTrue appends the session as a fragment, and
+     an existing hash would be overwritten. */
+  return window.location.origin + window.location.pathname + window.location.search;
+}
+
 function enterCoachPortal(){
   /* IDENTITY FIRST. This used to flip S.portal to "coach" and route to the
      dashboard before asking who you were, so a stranger who had never signed
@@ -9079,7 +9103,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
        to leave and the 250ms debounce would not have fired. */
     S.pendingIntent={kind:"coachOnboard"};
     try{ saveState(); }catch(e){}
-    if(window.SporveAuth) window.location.href=window.SporveAuth.oauthUrl("google", window.location.origin);
+    if(window.SporveAuth) window.location.href=window.SporveAuth.oauthUrl("google", oauthReturnUrl());
   });
   $("[data-cg-apple]").forEach(b=>b.onclick=()=>toast("Apple sign-in isn't wired up yet"));
   /* The demo account stays, and stays a MOCK — it is the only way to look
@@ -9351,7 +9375,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   });
   $("[data-google]").forEach(b=>b.onclick=()=>{
     if(window.SporveAuth){ try{ saveState(); }catch(e){}
-      window.location.href=window.SporveAuth.oauthUrl("google", window.location.origin); return; }
+      window.location.href=window.SporveAuth.oauthUrl("google", oauthReturnUrl()); return; }
     completeAuth({...SEED.user,role:S.signupRole==="coach"?"provider":"searcher"});
     if(S.signupRole==="coach") S.portal="coach";
     toast("Signed in with Google");

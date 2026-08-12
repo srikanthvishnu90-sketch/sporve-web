@@ -695,6 +695,30 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)       fail "booking: demo-degradation probe returned nothing ($nodemo)" ;;
   esac
 
+  # OAUTH MUST RETURN TO THIS ORIGIN. A coach signing in with Google was landing
+  # on the waitlist at sporve.vercel.app — a different product. The allow-list
+  # that causes that lives in GoTrue, but this asserts the half we control:
+  # the client must never ask to be sent anywhere but its own origin, and no
+  # foreign Sporve property may appear in the built page.
+  oa=$($B js "(function(){
+    if(typeof oauthReturnUrl!=='function') return 'NOHELPER';
+    var u=oauthReturnUrl();
+    if(u.indexOf(window.location.origin)!==0) return 'FOREIGN:'+u;
+    if(!window.SporveAuth) return 'NOAUTH';
+    var full=window.SporveAuth.oauthUrl('google',u);
+    if(/sporve\.vercel\.app/.test(full)) return 'WAITLIST';
+    if(full.indexOf(encodeURIComponent(window.location.origin))<0) return 'NOTENCODED';
+    return 'OK';
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$oa" | tr -d '[:space:]')" in
+    OK)         pass "auth: Google sign-in returns to this origin, never another Sporve property" ;;
+    WAITLIST)   fail "auth: the OAuth URL points at sporve.vercel.app — a coach would land on the waitlist" ;;
+    FOREIGN:*)  fail "auth: the OAuth return URL is not this origin (${oa#*FOREIGN:})" ;;
+    NOTENCODED) fail "auth: this origin is not in the OAuth redirect_to — GoTrue will fall back to SITE_URL" ;;
+    NOHELPER)   fail "auth: oauthReturnUrl() is gone; the return target is uncontrolled again" ;;
+    *)          fail "auth: oauth return probe returned nothing ($oa)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never
