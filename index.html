@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="a87a411c2e254e0a">
+<meta name="sporve-build" content="19b119e7d3eb3fd9">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -81,6 +81,13 @@
      premise is that sport colour means sport. #C2410C sits darker and redder
      than every sport token. */
   --accent:#C2410C; --accent-ink:#9A3412; --accent-tint:#FDF0E9;
+  /* Baby blue — owner decision 2026-08-12, the second non-frozen colour.
+     #89CFF0 measures 12.5:1 against the #0B0C0E coach ground as a FILL, and
+     carries near-black text at ~14:1, so the S mark stays legible without
+     inverting. Deliberately NOT used for body text on white: it measures
+     1.7:1 there, which is why it appears only as a filled shape or on black.
+     --baby-ink is what sits ON baby blue; never white, which fails at 1.5:1. */
+  --baby:#89CFF0; --baby-ink:#0B0C0E; --baby-deep:#5FB8E6;
   --accent-ring:rgba(194,65,12,.30);
 
   /* ── TYPE SCALE: eight steps, no ninth. Carried verbatim from the marketing
@@ -1065,16 +1072,38 @@ img{max-width:100%;display:block}
   transition:transform .18s,box-shadow .18s,background .18s}
 .aidock-fab:hover{transform:translateY(-2px);background:var(--accent-ink);
   box-shadow:0 8px 12px rgba(11,12,14,.18),0 22px 56px rgba(194,65,12,.38)}
-#app.coachdark + #layer .aidock-fab{background:var(--accent-on-dark);color:#0B0C0E;
-  box-shadow:0 6px 8px rgba(0,0,0,.34),0 18px 48px rgba(240,138,98,.26)}
-#app.coachdark + #layer .aidock-fab:hover{background:#F7A583}
+/* Coach portal: the S is BABY BLUE, not the salmon accent (owner, 2026-08-12).
+   The mark stays near-black rather than white — white on #89CFF0 is 1.5:1 and
+   would be unreadable, which is the same mistake §3 records for accent-on-black
+   in the other direction. */
+#app.coachdark + #layer .aidock-fab{background:var(--baby);color:var(--baby-ink);
+  box-shadow:0 6px 8px rgba(0,0,0,.34),0 18px 48px rgba(137,207,240,.26)}
+#app.coachdark + #layer .aidock-fab:hover{background:var(--baby-deep)}
 .aidock-fab-mark{font-family:var(--display);font-weight:700;font-size:var(--text-xl);line-height:1;letter-spacing:-.04em}
+/* THE CHAT DOCK IS BLACK. Owner spec 2026-08-12: black ground, white text, a
+   grey-slate glow around it, sitting at the bottom of the screen — the shape
+   Claude and Ambora use.
+
+   Literals, not tokens, for the ground and the text. --paper INVERTS under
+   data-theme="dark", so a panel painted with it would flip to near-white in
+   dark mode while its children stayed light-on-dark. §3 records that exact
+   defect ("--paper has produced near-black-on-black"), so a surface that is
+   ALWAYS dark must say so in hex. */
 .aidock-panel{width:min(380px,calc(100vw - 32px));height:min(520px,calc(100vh - 130px));
-  display:flex;flex-direction:column;background:var(--paper);
-  border:1px solid var(--rule-strong);border-radius:18px;overflow:hidden;
-  box-shadow:0 10px 16px rgba(11,12,14,.08),0 28px 64px rgba(11,12,14,.22)}
+  display:flex;flex-direction:column;background:#0B0C0E;color:#F5F7F9;
+  border:1px solid #333A45;border-radius:18px;overflow:hidden;
+  /* The glow: slate, not black — a black shadow on a black panel is invisible
+     and the panel would read as a hole. Two rings, tight then wide. */
+  box-shadow:0 0 0 1px rgba(154,166,178,.14),
+             0 10px 20px rgba(0,0,0,.45),
+             0 0 60px rgba(154,166,178,.22)}
+.aidock-panel .aidock-scroll,.aidock-panel .aidock-empty h3,.aidock-panel b{color:#F5F7F9}
+.aidock-panel .aidock-sub,.aidock-panel .aidock-empty p{color:#9AA6B2}
+.aidock-panel .aidock-pick{background:#131519;border-color:#333A45;color:#F5F7F9}
+.aidock-panel .aidock-pick:hover{background:#1B1F26;border-color:#4A5462}
+.aidock-panel .aidock-pick em{color:#9AA6B2}
 .aidock-head{display:flex;align-items:center;gap:10px;padding:11px 11px 11px 13px;
-  border-bottom:1px solid var(--rule);background:var(--raise)}
+  border-bottom:1px solid #242932;background:#131519;color:#F5F7F9}
 .aidock-head b{font-size:var(--text-base);display:block}
 .aidock-sub{color:var(--muted);font-size:var(--text-xs)}
 .aidock-head .x{margin-left:auto;flex:none}
