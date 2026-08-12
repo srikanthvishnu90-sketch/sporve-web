@@ -3277,6 +3277,20 @@ const PTYPE_LABEL={
    all 20 approved providers — so the live marketplace is ten solo trainers, the
    camps and teams bands have nothing in them, and the honest render is to show
    one band rather than three with two permanently empty (see kindBandHTML). */
+/* Resolve a listing id against the live catalogue, then the seeded one.
+   ---------------------------------------------------------------------------
+   Seeded records that OUTLIVE the catalogue swap carry seeded ids: S.bookings,
+   S.conversations, waitlist entries, chat picks, the coach's own listings.
+   A bare PROGRAMS.find() returns undefined for every one of them once the
+   catalogue is live, and the guards downstream mostly turn that into silence
+   rather than a crash — an <img src=""> on every booking row, an empty
+   conversation header, a "View program" button that repaints the page it is
+   already on. Silence is the hard kind to notice, so there is one resolver. */
+function programById(id){
+  if(id==null) return null;
+  return PROGRAMS.find(p=>p.id===id) || DEMO_CATALOGUE.find(p=>p.id===id) || null;
+}
+
 /* THE COACH'S OWN LISTINGS. One definition, because there were seven.
    ---------------------------------------------------------------------------
    `S.listings` is built once at boot from the seeded catalogue
@@ -3310,8 +3324,15 @@ function coachListings(){
 function catalogueIsLive(){
   return !!(window.SporveCatalog&&window.SporveCatalog.isLive());
 }
-const PTYPE_FROM_PROVIDER={solo:"solo",individual:"solo",camp:"camp",
-  org:"org",business:"org",facility:"org",club:"org",academy:"org"};
+/* The DOMAIN, copied from the constraint rather than guessed:
+     alter table providers add column provider_type text not null default 'solo'
+       check (provider_type in ('solo','organization'));
+   Two values, and the first draft of this map spelled the second one `org` —
+   plus four more (`business`, `facility`, `club`, `academy`) the database can
+   never produce. So every organization would have missed the lookup and fallen
+   through to the title regex, which is the guessing this exists to replace.
+   `camp` is not a provider type at all; a camp is a listing format. */
+const PTYPE_FROM_PROVIDER={solo:"solo",organization:"org"};
 function ptypeOf(p){
   const declared=PTYPE_FROM_PROVIDER[String(p&&p.providerType||"").toLowerCase()];
   if(declared) return declared;
@@ -5034,8 +5055,12 @@ function bookingsHTML(){
   return `${subnavHTML()}<main class="shell">
     <div class="sec-head"><h1>Bookings</h1></div>
     ${S.bookings.length?`<div style="display:flex;flex-direction:column;gap:13px;padding-bottom:60px">
-      ${S.bookings.map(b=>{const p=PROGRAMS.find(x=>x.id===b.programId);return `<div class="panel" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-        <img src="${p?p.img:""}" alt="" style="width:96px;height:96px;border-radius:var(--r-m);object-fit:cover;flex:0 0 auto">
+      ${S.bookings.map(b=>{const p=programById(b.programId);return `<div class="panel" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+        ${/* `src=""` is not an empty image — the browser resolves it against the
+             document URL and re-requests the PAGE, then paints a broken-image
+             glyph. Fall back to the generated per-sport placeholder, or omit
+             the element entirely if there is nothing to key it on. */""}
+        ${(p&&p.img)||b.sport?`<img src="${(p&&p.img)||phShot(b.sport)}" alt="" style="width:96px;height:96px;border-radius:var(--r-m);object-fit:cover;flex:0 0 auto">`:""}
         <div style="flex:1;min-width:190px">
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:5px">
             <span class="pill good">${esc(b.status)}</span><span class="pill slate">${esc(b.paymentStatus)}</span></div>
@@ -5169,7 +5194,7 @@ function messagesHTML(){
         ${conv?`<div style="padding:15px 20px;border-bottom:1px solid var(--rule);display:flex;gap:11px;align-items:center">
           <span class="avatar">${esc(conv.with.split(" ").map(w=>w[0]).slice(0,2).join(""))}</span>
           <div><b>${esc(conv.with)}</b>
-            <div style="color:var(--muted);font-size:var(--text-sm)">${esc(PROGRAMS.find(p=>p.id===conv.programId)?.title||"")}</div></div>
+            <div style="color:var(--muted);font-size:var(--text-sm)">${esc(programById(conv.programId)?.title||"")}</div></div>
         </div>
         <div class="msg-scroll" id="msgscroll">
           ${msgs.map(m=>`<div class="bub ${m.me?"me":"them"}">${esc(m.text)}</div>`).join("")}
@@ -5285,7 +5310,7 @@ function assistantHTML(){
                     conversation from before the catalogue changed carries ids
                     no live row matches. Unguarded, the next line threw and
                     took the whole assistant route down. */
-                 const p=PROGRAMS.find(x=>x.id===id)||DEMO_CATALOGUE.find(x=>x.id===id);
+                 const p=programById(id);
                  if(!p) return "";
                  return `<button class="pickcard" data-open="${p.id}">
                    <img src="${p.img}" alt="">
@@ -5435,7 +5460,7 @@ function scheduleHTML(){
           <span style="flex:1;height:1px;background:var(--rule)"></span>
           <span class="num" style="color:var(--faint);font-size:var(--text-sm)">${byDate[d].length} session${byDate[d].length>1?"s":""}</span></div>
         <div style="display:flex;flex-direction:column;gap:9px">
-        ${byDate[d].map(b=>{const p=PROGRAMS.find(x=>x.id===b.programId);return `<div class="slot">
+        ${byDate[d].map(b=>{const p=programById(b.programId);return `<div class="slot">
           <div style="display:flex;gap:13px;align-items:center;min-width:0">
             <span style="width:4px;align-self:stretch;border-radius:3px;background:${p?sportColor(p.sport):"var(--slate)"};flex:0 0 auto"></span>
             <div style="min-width:0">
@@ -5855,7 +5880,7 @@ function actionQueue(){
   const mine=coachListings();
   const pending=S.trainers.filter(t=>t.bg!=="verified");
   (S.waitlistEntries||[]).filter(w=>w.status==="waiting").slice(0,1).forEach(w=>{
-    const p=PROGRAMS.find(x=>x.id===w.programId);
+    const p=programById(w.programId);
     out.push({level:"warn",decide:true,title:"Waitlist spot could be offered",
       detail:`${esc(w.athlete||"An athlete")} is waiting on ${p?esc(p.title):"a full session"}.`,
       actions:[["Offer spot","offer",""],["Later","dismiss"]]});
@@ -6096,7 +6121,7 @@ function coachBody(t){
     const members=active.members||[];
     const sub=isGroup
       ? `${members.length} ${members.length===1?"person":"people"} · ${members.map(p=>p.name).join(", ")}`
-      : (PROGRAMS.find(p=>p.id===active.programId)||{}).title||"";
+      : (programById(active.programId)||{}).title||"";
     return head+`<div class="msg-wrap">
         <div class="msg-list">
           ${shown.map(c=>`<button class="msg-item ${c.id===active.id?"on":""}" data-cconv="${esc(c.id)}">
@@ -6432,7 +6457,7 @@ function modalHTML(){
   if(m.type==="book"){
     /* Reached from a card click (a live id) but also from a seeded booking's
        "View program", so fall back before dereferencing. */
-    const p=PROGRAMS.find(x=>x.id===m.programId)||DEMO_CATALOGUE.find(x=>x.id===m.programId);
+    const p=programById(m.programId);
     if(!p) return wrap("Program unavailable",
       `<p style="color:var(--muted)">That listing is no longer available.</p>`);
     const slots=slotsFor(p.id);

@@ -555,6 +555,32 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)       fail "catalog: chip probe returned nothing ($chips)" ;;
   esac
 
+  # Seeded records outlive the catalogue swap and keep their seeded ids:
+  # S.bookings, S.conversations, chat picks, waitlist entries. They resolve
+  # through programById(), which falls back to the demo catalogue. The failure
+  # here is SILENT, not loud — an <img src=""> (which the browser resolves
+  # against the document URL and re-requests the whole page), an empty
+  # conversation header, a "View program" that repaints the page it is on. So
+  # assert on the rendered artefacts, since nothing throws.
+  dangling=$($B js "(function(){try{
+    var bad=[];
+    ['bookings','messages','timeline','saved'].forEach(function(r){
+      S.auth={status:'verified'};S.portal='family';S.route={name:r,arg:null};render();
+      var app=document.getElementById('app');
+      if(app.querySelectorAll('img[src=\"\"],img:not([src])').length) bad.push(r+':empty-img');
+      if(/undefined|\[object Object\]|NaN/.test(app.innerText)) bad.push(r+':undefined-text');
+    });
+    var unresolved=(S.bookings||[]).filter(function(b){return !programById(b.programId);}).length;
+    if(unresolved) bad.push('bookings:'+unresolved+'-unresolvable');
+    return bad.length?'BROKEN:'+bad.join(','):'OK';
+  }catch(e){return 'THREW:'+e.message;}})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$dangling" | tr -d '[:space:]')" in
+    OK)       pass "catalog: seeded bookings and threads still resolve under a live catalogue" ;;
+    BROKEN:*) fail "catalog: dangling references render as nothing (${dangling#*BROKEN:})" ;;
+    THREW:*)  fail "catalog: dangling-reference probe threw — $dangling" ;;
+    *)        fail "catalog: dangling-reference probe returned nothing ($dangling)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never
