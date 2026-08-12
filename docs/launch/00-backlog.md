@@ -583,3 +583,41 @@ Why `north_star` is genuinely safe, verified rather than assumed:
 | triggers | **25** |
 | approved / visible providers | 23 / **20** |
 | bookings / athletes | 9 / 2 |
+
+---
+
+## Safe wave — second checkpoint
+
+- [x] `20260728_000201_availability_truthfulness` — 2 provider columns + backfill + index, `bookings.provider_responded_at`, 2 triggers, 5 ranking helpers, `admin_set_instant_book`, `stale_providers` view.
+
+  Before applying, verified the **BEFORE-trigger ordering on `providers`**. There are now four, firing in name order:
+  `trg_enforce_provider_availability_signals` → `trg_enforce_provider_trust` → `trg_stamp_provider_activation` → `trg_sync_public_coords`.
+  They touch **disjoint columns** — earned-privilege signals / trust+status / activation stamps / derived coords — so order does not affect the result. Order would matter if two wrote the same field.
+
+### Live guard tests — and two false alarms I raised myself
+
+Impersonating a real coach via `set_config('request.jwt.claims', …)`, since `auth.uid()` reads `sub` from that GUC:
+
+| attempt | result |
+|---|---|
+| self-grant `instant_book_enabled` | **BLOCKED** — "instant_book_enabled is earned and server-controlled" |
+| self-set `background_check_status = 'verified'` | **BLOCKED** |
+| self-change `account_status` | **BLOCKED** |
+| set `last_active_at` 10 days in the future | **BLOCKED** |
+| legitimate booking insert | **PASS** |
+| `providers` UPDATE, 23 still approved | **PASS** |
+
+**Two of these first reported FAIL-ALLOWED, and both times the test was wrong, not the guard.**
+
+1. Connected as `service_role`, `auth.uid()` is null, and every guard short-circuits there by design. A test that cannot produce an end-user identity cannot test an end-user guard. Fixed by impersonating via the JWT-claims GUC.
+2. The first real attempt targeted a provider **already** at `background_check_status='verified'`. The guard raises on `is distinct from` — a no-op write is not a change, so nothing fired. Fixed by targeting a provider at `'none'`.
+
+Worth writing down: **"the guard did not fire" and "the guard is broken" are different claims**, and the gap between them is entirely in how the test is set up. Both times the honest read was that my probe was wrong.
+
+### Remaining (4, isolated new tables, no safety content)
+- [ ] `[Y]` `20260728_000202_resolution_center` — `disputes`
+- [ ] `[Y]` `20260728_000300_waitlist` — `program_waitlist`
+- [ ] `[Y]` `20260728_000400_coach_invites` — `coach_invites`
+- [ ] `[Y]` `20260801_000100_coach_agent_turns` — `coach_agent_turns`
+
+Each creates a table nothing currently references, with its own RLS and write-guard trigger. They cannot alter existing behaviour; the value is enabling features, not closing risk.
