@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="bd3062f9aa3d3483">
+<meta name="sporve-build" content="91ba07ec8f22c357">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -1207,6 +1207,38 @@ img{max-width:100%;display:block}
 .aidock-panel .aidock-pick{background:#131519;border-color:#333A45;color:#F5F7F9}
 .aidock-panel .aidock-pick:hover{background:#1B1F26;border-color:#4A5462}
 .aidock-panel .aidock-pick em{color:#9AA6B2}
+
+/* ── composer, from the owner's reference image ───────────────────────────
+   A wide rounded bar: near-black fill a step off the panel ground so the bar
+   reads as a raised surface rather than a hole, a hairline slate border, and
+   the slate glow §3 requires instead of a black shadow that would be invisible
+   here. The panel widens when it is open so the bar has room for the control
+   row — the previous 380px would have crushed "Opus 5 · High" against the mic. */
+.aidock-panel{width:min(720px,calc(100vw - 32px))}
+.aidock-compose{display:flex;flex-direction:column;gap:6px;margin:0 12px 12px;
+  padding:14px 16px 10px;background:#0F1113;border:1px solid #2A313B;
+  border-radius:22px;box-shadow:0 0 0 1px rgba(154,166,178,.06),
+                                0 0 34px rgba(154,166,178,.14)}
+.aidock-compose:focus-within{border-color:#414B57;
+  box-shadow:0 0 0 1px rgba(154,166,178,.10),0 0 42px rgba(154,166,178,.20)}
+.aidock-input{width:100%;background:none;border:0;outline:none;color:#F5F7F9;
+  font-family:var(--sans);font-size:var(--text-base);line-height:1.4;padding:2px 0}
+/* #8A93A0 on #0F1113 is 5.6:1 — placeholder text still has to be readable. */
+.aidock-input::placeholder{color:#8A93A0}
+.aidock-tools{display:flex;align-items:center;gap:8px}
+.aidock-ic{width:34px;height:34px;flex:none;display:grid;place-items:center;
+  background:none;border:0;border-radius:999px;color:#C3CBD4;cursor:pointer;
+  transition:background .14s,color .14s}
+.aidock-ic:hover{background:#1B1F26;color:#F5F7F9}
+.aidock-model{margin-left:auto;display:flex;align-items:center;gap:7px;
+  color:#C3CBD4;font-size:var(--text-sm);white-space:nowrap}
+.aidock-model b{color:#F5F7F9;font-weight:600}
+.aidock-effort{color:#8A93A0}
+@media(max-width:560px){
+  /* The model label is the first thing to go — the input and the send button
+     are the two controls that must survive a narrow screen. */
+  .aidock-model{display:none}
+}
 .aidock-head{display:flex;align-items:center;gap:10px;padding:11px 11px 11px 13px;
   border-bottom:1px solid #242932;background:#131519;color:#F5F7F9}
 .aidock-head b{font-size:var(--text-base);display:block}
@@ -5677,10 +5709,35 @@ function aiDockHTML(){
         ${S.chatThinking?`<div class="bub them" style="align-self:flex-start;display:flex;gap:5px;align-items:center">
           <i class="dotdot"></i><i class="dotdot" style="animation-delay:.16s"></i><i class="dotdot" style="animation-delay:.32s"></i></div>`:""}
       </div>
-      <form class="msg-compose" id="aiDockForm">
-        <input id="aiDockInput" placeholder="Ask about coaches or booking"
-               aria-label="Ask Sporve AI" autocomplete="off">
-        <button class="btn" type="submit" aria-label="Send">${ICON.send}</button>
+      ${/* Composer, to the owner's reference image: one wide rounded bar, the
+           message field on its own line, and a control row beneath it — attach
+           on the left, model + effort + voice on the right. Two rows rather
+           than one, because a single row forces the placeholder to share space
+           with five controls and truncates it on a phone. */""}
+      <form class="aidock-compose" id="aiDockForm">
+        <input id="aiDockInput" class="aidock-input" placeholder="Write a message…"
+               aria-label="Message Sporve AI" autocomplete="off">
+        <div class="aidock-tools">
+          <button type="button" class="aidock-ic" data-aiattach="1" aria-label="Add an attachment">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14"/></svg></button>
+          <span class="aidock-model">
+            <b>Opus 5</b><span class="aidock-effort">High</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 9l6 6 6-6"/></svg>
+          </span>
+          <button type="button" class="aidock-ic" data-aivoice="1" aria-label="Dictate a message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3"/>
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+          <button type="submit" class="aidock-ic" aria-label="Send">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 10v4M8 7v10M12 5v14M16 8v8M20 11v2"/></svg></button>
+        </div>
       </form>
     </section>`:""}
     <button class="aidock-fab" data-aitoggle="1" aria-expanded="${open}"
@@ -9329,6 +9386,13 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   /* The dock's own controls. data-ask / data-chatclear / data-open above are
      document-wide, so the dock's copies of those are already wired. */
   $("[data-aitoggle]").forEach(b=>b.onclick=()=>{S.aiOpen=!S.aiOpen;render();});
+  /* Attach and dictate are in the reference image, so the controls are there —
+     but neither is wired to anything yet. They SAY so rather than failing
+     silently: a button that looks live and does nothing is worse than one that
+     tells you it is not ready, and this is the surface where a coach is being
+     asked to trust the product. */
+  $("[data-aiattach]").forEach(b=>b.onclick=()=>toast("Attachments aren't wired up yet"));
+  $("[data-aivoice]").forEach(b=>b.onclick=()=>toast("Voice input isn't wired up yet"));
   $("[data-aiclose]").forEach(b=>b.onclick=()=>{S.aiOpen=false;render();});
   $("[data-waitlist]").forEach(b=>b.onclick=()=>{
     const id=b.dataset.waitlist;
