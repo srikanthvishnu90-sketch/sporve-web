@@ -1211,6 +1211,42 @@ img{max-width:100%;display:block}
 @media(max-width:767px){
   .sb{width:100%}.sb-seg{flex:1;padding:8px 10px}.sb-panel{width:100%}
 }
+
+/* ── Filter drawer ────────────────────────────────────────────────────── */
+.fd-scrim{align-items:stretch;justify-content:flex-end}
+.fd{width:min(400px,100vw);height:100%;background:var(--paper);display:flex;flex-direction:column;
+  border-left:1px solid var(--rule);box-shadow:-18px 0 44px rgba(11,12,14,.20);
+  animation:fdIn .22s ease both}
+@keyframes fdIn{from{transform:translateX(18px);opacity:.6}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.fd{animation:none}}
+.fd-head{display:flex;align-items:center;padding:16px 18px;border-bottom:1px solid var(--rule)}
+.fd-head b{font-size:var(--text-lg)}
+.fd-head .x{margin-left:auto}
+.fd-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:6px 18px 18px}
+.fd-group{border-bottom:1px solid var(--rule)}
+.fd-gh{display:flex;align-items:center;width:100%;background:none;border:0;cursor:pointer;
+  padding:16px 0;min-height:44px;color:var(--ink);font-family:var(--sans)}
+.fd-gh b{font-size:var(--text-base)}
+.fd-chev{margin-left:auto;transition:transform .18s}
+.fd-chev.on{transform:rotate(180deg)}
+.fd-gb{display:flex;flex-direction:column;gap:8px;padding:0 0 16px}
+.fd-pill{display:flex;align-items:center;text-align:left;min-height:44px;padding:10px 14px;
+  border:1px solid var(--rule);border-radius:var(--r-m);background:var(--paper);cursor:pointer;
+  color:var(--ink);font-family:var(--sans);transition:border-color .14s,background .14s}
+.fd-pill:hover{border-color:var(--rule-strong)}
+.fd-pill.on{border:2px solid var(--accent);background:var(--accent-tint);padding:9px 13px}
+.fd-pill b{display:block;font-size:var(--text-sm);font-weight:600}
+.fd-pill em{display:block;font-style:normal;font-size:var(--text-xs);color:var(--muted)}
+.fd-range{display:flex;flex-direction:column;gap:8px;padding:2px 0 4px}
+.fd-range input[type=range]{width:100%;accent-color:var(--accent)}
+.fd-rv{font-size:var(--text-sm);font-weight:600}
+.fd-soon{color:var(--muted);font-size:var(--text-xs);margin-top:16px}
+/* Sticky footer: the count updates live, the grid does not. */
+.fd-foot{position:sticky;bottom:0;display:flex;align-items:center;gap:14px;
+  padding:14px 18px;border-top:1px solid var(--rule);background:var(--paper)}
+.fd-foot .lnk{background:none;border:0;color:var(--ink);font-weight:600;text-decoration:underline;
+  cursor:pointer;font-size:var(--text-sm);min-height:44px}
+.fd-foot .btn{margin-left:auto}
 .aidock{position:fixed;right:22px;bottom:22px;z-index:85;
   display:flex;flex-direction:column;align-items:flex-end;gap:12px}
 /* The button was --ink, which is #000 — invisible against the coach portal's
@@ -4116,6 +4152,16 @@ function visiblePrograms(){
     const l=S.locQuery.trim().toLowerCase();
     list=list.filter(p=>String(p.address||"").toLowerCase().includes(l));
   }
+  /* The search bar's Where segment, same rule as locQuery above. */
+  if(S.whereQuery){
+    const w=String(S.whereQuery).toLowerCase();
+    list=list.filter(p=>String(p.address||"").toLowerCase().includes(w));
+  }
+  /* THE SHARED PREDICATE. The drawer's footer count and this grid both go
+     through matchesFilters(), so the number on "Show N results" and the number
+     of cards that appear cannot disagree — which they would the moment two
+     copies of the rule drifted. */
+  if(typeof matchesFilters==="function") list=list.filter(p=>matchesFilters(p,S.filters));
   /* the age segment — a listing only shows if it actually takes that athlete */
   if(S.ageQuery!=null&&S.ageQuery!==""){
     const a=Number(S.ageQuery);
@@ -4444,6 +4490,112 @@ function resultsHeaderHTML(list){
         </select></label>
       <button class="lnk" data-savesearch="1">Save this search</button>
     </div>
+  </div>`;
+}
+
+/* ═══ FILTER DRAWER (owner spec 2026-08-12) ═════════════════════════════
+   A right-side sheet with grouped, collapsible sections and a sticky footer.
+
+   THE MECHANIC THAT MATTERS: a DRAFT. The spec says filters apply live to the
+   result count but the grid only updates on close or on "Show N results". So
+   the drawer edits `S.fdraft`, a copy — the count in the footer recomputes on
+   every change, and the grid keeps rendering from the committed `S.filters`
+   until the visitor commits. Editing S.filters directly would repaint the grid
+   behind the sheet on every checkbox, which is the thing being avoided.
+
+   WHICH GROUPS EXIST IS DECIDED BY THE DATA. The spec lists six. Three of them
+   — Logistics (coach travels to you), Schedule (weekday evenings) and the
+   Coach group's languages and certifications — have NO column behind them in
+   this catalogue. Shipping them would put controls in front of a parent that
+   cannot change the result, which is the dead-chip mistake this repo already
+   made once with "Monthly" and "Under $50". They are listed at the bottom of
+   the sheet as what is coming, not rendered as controls that do nothing.
+
+   Format is DERIVED from capacity, which is real: 1:1 is a cap of two or
+   fewer, small group up to eight, team clinic above that. */
+function fdraft(){
+  if(!S.fdraft) S.fdraft=JSON.parse(JSON.stringify(S.filters||{}));
+  return S.fdraft;
+}
+const FMT=[["solo","1:1","A cap of two or fewer"],
+           ["small","Small group","Up to eight athletes"],
+           ["clinic","Team clinic","More than eight"]];
+function fmtOf(p){ return p.cap<=2?"solo":p.cap<=8?"small":"clinic"; }
+const COMMIT=[["single_session","Single session"],["package","Package"],["monthly","Season-long"]];
+
+/* The predicate the drawer and the footer count share, so the number on the
+   button and the grid it produces can never disagree. */
+function matchesFilters(p,f){
+  f=f||{};
+  if(f.format&&fmtOf(p)!==f.format) return false;
+  if(f.commitment&&p.model!==f.commitment) return false;
+  if(f.maxPrice&&p.price>f.maxPrice) return false;
+  if(f.minYears&&!(p.providerYears>=f.minYears)) return false;
+  return true;
+}
+function fdraftCount(){
+  const f=fdraft();
+  return PROGRAMS.filter(p=>matchesFilters(p,f)).length;
+}
+function fgroup(id,title,open,body){
+  return `<section class="fd-group">
+    <button class="fd-gh" data-fdtoggle="${id}" aria-expanded="${open}">
+      <b>${esc(title)}</b>
+      <svg class="fd-chev${open?" on":""}" width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    ${open?`<div class="fd-gb">${body}</div>`:""}
+  </section>`;
+}
+function fpill(group,val,label,sub,on){
+  return `<button class="fd-pill${on?" on":""}" role="checkbox" aria-checked="${on}"
+    data-fdset="${esc(group)}:${esc(val)}">
+    <span><b>${esc(label)}</b>${sub?`<em>${esc(sub)}</em>`:""}</span></button>`;
+}
+function filterDrawerHTML(){
+  const f=fdraft();
+  const openG=S.fdOpen||{format:true,commitment:true};
+  const prices=PROGRAMS.map(p=>p.price).filter(n=>isFinite(n));
+  const lo=Math.min.apply(null,prices)||0, hi=Math.max.apply(null,prices)||500;
+  const n=fdraftCount();
+  const has=k=>PROGRAMS.some(p=>k(p));
+  return `<div class="scrim fd-scrim" data-fdclose="1">
+    ${/* No inline onclick: this page ships a CSP with per-script hashes and no
+         'unsafe-inline', and an attribute handler cannot be hashed — it would
+         be blocked in production and the sheet would close on every click
+         inside it. The scrim handler checks containment instead. */""}
+    <aside class="fd" role="dialog" aria-modal="true" aria-label="Filters">
+      <header class="fd-head"><b>Filters</b>
+        <button class="x" data-fdclose="1" aria-label="Close filters">${ICON.x}</button></header>
+      <div class="fd-body">
+        ${/* A group earns its place only if it can PARTITION the catalogue.
+             One option that matches every listing is a control whose only
+             possible outcome is "no change" — the same dead end as the old
+             "Monthly" chip, wearing a group heading. Today every listing has a
+             capacity of 12, so Format is a single "Team clinic" and is hidden;
+             it returns by itself the day a 1:1 listing exists. */""}
+        ${(()=>{const av=FMT.filter(([v])=>has(p=>fmtOf(p)===v));
+          return av.length>1?fgroup("format","Format",openG.format,
+            av.map(([v,l,sub])=>fpill("format",v,l,sub,f.format===v)).join("")):"";})()}
+        ${(()=>{const av=COMMIT.filter(([v])=>has(p=>p.model===v));
+          return av.length>1?fgroup("commitment","Commitment",openG.commitment,
+            av.map(([v,l])=>fpill("commitment",v,l,"",f.commitment===v)).join("")):"";})()}
+        ${fgroup("price","Price",!!openG.price,
+          `<label class="fd-range"><span class="vis-hide">Maximum price per session</span>
+            <input type="range" id="fdPrice" min="${lo}" max="${hi}" step="5"
+              value="${f.maxPrice||hi}" aria-label="Maximum price">
+            <span class="fd-rv num">Up to ${money(f.maxPrice||hi)}</span></label>`)}
+        ${has(p=>p.providerYears)?fgroup("coach","Coach",!!openG.coach,
+          [3,5,10].map(y=>fpill("minYears",String(y),y+"+ years coaching","",Number(f.minYears)===y)).join("")):""}
+        <p class="fd-soon">Coach travel, exact schedule windows, certifications and
+          languages are not on listings yet — they will appear here when they are,
+          rather than as controls that cannot change your results.</p>
+      </div>
+      <footer class="fd-foot">
+        <button class="lnk" data-fdclear="1">Clear all</button>
+        <button class="btn" data-fdapply="1">Show ${n} ${n===1?"result":"results"}</button>
+      </footer>
+    </aside>
   </div>`;
 }
 
@@ -7108,6 +7260,8 @@ function modalHTML(){
       <button class="btn wide" type="submit" style="margin-top:10px">Add child</button>
     </form>`);
 
+  if(m.type==="filters") return filterDrawerHTML();
+
   if(m.type==="book"){
     /* Reached from a card click (a live id) but also from a seeded booking's
        "View program", so fall back before dereferencing. */
@@ -9250,8 +9404,12 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   /* Multi-select: each disc adds or removes its sport; "All" clears the set. */
   $("[data-sport]").forEach(b=>b.onclick=()=>{toggleSport(b.dataset.sport||"");render();});
   /* Filters is a tab that opens a sheet — the grid behind it stays put. */
+  /* The drawer is now the host's own, not a module modal, so it no longer
+     depends on mod-search having loaded — the old guard toasted "still
+     loading" and did nothing if it had not. */
   $("[data-openfilters]").forEach(b=>b.onclick=()=>{
-    if(!modModal("filters")){toast("Advanced filters are still loading");return;}
+    S.fdraft=JSON.parse(JSON.stringify(S.filters||{}));
+    S.fdOpen={format:true,commitment:true};
     S.modal={type:"filters"};render();});
   $("[data-pdest]").forEach(b=>b.onclick=()=>{
     const [kind,arg]=b.dataset.pdest.split(":");
@@ -9766,6 +9924,37 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   $("[data-searchgo]").forEach(b=>b.onclick=()=>{S.segOpen=null;render();});
   $("[data-athleteswitch]").forEach(b=>b.onclick=()=>{S.modal={type:"addchild"};render();});
   $("[data-savesearch]").forEach(b=>b.onclick=()=>toast("Saved searches are coming"));
+  /* Drawer. Every control edits the DRAFT, so only the footer count moves;
+     the grid behind the sheet stays still until Show N or close. */
+  $("[data-fdtoggle]").forEach(b=>b.onclick=()=>{
+    S.fdOpen=Object.assign({format:true,commitment:true},S.fdOpen);
+    S.fdOpen[b.dataset.fdtoggle]=!S.fdOpen[b.dataset.fdtoggle];render();});
+  $("[data-fdset]").forEach(b=>b.onclick=()=>{
+    const i=b.dataset.fdset.indexOf(":");
+    const g=b.dataset.fdset.slice(0,i), v=b.dataset.fdset.slice(i+1);
+    const f=fdraft();
+    /* Tapping the selected option clears it — a filter you cannot undo without
+       hunting for "Clear all" is a filter people abandon the page inside. */
+    f[g]=String(f[g])===v?null:(g==="minYears"?Number(v):v);
+    render();});
+  const fdp=document.getElementById("fdPrice");
+  if(fdp) fdp.oninput=()=>{fdraft().maxPrice=Number(fdp.value);render();};
+  $("[data-fdclear]").forEach(b=>b.onclick=()=>{S.fdraft={};render();});
+  $("[data-fdapply]").forEach(b=>b.onclick=()=>{
+    S.filters=Object.assign({},S.filters,fdraft());
+    S.fdraft=null;S.modal=null;render();});
+  /* Closing COMMITS too, per the spec — the grid updates "on close or on
+     Show N results". Discarding here would silently throw away the choices a
+     visitor just watched the count respond to. */
+  $("[data-fdclose]").forEach(b=>b.onclick=e=>{
+    /* The scrim carries data-fdclose and so does the X. A click that started
+       INSIDE the sheet must not close it, and with the inline handler gone
+       that is decided here. */
+    if(e.target.closest(".fd")&&!e.target.closest("[data-fdclose]").isSameNode(e.target)
+       &&!e.target.closest(".fd-head")) return;
+    if(e.currentTarget.classList.contains("fd-scrim")&&e.target.closest(".fd")) return;
+    S.filters=Object.assign({},S.filters,fdraft());
+    S.fdraft=null;S.modal=null;render();});
   $("[data-aitoggle]").forEach(b=>b.onclick=()=>{S.aiOpen=!S.aiOpen;render();});
   /* Attach and dictate are in the reference image, so the controls are there —
      but neither is wired to anything yet. They SAY so rather than failing
@@ -10512,6 +10701,7 @@ const EPHEMERAL = new Set([
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
   "coachProvider", "cobFocusStep", "bookBusy", "connectBusy", "connectError", "segOpen",
+  "fdraft", "fdOpen",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
   /* From the ported coach-portal work. coachSearchFocus is a one-render flag

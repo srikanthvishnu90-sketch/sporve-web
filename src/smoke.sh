@@ -796,6 +796,38 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)            fail "search: probe returned nothing ($sb)" ;;
   esac
 
+  # THE DRAWER'S CORE MECHANIC: the footer count updates live, the grid does
+  # NOT, and on commit the grid matches the number the button promised. A count
+  # that disagrees with the grid it produces is the one bug this design can
+  # have, because both sides must go through the same predicate.
+  fd=$($B js "(function(){try{
+    S.auth={status:'guest'};S.portal='family';S.sports=[];S.filters={};
+    S.route={name:'explore',arg:null};S.fdraft={};S.fdOpen={format:true,commitment:true};
+    S.modal={type:'filters'};render();
+    var d=document.querySelector('.fd'); if(!d) return 'NODRAWER';
+    if(Math.round(d.getBoundingClientRect().width)>420) return 'TOOWIDE';
+    if(!document.querySelector('.fd-foot')) return 'NOFOOTER';
+    var pill=document.querySelector('[data-fdset]'); if(!pill) return 'NOCONTROLS';
+    var before=document.querySelectorAll('.card').length;
+    pill.click();
+    var n=parseInt(document.querySelector('.fd-foot .btn').textContent.replace(/[^0-9]/g,''),10);
+    if(document.querySelectorAll('.card').length!==before) return 'GRIDMOVED';
+    document.querySelector('[data-fdapply]').click();
+    var after=document.querySelectorAll('.card').length;
+    if(after!==n) return 'MISMATCH:'+n+'vs'+after;
+    return 'OK:'+n;
+  }catch(e){return 'THREW:'+e.message;}})()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$fd" | tr -d '[:space:]')" in
+    OK:*)       pass "filters: the drawer count updates live, the grid waits, and on commit they agree ($(printf '%s' "$fd" | cut -d: -f2))" ;;
+    GRIDMOVED)  fail "filters: the grid repainted while the drawer was open — it must wait for close or Show N" ;;
+    MISMATCH:*) fail "filters: 'Show N results' promised a different number than the grid rendered (${fd#*MISMATCH:})" ;;
+    NODRAWER)   fail "filters: the drawer did not render" ;;
+    TOOWIDE)    fail "filters: the drawer is wider than the ~400px sheet the spec calls for" ;;
+    NOFOOTER)   fail "filters: the sticky footer is missing" ;;
+    NOCONTROLS) fail "filters: the drawer rendered no usable controls" ;;
+    *)          fail "filters: drawer probe returned nothing ($fd)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never
