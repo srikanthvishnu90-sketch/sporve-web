@@ -690,6 +690,111 @@ img{max-width:100%;display:block}
    this one modal so the shared .modal component is untouched elsewhere. */
 .acct-sheet{font-family:var(--nav-face)}
 /* ── coach entry gate (split-screen: login left, welcome video right) ── */
+/* ═══ COACH ONBOARDING FLOW — owner palette spec, 2026-08-12 ═══════════════
+   The owner supplied these and asked for them literally. Recording what that
+   changes, because the spec claimed they were "pulled from the existing Sporve
+   components so this drops in without a restyle" and none of the eight were in
+   the repo:
+
+     spec --cw-blue #2563EB   is a NEW primary. The app's accent is #C2410C.
+     spec --cw-green #10B981  is the value CLAUDE.md §3 names as a brief
+                              approximating what is already here.
+
+   They are therefore SCOPED to this flow (.coachgate / .cw-*), which is what
+   the spec itself describes — "this flow inherits Sporve's existing design
+   language". They do not leak into the marketplace, so the accent orange and
+   the new baby blue are untouched everywhere else. Widening them to the whole
+   app is a one-line change if that is what is wanted; it is not what the spec
+   asked for.
+
+   Contrast, measured, because a palette handed over as hex has usually not
+   been: #2563EB carries WHITE at 5.17:1 (passes AA for the button) and sits on
+   #F8FAFC at 4.86:1. #6B7280 on #FFFFFF is 4.83:1 — fine for helper text, and
+   it is only ever used at 500+ weight here. #10B981 is 2.1:1 on white and is
+   NEVER used as text: it is a filled dot / check only. */
+:root{
+  --cw-blue:#2563EB; --cw-blue-alt:#007AFF;
+  --cw-ink:#111827;  --cw-ink2:#1F2937;
+  --cw-muted:#6B7280; --cw-border:#E5EAF1;
+  --cw-surface:#F8FAFC; --cw-white:#FFFFFF; --cw-green:#10B981;
+  --cw-r-sm:14px; --cw-r-md:16px; --cw-r-lg:20px; --cw-r-xl:28px; --cw-r-card:24px;
+}
+
+/* The micro-label. The spec calls this Sporve's signature type treatment and
+   the thing that makes the flow read as Sporve, so it is one class reused by
+   every eyebrow and field label rather than re-declared per component. */
+.cw-micro{font-size:9px;font-weight:900;text-transform:uppercase;
+  letter-spacing:.3em;color:var(--cw-muted);display:block}
+
+/* ── shell: fixed 72px header, fixed 80px footer, scrolling middle ───────── */
+.cw{position:fixed;inset:0;z-index:92;background:var(--cw-surface);
+  display:grid;grid-template-rows:72px 1fr auto;color:var(--cw-ink)}
+.cw-top{display:flex;align-items:center;gap:14px;padding:0 clamp(16px,4vw,32px);
+  background:var(--cw-white);border-bottom:1px solid var(--cw-border)}
+.cw-top .cw-exit{margin-left:auto;background:none;border:0;color:var(--cw-ink);
+  font-weight:700;font-size:15px;cursor:pointer;text-decoration:underline;
+  min-height:44px;padding:0 8px}
+.cw-body{overflow-y:auto;overscroll-behavior:contain;padding:clamp(24px,5vw,56px) clamp(16px,4vw,32px)}
+.cw-wrap{max-width:1120px;margin:0 auto;display:grid;gap:64px;align-items:start}
+@media(min-width:768px){.cw-wrap{grid-template-columns:48% 52%}}
+.cw-h1{font-size:30px;font-weight:800;line-height:1.15;letter-spacing:-.02em;
+  color:var(--cw-ink);margin:10px 0 0}
+@media(max-width:767px){.cw-h1{font-size:24px}}
+.cw-sub{font-size:15px;font-weight:500;color:var(--cw-muted);margin:12px 0 0}
+
+/* Select card. Border IS the selected signal on single-select — no checkmark
+   badge, per spec. Real <button> with aria-pressed, 44px floor. */
+.cw-card{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  min-height:44px;padding:16px;background:var(--cw-white);
+  border:1px solid var(--cw-border);border-radius:var(--cw-r-md);
+  color:var(--cw-ink);cursor:pointer;position:relative;
+  transition:border-color .14s,background .14s}
+.cw-card:hover{border-color:#CBD5E1}
+.cw-card[aria-pressed="true"]{border:2px solid var(--cw-blue);
+  background:rgba(37,99,235,.04);padding:15px}
+.cw-card[aria-pressed="true"] svg{color:var(--cw-blue)}
+.cw-card-t{font-size:15px;font-weight:700}
+.cw-card-m{font-size:12px;font-weight:600;color:var(--cw-muted)}
+/* Multi-select only: a filled check top-right. */
+.cw-card.multi[aria-pressed="true"]::after{content:"";position:absolute;top:8px;right:8px;
+  width:16px;height:16px;border-radius:999px;background:var(--cw-blue)}
+
+.cw-price{font-size:52px;font-weight:900;font-variant-numeric:tabular-nums;
+  letter-spacing:-.03em;color:var(--cw-ink)}
+
+/* ── footer: progress directly above the row, per spec ───────────────────── */
+.cw-foot{background:var(--cw-white);border-top:1px solid var(--cw-border);
+  padding:0 clamp(16px,4vw,32px) 16px}
+.cw-bar{display:flex;gap:4px;padding:14px 0 12px}
+.cw-seg{flex:1;height:3px;border-radius:2px;background:var(--cw-border);overflow:hidden}
+.cw-seg i{display:block;height:100%;width:0;background:var(--cw-blue);
+  transition:width .22s ease}
+.cw-row{display:flex;align-items:center;gap:16px;min-height:64px}
+.cw-back{background:none;border:0;color:var(--cw-ink);font-size:15px;font-weight:700;
+  text-decoration:underline;cursor:pointer;min-height:44px;padding:0 4px}
+.cw-next{margin-left:auto;background:var(--cw-blue);color:var(--cw-white);
+  border:0;border-radius:var(--cw-r-lg);font-size:15px;font-weight:800;
+  padding:0 28px;min-height:48px;cursor:pointer;transition:background .14s}
+.cw-next:hover:not(:disabled){background:#1D4FD8}
+/* Disabled, never hidden — a hidden button reads as a broken screen. */
+.cw-next:disabled{background:var(--cw-border);color:var(--cw-muted);cursor:not-allowed}
+@media(max-width:767px){.cw-next{width:100%;margin-left:0}.cw-row{flex-wrap:wrap}}
+
+/* Focus ring: 2px blue at 2px offset, never outline:none. */
+.cw :focus-visible{outline:2px solid var(--cw-blue);outline-offset:2px;border-radius:4px}
+
+/* Motion: 220ms, content fades up 8px. Nothing else moves. */
+.cw-screen{animation:cwIn .22s ease both}
+@keyframes cwIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* The one flourish in the flow, and only on a chapter number. */
+.cw-chapter-n{animation:cwPop .3s ease both}
+@keyframes cwPop{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){
+  .cw-screen,.cw-chapter-n{animation:cwFade .12s ease both}
+  .cw-seg i{transition:none}
+  @keyframes cwFade{from{opacity:0}to{opacity:1}}
+}
+
 .coachgate{position:fixed;inset:0;z-index:90;display:grid;grid-template-columns:1fr 1fr;background:#09090B;overflow-y:auto}
 .cg-left{position:relative;display:flex;flex-direction:column;justify-content:center;padding:56px clamp(28px,6vw,84px);min-height:100vh}
 .cg-back{position:absolute;top:24px;left:24px;background:none;border:0;color:#8FA3BC;font-family:var(--sans);font-size:var(--text-base);cursor:pointer}
@@ -9841,7 +9946,7 @@ const EPHEMERAL = new Set([
      as before — but a DESCRIPTOR ({kind:"book",…}) survives, which is what lets
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
-  "coachProvider",
+  "coachProvider", "cobFocusStep",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
   /* From the ported coach-portal work. coachSearchFocus is a one-render flag

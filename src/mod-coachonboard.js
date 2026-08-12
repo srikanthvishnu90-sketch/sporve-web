@@ -807,29 +807,67 @@ function onboardView(){
   const last = i === LAST;
   const st = STEPS[i];
 
-  return `<main class="shell cob-page">
-    <div class="cob-top">
-      <p class="eyebrow">Coach onboarding · step <span class="num">${i + 1}</span> of <span class="num">${STEPS.length}</span></p>
-      <h1>Get set up to coach on Sporve</h1>
-      <p class="cob-lede">Seven steps. Everything you enter is a claim about your own business —
-        verification is decided elsewhere, and this form cannot grant it.</p>
-    </div>
+  /* ═══ Owner visual spec, 2026-08-12 ═══════════════════════════════════════
+     Airbnb's STRUCTURE, Sporve's look: fixed 72px header, independently
+     scrolling middle, fixed footer with the progress bar sitting directly
+     above the Back/Next row.
 
-    <div class="cob-grid">
-      ${railHTML(d)}
-      <div>
-        <section class="cob-card" aria-label="${esc(st[1])}">
-          <div class="cob-head"><h2>${esc(st[1])}</h2><p>${esc(st[2])}</p></div>
+     The seven steps are unchanged — this replaces the CHROME around
+     STEP_VIEW[i], not the questions. Rebuilding seven validated steps to
+     restyle them would have risked the background-check consent screen, which
+     is the one screen in this app where a mistake is a safety problem.
+
+     Progress is per-segment and proportional WITHIN the active segment, as
+     specified: three chapters over seven steps, so a chapter is 2–3 steps and
+     the active one fills partially rather than jumping.
+
+     overscroll-behavior:contain on .cw-body is deliberate — the spec calls out
+     that a scroll at the end of a card grid bouncing the whole page was a real
+     bug in the Explore map view. */
+  const CHAPTERS = [[0,1],[2,3,4],[5,6]];
+  const segs = CHAPTERS.map(ch => {
+    const done = ch.filter(x => x < i).length;
+    const active = ch.indexOf(i) >= 0;
+    return active ? Math.round(((done + 0.5) / ch.length) * 100) : (i > ch[ch.length-1] ? 100 : 0);
+  });
+  const pct = Math.round((i / LAST) * 100);
+
+  return `<div class="cw" role="group" aria-label="Coach onboarding">
+    <header class="cw-top">
+      <span class="cg-wordmark" style="font-size:15px;font-weight:800">Sporve</span>
+      <button class="cw-exit" type="button" data-cob-exit="1">Save &amp; exit</button>
+    </header>
+
+    <div class="cw-body">
+      <div class="cw-wrap cw-screen" key="step-${i}">
+        <div>
+          <span class="cw-micro">Step ${i + 1} of ${STEPS.length}</span>
+          ${/* focus lands here on every screen change so a screen-reader user
+               hears the new question rather than staying where they were */""}
+          <h1 class="cw-h1" id="cwQ" tabindex="-1">${esc(st[1])}</h1>
+          <p class="cw-sub">${esc(st[2])}</p>
+        </div>
+        <section aria-labelledby="cwQ">
           ${STEP_VIEW[i](d, err)}
-          <div class="cob-nav">
-            <button class="btn ghost" data-cob-back="1" ${i === 0 ? "disabled" : ""}>Back</button>
-            <div class="err ${err ? "" : "hide"}" data-cob-err role="alert">${err ? esc(err.msg) : ""}</div>
-            <button class="btn" data-cob-next="1" ${err ? "disabled" : ""}>${last ? "Submit application" : "Continue"}</button>
-          </div>
+          <div class="err ${err ? "" : "hide"}" data-cob-err role="alert"
+               style="margin-top:14px">${err ? esc(err.msg) : ""}</div>
         </section>
       </div>
     </div>
-  </main>`;
+
+    <footer class="cw-foot">
+      <div class="cw-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+           aria-valuenow="${pct}" aria-label="Onboarding progress">
+        ${segs.map(w => `<span class="cw-seg"><i style="width:${w}%"></i></span>`).join("")}
+      </div>
+      <div class="cw-row">
+        <button class="cw-back" type="button" data-cob-back="1"
+                ${i === 0 ? "disabled" : ""}>Back</button>
+        <button class="cw-next" type="button" data-cob-next="1"
+                ${err ? "disabled" : ""}>${last ? "Submit application" : "Next"}</button>
+      </div>
+    </footer>
+  </div>`;
 }
 
 /* ═══════════════════ MODAL ═══════════════════ */
@@ -1046,6 +1084,32 @@ function wire(){
 
   /* rail + every "Edit" affordance on the review step */
   q("[data-cob-step]").forEach(b => b.onclick = () => goStep(Number(b.dataset.cobStep)));
+  /* Save & exit. The draft already lives in S and S is persisted, so the
+     "save" half is real rather than a label — leaving and coming back returns
+     to the same step with the same answers. */
+  q("[data-cob-exit]").forEach(b => b.onclick = () => {
+    if (window.SporveCoach && window.SporveAuth && window.SporveAuth.isSignedIn()){
+      const d = draft();
+      window.SporveCoach.save({
+        business_name: trim(d.businessName || ""),
+        sports: (d.sports || []).slice(),
+      }).catch(() => {});
+    }
+    S.coachTab = "dashboard";
+    S.route = { name: "dashboard", arg: null };
+    toast("Saved — pick up where you left off any time");
+    render();
+  });
+
+  /* Spec: focus moves to the question headline on every screen change, so a
+     screen-reader user hears the new question instead of being left where the
+     old one was. preventScroll because the shell scrolls its own middle. */
+  const cwq = document.getElementById("cwQ");
+  if (cwq && S.cobFocusStep !== draft().step){
+    S.cobFocusStep = draft().step;
+    try { cwq.focus({ preventScroll: true }); } catch(e){ cwq.focus(); }
+  }
+
   q("[data-cob-back]").forEach(b => b.onclick = () => goStep(draft().step - 1));
   q("[data-cob-next]").forEach(b => b.onclick = () => {
     const cur = draft();
