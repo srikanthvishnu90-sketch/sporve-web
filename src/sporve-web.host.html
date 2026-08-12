@@ -9446,13 +9446,58 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   if(bf) bf.onsubmit=e=>{
     e.preventDefault();
     const d=Object.fromEntries(new FormData(bf));
-    const p=PROGRAMS.find(x=>x.id===S.modal.programId);
+    const p=programById(S.modal.programId);
     const a=S.athletes.find(x=>x.id===d.athlete);
     const s=slotsFor(p.id).find(x=>x.id===d.slot);
+    if(!p||!s){toast("That session is no longer available");return;}
+
+    /* A LIVE listing books for real. A seeded one keeps the local path, because
+       there is no row behind it to book — sending a "prog_3" to PostgREST would
+       just 400. The two are distinguished by the flag mod-catalog sets, not by
+       guessing at the id format. */
+    const live=p.live&&s.live&&window.SporveBooking&&window.SporveAuth&&window.SporveAuth.isSignedIn();
+
+    if(live){
+      S.bookBusy=true;render();
+      window.SporveBooking.create({sessionId:s.id,programId:p.id,
+        athleteId:(a&&a.serverId)||null,tier:d.tier})
+        .then(b=>{
+          S.bookBusy=false;
+          if(!b){toast("Booking did not come back — nothing was charged");render();return;}
+          /* Straight to Stripe. The booking exists as `pending`/`unpaid`; the
+             webhook is what marks it paid, so nothing here claims it is. */
+          return window.SporveBooking.checkout(b.id)
+            .then(r=>{ if(r&&r.url){window.location.href=r.url;return;}
+                       S.modal={type:"booked",booking:{id:b.id,program:p.title,
+                         session:s.title,date:s.date,startTime:s.startTime,
+                         price:b.final_price,status:b.status,paymentStatus:b.payment_status}};
+                       render(); })
+            .catch(err=>{ S.modal={type:"booked",booking:{id:b.id,program:p.title,
+                            session:s.title,date:s.date,startTime:s.startTime,
+                            price:b.final_price,status:b.status,paymentStatus:b.payment_status}};
+                          toast("Held, but checkout could not start: "+(err&&err.message||""));
+                          render(); });
+        })
+        .catch(err=>{
+          S.bookBusy=false;
+          /* The server's own words. The consent and capacity gates raise
+             messages written to be read by a parent — "parental consent is not
+             on file for this athlete (COPPA)" tells them what to DO, where
+             "Something went wrong" tells them to give up. */
+          toast((err&&err.message)||"That booking could not be completed");
+          render();
+        });
+      return;
+    }
+
     const price=p.price+(d.tier.startsWith("Premium")?15:0);
     const booking={id:"book_"+Date.now(),athlete:`${a.firstName} ${a.lastName||""}`.trim(),
       programId:p.id,program:p.title,sessionId:s.id,session:s.title,date:s.date,
-      startTime:s.startTime,tier:d.tier,price,status:"confirmed",paymentStatus:"paid",
+      startTime:s.startTime,tier:d.tier,price,status:"confirmed",
+      /* Was "paid". Nothing was charged, and this is a money surface — a demo
+         booking that claims payment is the one lie that becomes a chargeback
+         argument if it ever escapes the demo. */
+      paymentStatus:"demo",
       createdAt:"2026-08-03"};
     S.bookings=[booking,...S.bookings];
     S.notifications=[{id:"n"+Date.now(),title:"Booking Confirmed",
@@ -10010,7 +10055,7 @@ const EPHEMERAL = new Set([
      as before — but a DESCRIPTOR ({kind:"book",…}) survives, which is what lets
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
-  "coachProvider", "cobFocusStep",
+  "coachProvider", "cobFocusStep", "bookBusy",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
   /* From the ported coach-portal work. coachSearchFocus is a one-render flag
