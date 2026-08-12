@@ -367,18 +367,30 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
   # its dates by parsing an integer out of "prog_7"; a uuid parses to NaN and
   # toISOString() throws RangeError, so this is the assertion standing between
   # a live catalogue and every card rendering Invalid Date.
+  # EVERY live listing, not just the first, and every slot must be a real row.
+  # A slot without live:true came from the generated fallback — three
+  # plausible, bookable-looking dates for sessions that do not exist, which
+  # fail at the insert after the family has picked a time and reached checkout.
   liveslots=$($B js "(function(){try{
-    var p=PROGRAMS[0], s=slotsFor(p.id);
-    if(!s||!s.length) return 'NOSLOTS';
-    if(s.some(function(x){return !/^\d{4}-\d{2}-\d{2}$/.test(String(x.date));})) return 'BADDATE';
-    return 'OK:'+s.length;
-  }catch(e){return 'THREW:'+e.name;}})()" 2>/dev/null | tr -d '\r')
+    var total=0, empty=0;
+    for(var i=0;i<PROGRAMS.length;i++){
+      var s=slotsFor(PROGRAMS[i].id);
+      if(!s||!s.length){ empty++; continue; }
+      if(s.some(function(x){return !x.live;})) return 'FABRICATED:'+PROGRAMS[i].id;
+      if(s.some(function(x){return !/^\d{4}-\d{2}-\d{2}$/.test(String(x.date));})) return 'BADDATE:'+PROGRAMS[i].id;
+      total+=s.length;
+    }
+    if(empty===PROGRAMS.length) return 'NOSLOTS';
+    return 'OK:'+total+':'+empty;
+  }catch(e){return 'THREW:'+e.name+':'+e.message;}})()" 2>/dev/null | tr -d '\r')
   case "$(printf '%s' "$liveslots" | tr -d '[:space:]')" in
-    OK:*)     pass "catalog: live listings resolve real sessions (${liveslots#*OK:} on the first)" ;;
-    NOSLOTS)  fail "catalog: a live listing has no bookable session — nothing on the page can be booked" ;;
-    BADDATE)  fail "catalog: a live slot carries an unparseable date — the uuid fell through to the seed's id-parsing path" ;;
-    THREW:*)  fail "catalog: slotsFor threw on a live listing — $liveslots" ;;
-    *)        fail "catalog: slot probe returned nothing ($liveslots)" ;;
+    OK:*:0)      pass "catalog: every live listing resolves real sessions ($(printf '%s' "$liveslots" | cut -d: -f2) in total)" ;;
+    OK:*)        pass "catalog: live sessions resolve; $(printf '%s' "$liveslots" | cut -d: -f3) listing(s) correctly show no openings" ;;
+    NOSLOTS)     fail "catalog: no live listing has a bookable session — nothing on the page can be booked" ;;
+    FABRICATED:*) fail "catalog: a live listing was given INVENTED session dates (${liveslots#*FABRICATED:}) — it would fail at checkout" ;;
+    BADDATE:*)   fail "catalog: a live slot carries an unparseable date (${liveslots#*BADDATE:})" ;;
+    THREW:*)     fail "catalog: slotsFor threw on a live listing — $liveslots" ;;
+    *)           fail "catalog: slot probe returned nothing ($liveslots)" ;;
   esac
 
   # The coach portal is still sample data and must stay pinned to it. Without

@@ -3326,6 +3326,14 @@ function slotsFor(pid){
      dayAfter() and render "Invalid Date" on every card. */
   const live=LIVE_SLOTS[pid];
   if(live&&live.length) return live;
+  /* A LIVE listing with no live sessions has NO OPENINGS, and must say so.
+     Falling through would hand it the generated slots below — three
+     plausible, bookable-looking dates for sessions that do not exist in the
+     database. The booking would then fail at the insert, after the family has
+     chosen a time and reached checkout. An empty rail is honest; an invented
+     one is the worst outcome on this path. */
+  const rec=PROGRAMS.find(p=>p.id===pid);
+  if(rec&&rec.live) return [];
   const seeded=SESSIONS.filter(s=>s.programId===pid);
   if(seeded.length) return seeded;
   /* `|| 0` so an id that is not "prog_N" degrades to a valid date rather than
