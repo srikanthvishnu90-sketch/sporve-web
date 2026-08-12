@@ -799,20 +799,25 @@ img{max-width:100%;display:block}
 .cg-left{position:relative;display:flex;flex-direction:column;justify-content:center;padding:56px clamp(28px,6vw,84px);min-height:100vh}
 .cg-back{position:absolute;top:24px;left:24px;background:none;border:0;color:#8FA3BC;font-family:var(--sans);font-size:var(--text-base);cursor:pointer}
 .cg-back:hover{color:#F7F9FF}
-.cg-wordmark{font-family:var(--display);font-size:var(--text-xl);color:#F7F9FF;letter-spacing:-.01em;margin-bottom:40px;display:inline-flex;align-items:center;gap:10px}
+.cg-wordmark{font-family:var(--display);font-size:var(--text-lg);color:#F7F9FF;letter-spacing:-.01em;margin-bottom:26px;display:inline-flex;align-items:center;gap:9px}
 .cg-logomark{flex:none;border-radius:7px}
 .cg-h1{font-family:var(--display);font-size:var(--text-2xl);color:#F7F9FF;letter-spacing:-.02em;line-height:1.1;margin:0}
 .cg-sub{font-family:var(--sans);color:#8FA3BC;font-size:var(--text-base);margin-top:12px;max-width:44ch;line-height:1.55}
 .cg-form{margin-top:26px;max-width:400px;display:flex;flex-direction:column;gap:14px}
-.cg-input{width:100%;height:54px;padding:0 16px;border-radius:12px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;font-family:var(--sans);font-size:var(--text-lg)}
+/* 54px with text-lg made the column read as a phone form blown up on a
+   desktop. 44px is still the accessible touch floor, and text-base is the
+   size every other input on the site uses. */
+.cg-input{width:100%;height:44px;padding:0 14px;border-radius:10px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;font-family:var(--sans);font-size:var(--text-base)}
 .cg-input::placeholder{color:#8290A0}
 .cg-input:focus{outline:none;border-color:#8FA3BC}
-.cg-continue{height:54px;border-radius:12px;border:0;background:#8FA3BC;color:#0A0C0F;font-family:var(--sans);font-weight:700;font-size:var(--text-lg);cursor:pointer;transition:background .15s}
+.cg-continue{height:44px;border-radius:10px;border:0;background:#8FA3BC;color:#0A0C0F;font-family:var(--sans);font-weight:700;font-size:var(--text-base);cursor:pointer;transition:background .15s}
+/* Disabled until the form can actually create an account — see item 5. */
+.cg-continue:disabled{background:#2A333F;color:#7A8794;cursor:not-allowed}
 .cg-continue:hover{background:#A9BACF}
 .cg-or{display:flex;align-items:center;gap:14px;margin:20px 0;color:#8FA3BC;font-family:var(--sans);font-size:var(--text-sm);max-width:400px}
 .cg-or::before,.cg-or::after{content:"";flex:1;height:1px;background:#222A33}
 .cg-oauth{display:flex;flex-direction:column;gap:12px;max-width:400px}
-.cg-social{height:54px;border-radius:12px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;display:flex;align-items:center;justify-content:center;gap:10px;position:relative;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:var(--text-base);transition:background .15s}
+.cg-social{height:44px;border-radius:12px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;display:flex;align-items:center;justify-content:center;gap:9px;position:relative;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:var(--text-sm);transition:background .15s}
 .cg-social:hover{background:#1B2027}
 .cg-social--light{background:#FFFFFF;color:#0A0C0F;border-color:#FFFFFF}
 .cg-social--light:hover{background:#E9EEF4}
@@ -3520,6 +3525,7 @@ function catalogueIsLive(){
    `camp` is not a provider type at all; a camp is a listing format. */
 const PTYPE_FROM_PROVIDER={solo:"solo",organization:"org"};
 function ptypeOf(p){
+  if(p&&p.sampleType) return p.sampleType;
   const declared=PTYPE_FROM_PROVIDER[String(p&&p.providerType||"").toLowerCase()];
   if(declared) return declared;
   const t=(p.title+" "+p.skill).toLowerCase();
@@ -3583,7 +3589,12 @@ function slotsFor(pid){
      chosen a time and reached checkout. An empty rail is honest; an invented
      one is the worst outcome on this path. */
   const rec=PROGRAMS.find(p=>p.id===pid);
-  if(rec&&rec.live) return [];
+  /* A LIVE listing with no live sessions, and a SAMPLE listing always, have no
+     bookable time. Falling through would hand them the generated slots below —
+     plausible, bookable-looking dates for sessions that do not exist. For a
+     sample that is worse than for a live one: it would let a family pick a time
+     on a company that is not real. An empty rail is honest. */
+  if(rec&&(rec.live||rec.sample)) return [];
   const seeded=SESSIONS.filter(s=>s.programId===pid);
   if(seeded.length) return seeded;
   /* `|| 0` so an id that is not "prog_N" degrades to a valid date rather than
@@ -3695,7 +3706,7 @@ const S={
   mapPick:null,
   chat:[],
   chatThinking:false,
-  aiOpen:false,                    // the global AI dock, collapsed to its button
+  aiOpen:true,                     // coach AI dock: open on arrival, X collapses to the S
   cmdAction:"",
   cmdDraft:"",
   cmdSending:false,
@@ -4091,9 +4102,11 @@ function cardHTML(p){
     </div>
     <div class="ttl">${esc(p.title)}</div>
     <div class="meta num">Ages ${p.minAge}–${p.maxAge} · ${esc(p.skill)}</div>
-    ${p.verified
-      ? `<div class="verifline">${ICON.shield} Background-checked</div>`
-      : `<div class="pendline">${ICON.shield} Verification pending</div>`}
+    ${p.sample
+      ? `<div class="pendline">${ICON.shield} Sample listing</div>`
+      : p.verified
+        ? `<div class="verifline">${ICON.shield} Background-checked</div>`
+        : `<div class="pendline">${ICON.shield} Verification pending</div>`}
     <div class="price num"><b>${money(p.price)}</b> <span style="color:var(--muted)">${modelLabel(p.model)}</span></div>
   </div>`;
 }
@@ -4202,6 +4215,63 @@ function phScene(sport,seed){
    A category with real inventory links into the filtered grid. One without says
    "coming soon" and does not pretend to be clickable. The counts are COUNTED
    from PROGRAMS, so the day a camp operator signs up the card changes itself. */
+/* ITEM 2 — SAMPLE CAMPS AND TEAMS, so browse has three populated rows.
+   ---------------------------------------------------------------------------
+   Production is twenty solo trainers, so the camp and team rows had nothing in
+   them. The owner wants all three populated with sample companies and imagery.
+
+   THE ONE THING THESE MUST NOT DO IS TAKE MONEY. A family can pay on this page
+   now, so a sample listing that reaches checkout is not a placeholder — it is
+   an offer with a price that cannot be honoured. Every record here therefore
+   carries `sample:true` and `live:false`:
+
+     · slotsFor() gives them no live sessions, so no bookable time exists
+     · the book modal's `isLive` check is false, so they never reach
+       SporveBooking.create() and never touch the bookings table
+     · each card is badged, so nobody mistakes one for a real coach
+
+   They are inserted into PROGRAMS rather than a parallel array so the rails,
+   the kind tabs, the filters and the counts all see them with no special
+   casing — the one thing the catalogue migration proved is that a second
+   source of listings is how two surfaces start disagreeing. */
+const SAMPLE_ORGS=[
+  {id:"sample_camp_1",biz:"Northside Summer Sports Camp",sport:"Basketball",
+   title:"Summer Skills Camp — Week 1",desc:"Five mornings of skills, scrimmages and games. Ages grouped by school year.",
+   price:240,model:"package",cap:24,enrolled:11,minAge:7,maxAge:13,skill:"All Levels",type:"camp"},
+  {id:"sample_camp_2",biz:"Lakefront Multi-Sport Camp",sport:"Swimming",
+   title:"Learn-to-Swim Intensive",desc:"Four-day water-confidence intensive on the lakefront. Small groups, two instructors per lane.",
+   price:180,model:"package",cap:16,enrolled:6,minAge:5,maxAge:11,skill:"Beginner",type:"camp"},
+  {id:"sample_camp_3",biz:"Windy City Winter Clinics",sport:"Volleyball",
+   title:"Winter Break Clinic",desc:"Three days of serving, passing and small-sided play over the winter holidays.",
+   price:150,model:"package",cap:20,enrolled:9,minAge:10,maxAge:16,skill:"Intermediate",type:"camp"},
+  {id:"sample_team_1",biz:"Chicago Union Football Club",sport:"Soccer",
+   title:"U12 Travel Squad — Spring Season",desc:"A full travel season: two trainings a week, weekend fixtures, one coach per age group.",
+   price:320,model:"monthly",cap:18,enrolled:15,minAge:10,maxAge:12,skill:"Advanced",type:"org"},
+  {id:"sample_team_2",biz:"South Loop Track Club",sport:"Track & Field",
+   title:"Junior Track Squad",desc:"Season-long sprints and field events, built around the school meet calendar.",
+   price:180,model:"monthly",cap:30,enrolled:22,minAge:11,maxAge:17,skill:"All Levels",type:"org"},
+  {id:"sample_team_3",biz:"Ironside Wrestling Academy",sport:"Wrestling",
+   title:"Folkstyle Club — Full Season",desc:"Scholastic folkstyle club. Technique, live wrestling and conditioning, all season.",
+   price:210,model:"monthly",cap:24,enrolled:17,minAge:9,maxAge:16,skill:"Intermediate",type:"org"},
+];
+function sampleListings(){
+  return SAMPLE_ORGS.map((o,i)=>({
+    id:o.id,biz:o.biz,sport:o.sport,title:o.title,desc:o.desc,
+    price:o.price,model:o.model,rating:0,reviews:0,
+    /* Chicago, spread so the map pins do not stack. */
+    lng:-87.72+((i%3)*0.07),lat:41.84+(Math.floor(i/3)*0.09),
+    featured:false,skill:o.skill,ageGroup:"Youth",minAge:o.minAge,maxAge:o.maxAge,
+    cap:o.cap,enrolled:o.enrolled,
+    img:phScene(o.sport,i),gallery:[phScene(o.sport,i),phScene(o.sport,i+1),phScene(o.sport,i+2)],
+    whatsIncluded:["Professional coaching","Equipment provided"],
+    address:"Chicago, IL",cancellationPolicy:"moderate",
+    /* The two flags that keep this out of the money path. */
+    sample:true,live:false,
+    providerType:o.type==="camp"?null:"organization",
+    sampleType:o.type,
+  }));
+}
+
 function kindShowcaseHTML(){
   const cards=KIND_BANDS.map((k,i)=>{
     const n=PROGRAMS.filter(p=>ptypeOf(p)===k.type).length;
@@ -4212,9 +4282,11 @@ function kindShowcaseHTML(){
         <span class="kcard-eyebrow">${esc(k.tab)}</span>
         <h3 class="kcard-h">${k.title}</h3>
         <p class="kcard-p">${esc(k.sub)}</p>
-        ${n
-          ? `<button class="btn ghost sm" data-kindfilter="${esc(k.type)}">See ${n} ${n===1?"listing":"listings"}</button>`
-          : `<span class="kcard-soon">Coming soon</span>`}
+        ${/* ITEM 4 — "Coming soon" is gone. Every category has listings now
+             (sample camps and teams alongside the live solo trainers), so the
+             branch that rendered it is unreachable and has been removed rather
+             than left as dead code that would quietly return. */""}
+        <button class="btn ghost sm" data-kindfilter="${esc(k.type)}">See ${n} ${n===1?"listing":"listings"}</button>
       </div>
     </article>`;
   }).join("");
@@ -5724,7 +5796,16 @@ function assistantHTML(){
    than a 380px panel has. Ids are dock-specific (aiDockForm / aiDockInput) so
    they never collide with the full page's chatForm when both are on screen. */
 function aiDockHTML(){
-  const open=!!S.aiOpen;
+  /* COACH SIDE ONLY (owner, 2026-08-12). Families get Support, not an AI
+     assistant — a parent choosing a coach for their child is not a person who
+     should be nudged by a bot, and the dock was appearing on every family
+     route. Returning "" here removes the button AND the panel together, so
+     there is no orphaned launcher. */
+  if(S.portal!=="coach") return "";
+  /* Open on arrival, like the reference: the composer is the surface, not a
+     thing you have to discover. `aiOpen` is EPHEMERAL and defaults true, so
+     closing it lasts for the session and a fresh visit opens again. */
+  const open=S.aiOpen!==false;
   const thread=S.chat.length
     ? S.chat.map(m=>m.role==="user"
         ? `<div class="bub me" style="max-width:82%">${esc(m.text)}</div>`
@@ -8701,7 +8782,7 @@ function coachGateHTML(){
         <input class="cg-input" id="cgPw" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password" minlength="8" required>
         <input class="cg-input" id="cgBiz" type="text" placeholder="Business or coaching name" autocomplete="organization" aria-label="Business or coaching name">
         ${S.authError?`<div class="err" role="alert" style="margin:2px 0 6px">${esc(S.authError)}</div>`:""}
-        <button class="cg-continue" type="submit"${S.authBusy?" disabled":""}>${S.authBusy?"Working…":"Continue"}</button>
+        <button class="cg-continue" id="cgGo" type="submit" disabled>${S.authBusy?"Working…":"Continue"}</button>
         <p class="cg-fine" style="margin-top:10px">New here? Leave the name blank to sign in, or fill it in to create a coaching account.</p>
       </form>
       <div class="cg-or">or</div>
@@ -9163,6 +9244,33 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   /* Become a coach opens the signup wizard directly — there is no marketing
      page in front of it any more. */
   $("[data-becomecoach]").forEach(b=>b.onclick=()=>enterCoachPortal());
+  /* ITEM 5 — nobody signs in until the form can actually succeed.
+     -----------------------------------------------------------------------
+     Continue rendered enabled with every field empty, so the first thing a
+     coach could do was submit nothing and get a server error back. The button
+     now starts DISABLED and is enabled only when the input would be accepted:
+     a syntactically valid email and a password of at least 8 characters, which
+     is GoTrue's own minimum — validating against a different number here would
+     mean the button lights up for a password the server then rejects.
+
+     Disabled, never hidden, and never a silent no-op on click. It re-evaluates
+     on every keystroke rather than on blur, so the moment the form is valid the
+     button says so. */
+  const cgOk=()=>{
+    const em=(document.getElementById("cgId")||{}).value||"";
+    const pw=(document.getElementById("cgPw")||{}).value||"";
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.trim()) && pw.length>=8;
+  };
+  const cgSync=()=>{
+    const b=document.getElementById("cgGo");
+    if(b) b.disabled=S.authBusy||!cgOk();
+  };
+  ["cgId","cgPw","cgBiz"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.oninput=cgSync;
+  });
+  cgSync();
+
   /* REAL coach auth. This used to be
        completeAuth({...SEED.user, role:"provider"})
      which fabricated a verified session out of the seed no matter what was

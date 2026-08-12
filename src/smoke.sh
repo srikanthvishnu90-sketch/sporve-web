@@ -359,7 +359,10 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     if(!PROGRAMS.length) return 'EMPTY';
     var bad=PROGRAMS.filter(function(p){return !p.id||!p.title||!p.sport||typeof p.price!=='number'||!p.biz;});
     if(bad.length) return 'MALFORMED:'+bad.length;
-    if(PROGRAMS.some(function(p){return !p.live;})) return 'MIXED';
+    /* Three kinds now: live rows, deliberate SAMPLE orgs (camps/teams, which
+       carry sample:true and are unbookable), and — only on fallback — seed.
+       A seed row among live rows is still split-brain; a sample row is not. */
+    if(PROGRAMS.some(function(p){return !p.live&&!p.sample;})) return 'MIXED';
     return 'OK:'+PROGRAMS.length;
   });})()" 2>/dev/null | tr -d '\r')
   case "$(printf '%s' "$livecat" | tr -d '[:space:]')" in
@@ -394,6 +397,8 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     if(validDate('2026-02-30')||validDate('2026-13-01')||!validDate('2026-02-28')) return 'SELFTEST';
     var total=0, empty=0;
     for(var i=0;i<PROGRAMS.length;i++){
+      /* Sample orgs are intentionally unbookable and have no sessions. */
+      if(PROGRAMS[i].sample) continue;
       var s=slotsFor(PROGRAMS[i].id);
       if(!s||!s.length){ empty++; continue; }
       if(s.some(function(x){return !x.live;})) return 'FABRICATED:'+PROGRAMS[i].id;
@@ -717,6 +722,45 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     NOTENCODED) fail "auth: this origin is not in the OAuth redirect_to — GoTrue will fall back to SITE_URL" ;;
     NOHELPER)   fail "auth: oauthReturnUrl() is gone; the return target is uncontrolled again" ;;
     *)          fail "auth: oauth return probe returned nothing ($oa)" ;;
+  esac
+
+  # A SAMPLE COMPANY MUST NEVER TAKE MONEY. Sample camps and teams exist so
+  # browse has three populated rows; a family can pay on this page, so a sample
+  # that reaches checkout is an offer with a price that cannot be honoured.
+  smp=$($B js "(function(){
+    var s=PROGRAMS.filter(function(p){return p.sample;});
+    if(!s.length) return 'NOSAMPLES';
+    var bookable=s.filter(function(p){return slotsFor(p.id).length;});
+    if(bookable.length) return 'BOOKABLE:'+bookable[0].id;
+    if(s.some(function(p){return p.live;})) return 'MARKEDLIVE';
+    return 'OK:'+s.length;
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$smp" | tr -d '[:space:]')" in
+    OK:*)       pass "catalog: $(printf '%s' "$smp" | cut -d: -f2) sample companies exist and none can be booked" ;;
+    BOOKABLE:*) fail "catalog: a SAMPLE company has bookable sessions (${smp#*BOOKABLE:}) — a family could pay for a company that does not exist" ;;
+    MARKEDLIVE) fail "catalog: a sample company is flagged live — it would reach the real booking path" ;;
+    NOSAMPLES)  fail "catalog: the sample camps/teams are gone; two browse rows will be empty again" ;;
+    *)          fail "catalog: sample probe returned nothing ($smp)" ;;
+  esac
+
+  # The AI dock is COACH-ONLY. Families get Support, not an assistant.
+  dock=$($B js "(function(){
+    S.auth={status:'guest'};S.portal='family';S.route={name:'explore',arg:null};render();
+    var fam=document.querySelectorAll('.aidock-fab,.aidock-panel').length;
+    S.auth={status:'verified',user:Object.assign({},SEED.user,{role:'provider'})};S.portal='coach';
+    S.coachTab='dashboard';S.route={name:'dashboard',arg:null};render();
+    var coach=document.querySelectorAll('.aidock-fab').length;
+    var openByDefault=!!document.querySelector('.aidock-panel');
+    if(fam) return 'ONFAMILY:'+fam;
+    if(!coach) return 'MISSINGONCOACH';
+    return openByDefault?'OK':'CLOSED';
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$dock" | tr -d '[:space:]')" in
+    OK)             pass "coach: the AI dock is coach-only and open by default" ;;
+    ONFAMILY:*)     fail "coach: the AI dock rendered on a FAMILY route — families get Support, not an assistant" ;;
+    MISSINGONCOACH) fail "coach: the AI dock is missing from the coach portal entirely" ;;
+    CLOSED)         fail "coach: the AI dock is collapsed by default — it should open like the reference" ;;
+    *)              fail "coach: dock probe returned nothing ($dock)" ;;
   esac
 
   # Nothing above is worth anything if the live render throws. The 13-route

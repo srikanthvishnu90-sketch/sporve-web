@@ -295,9 +295,16 @@
           Object.keys(byProgram).forEach(function (k) { LIVE_SLOTS[k] = byProgram[k]; });
         }
 
-        /* In place. See the header — this is the whole migration strategy. */
+        /* In place. See the header — this is the whole migration strategy.
+           The sample camp/team companies are appended so browse has three
+           populated rows: production is solo trainers only, and those two rows
+           would otherwise be empty. They carry sample:true / live:false, so the
+           booking path refuses them — see SAMPLE_ORGS in the host. */
         PROGRAMS.length = 0;
         PROGRAMS.push.apply(PROGRAMS, live);
+        if (typeof sampleListings === "function") {
+          PROGRAMS.push.apply(PROGRAMS, sampleListings());
+        }
 
         /* BUSINESSES is derived from PROGRAMS at load and captured by the
            browse rails, so mutating PROGRAMS alone leaves it describing six
