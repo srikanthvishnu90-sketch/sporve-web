@@ -468,3 +468,47 @@ Only possible after Docker is installed and the Phase 0 dumps exist.
 3. Nothing ships without the live verification the release contract requires.
 4. When a box turns out to be wrong, strike it and say why — do not silently
    delete it. The wrong boxes are the record of what was learned.
+
+---
+
+## Phase 0.2 TRIAGE RESULT — 41 of 42 migrations are NOT APPLIED
+
+Each migration was probed for its **witness object** — the table, column,
+function, trigger or index whose presence discriminates "this ran" from "it did
+not". 36 settled by direct existence query against production; 6 by source-text
+or policy-shape inspection.
+
+| verdict | count |
+|---|---|
+| **APPLIED** | **1** — `20260726_000000_booking_member_org_guard` |
+| **NOT APPLIED** | **41** |
+
+This is not "production is behind by a few." **The entire body of schema work
+from 2026-07-26 onward exists only in files.** Absent from prod: `services`,
+`locations`, `recurring_bookings`, `camps`, `camp_roster`, `coach_invoices`,
+`credit_packs`, `commission_rates`, `disputes`, `review_windows`,
+`coach_invites`, `referral_credits`, `program_waitlist`, `waitlist_offers`,
+`split_pay_links`, `platform_fees`, `coach_agent_turns`,
+`service_assignable_members`, every scale index, and all five 2026-08-02
+corrective fixes.
+
+**Correction.** An earlier note here recorded `20260729_000500_commission_rates`
+as partially applied because `organization_members` carries `commission_type`
+and `commission_value`. The `commission_rates` **table does not exist**; those
+columns came from elsewhere. That migration is NOT APPLIED like the rest.
+
+- [ ] `[G]` Trace where `organization_members.commission_type` / `.commission_value` came from
+
+### Three mismatches to resolve BEFORE applying anything
+
+- [ ] `[RED]` **`20260728_000101_platform_fees` seeds 18% / 4%** (`first_booking` 1800 bps, `recurring` 400 bps, lines 20-36). The owner's decision is **flat 12%, final**. Applying as written installs the wrong take rate into the exact table the checkout function reads. Rewrite to a single 1200 bps first.
+- [ ] `[Y]` **`20260729_000100_services_availability_locations` does not create `services` or `availability`** despite the filename — both pre-date it; it only adds columns. It *does* rewrite `availability_select_public`. Read that rewrite before applying.
+- [ ] `[Y]` **`20260729_000620_shared_inbox` redefines `messages_select_participant`** — the policy `20260728_000700` created to hide AI drafts from parents. File order means `000620` wins. Confirm the draft-hiding predicate survives or applying in order re-exposes unsent AI drafts to families.
+
+### Apply order
+
+- [ ] `[RED]` 1. `20260728_000203_coppa_gate` — **drafted: `APPLY-coppa-consent-gate.sql`**
+- [ ] `[RED]` 2. `20260728_000000_universal_bgcheck_gate` — applying it immediately hides every provider whose `background_check_status <> 'verified'`. The data step verifying legitimate demo providers is **deliberately not in the file**, so applying blind empties search results.
+- [ ] `[RED]` 3. `20260802_000102_fix_booking_update_freeze_service_id` — only meaningful after the service model lands; `bookings` has no `service_id` today
+- [ ] `[Y]` 4. Defer all four `20260801_0003*` scale files — pure indexes and RLS initplan tuning, zero safety content
+- [ ] `[G]` **Never re-apply `20260726_000000` after `20260729_000610`.** `000610`'s `enforce_booking_member_org` is a strict superset — it adds a `service_id -> services.provider_id` resolution branch and adds `service_id` to the watched column list. Re-applying the earlier version rejects service-only bookings outright via the `v_org is null` fail-closed branch, AND stops an UPDATE touching only `service_id` from firing the guard at all — restoring the forged cross-org attribution the file was written to stop.
