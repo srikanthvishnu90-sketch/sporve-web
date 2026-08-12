@@ -13,6 +13,8 @@ HOST = os.path.join(HERE, "sporve-web.host.html")
 MARKER = "<!--MODULES-->"
 TARGETS = [os.path.join(ROOT, "index.html")]
 ORDER = [
+    # mod-api.js first: it defines window.SporveAPI, which later modules use.
+    "mod-api.js",
     "mod-safety.js", "mod-reviews.js", "mod-coachops.js",
     "mod-payments.js", "mod-search.js", "mod-coachonboard.js",
     "mod-media.js", "mod-notes.js", "mod-insights.js",

@@ -252,6 +252,27 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
   [ "$booted" = "true" ] \
     && pass "csp: page boots under the real policy (hashes accepted by the browser)" \
     || fail "csp: page did NOT boot under the real policy — a script hash is rejected; production would be BLANK"
+
+  # The backend is reachable UNDER THE REAL POLICY. This is the check that
+  # catches connect-src: a perfectly correct API layer still fails silently if
+  # the policy forbids the origin — the browser blocks the request before it
+  # leaves, and the only symptom is a console entry nobody reads. It must run
+  # here, on the header-serving port, because file:// has no CSP at all and
+  # would pass while production blocks every call.
+  api=$($B js "typeof window.SporveAPI==='object'&&typeof window.SporveAPI.ping==='function'" 2>/dev/null | tr -d '[:space:]')
+  [ "$api" = "true" ] \
+    && pass "api: SporveAPI is present in the built page" \
+    || fail "api: SporveAPI missing — mod-api.js did not inline"
+
+  ping=$($B js "window.SporveAPI.ping().then(r=>'OK:'+r.programs).catch(e=>'ERR:'+e.status+':'+e.message)" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$ping" | tr -d '[:space:]')" in
+    OK:0)  fail "api: reached the backend but zero published programs — the marketplace has no inventory" ;;
+    OK:*)  pass "api: reached Supabase under the real CSP and read live programs" ;;
+    ERR:0:*) fail "api: request blocked before leaving the browser — connect-src does not allow the Supabase origin" ;;
+    ERR:*) fail "api: backend rejected the request — $ping" ;;
+    *)     fail "api: liveness probe returned nothing (harness or network problem)" ;;
+  esac
+
   # Leave the harness on a file:// page so later checks are unaffected.
   $B goto "file://$(pwd)/index.html" >/dev/null 2>&1
 else
