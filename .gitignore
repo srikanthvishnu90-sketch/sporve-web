@@ -21,3 +21,6 @@ docs/coach-portal-spec.md
 
 # ci-browse daemon handshake file
 .ci-browse-port
+
+# Supabase CLI link state — never commit, and never let two repos hold one
+supabase/.temp/
