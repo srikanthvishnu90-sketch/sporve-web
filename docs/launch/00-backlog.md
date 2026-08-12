@@ -51,8 +51,43 @@ Nothing else is safe until these are done. No feature work in parallel.
 ### 0.1 Deploy-target safety
 - [x] `[G]` Unlink `sporve-landing` from prod (`supabase/.temp` → `.temp.unlinked-2026-08-11`)
 - [ ] `[G]` Add `supabase/.temp/` to `.gitignore` in both repos if absent
-- [ ] `[Y]` Decide the single repo that owns `supabase/migrations` for prod
-- [ ] `[Y]` Decide the single repo that owns `supabase/functions` for prod
+- [x] `[owner+prod]` **OWNERSHIP RESOLVED: `SportsMan-main` owns both migrations and functions.**
+
+  Owner's decision (2026-08-11): the owning repo is the Sporve demo app or the
+  waitlist landing page — *not* `the-sporve-web`, which is the demo in web form
+  to be pasted on the web. **The waitlist page is being taken down.** A repo
+  scheduled for decommissioning cannot own production, so that leaves
+  `SportsMan-main`.
+
+  Production evidence agrees, and it overturns an earlier conclusion of mine:
+  - Prod runs **33 edge functions**. Four are Stripe (`stripe-webhook`,
+    `stripe-create-checkout`, `stripe-connect-onboarding`,
+    `stripe-provider-payouts`) and exist **only** in `SportsMan-main`.
+  - A **bulk deploy stamped `1785208914592` (~2026-07-26)** covers 20 functions
+    at once — matching `SportsMan-main` commit `808a793` (2026-07-27), which
+    carries a deploy receipt naming all 12 shared functions.
+  - Later single deploys (`draft-recap`, `draft-reply`, `setup-interview`,
+    `camp-recap`, `camp-broadcast`, `waitlist-offer-draft`,
+    `stripe-provider-payouts`) are all `SportsMan-main`-side.
+  - `sporve-landing` deployed only `join-waitlist` (~2026-07-02) and
+    `ai-feedback` (~2026-07-08), both earlier and both narrow.
+
+  **I previously concluded `sporve-landing` owned the functions, from line
+  counts. That was wrong.** Line count measures generation, not recency:
+  `SportsMan-main`'s copies were last touched 2026-08-01, `sporve-landing`'s
+  2026-07-15. The two trees are a **fork**, not a stale copy — they call
+  different rate-limit RPCs (`consume_edge_rate_limit` vs
+  `reserve_ai_capacity`), and **both RPCs exist in production**, so that test
+  does not discriminate either.
+
+- [ ] `[Y]` **Do not delete `sporve-landing`'s functions before extracting three things** it has that `SportsMan-main` lacks:
+  - `ai-match` is a **rewrite**: `matchguard.ts:4-10` says production matching no longer calls a model, using a deterministic `ranking-policy.ts`. Deleting it re-introduces LLM-decided coach matching. `[CRITICAL-PATH]`
+  - `ai-chat` enforces child-safety with a `HEALTH_REQUEST`/`TRAINING_REQUEST` regex preflight that returns a canned "contact a healthcare professional" reply **before** the model runs. `SportsMan-main`'s equivalent is system-prompt text — a suggestion, not a control. `[CRITICAL-PATH]`
+  - `search-parse:181` returns `(e as Error).message` to the client — internal error leakage. `SportsMan-main` has a generic 500 body and a `405` method allowlist. Take the better half of each.
+- [ ] `[Y]` **NEW — two orphan dashboard-created functions shadow the real ones.** `AI-Chat` (v17) and `Join-Waitlist` (v12) have entrypoint `source/index.ts` with no `supabase/functions/` prefix, meaning they were written in the Supabase dashboard editor, not deployed from any repo. They exist in no repo and nothing can reproduce them. Recover their source, then delete them.
+- [ ] `[Y]` Write `SUPABASE-OWNERSHIP.md` recording `SportsMan-main` as owner of both trees
+- [ ] `[Y]` **Deployment is 100% manual from a laptop with no record** — neither repo deploys functions from CI. All 9 workflows checked; `SportsMan-main/.github/workflows/ci.yml:18-26` only runs a *local* `supabase start`/`db reset`/`db lint`. This is the real hygiene defect behind the whole split-brain problem.
+- [ ] `[Y]` Add a CI job that deploys functions from `SportsMan-main` on merge, so deploys leave a record
 - [ ] `[Y]` Write `SUPABASE-OWNERSHIP.md` in both repos naming the owner and the rule
 - [ ] `[Y]` Add a pre-push git hook in the non-owning repo that rejects `supabase db push`
 - [ ] `[Y]` Add a pre-push hook rejecting `supabase functions deploy` in the non-owning repo
