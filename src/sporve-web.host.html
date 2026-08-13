@@ -9737,6 +9737,25 @@ function coachGateHTML(){
 }
 function render(){
   const r=S.route;
+  /* SET BEFORE ANY MARKUP IS BUILT. This assignment used to live ~50 lines
+     lower, next to the classList toggle it pairs with — which reads naturally
+     and was wrong, because sportColor() is called while the body STRING is
+     being built and bakes its result into inline styles that no later flag
+     change can reach.
+
+     The failure mode was invisible on a warm page and only appeared on a cold
+     one. First render of the landing: flag still false, so the hero carousel
+     serialised raw orange into style="background:#DA5A05..."; the flag then
+     flipped true, so the SECOND render came out slate. Every manual check that
+     called render() from the console was a second render and reported clean,
+     while a real visitor — who only ever gets the first — saw orange. It took a
+     mobile production sweep to catch, because that run happened to measure the
+     cold DOM.
+
+     A flag that a template reads must be assigned before the template runs.
+     The classList toggle stays where it was: it acts on the live element, so
+     its position genuinely does not matter. */
+  NO_ORANGE_ACTIVE = (r.name==="home");
   let body;
   /* The Family/Coach toggle swaps the ENTIRE page below the nav (spec Part 2,
      slot 4). On the landing route that means two different marketing scrolls;
@@ -9803,10 +9822,6 @@ function render(){
      sheet dropped them onto a half-inverted page. */
   app.classList.toggle("coachdark",
     S.portal==="coach"&&r.name!=="coachgate");
-  /* No-orange landing (owner, 2026-08-13). Redefines the accent family to
-     slate for this route only; sportColor() handles the two orange-family
-     sport tokens separately, because those are applied as inline styles. */
-  NO_ORANGE_ACTIVE = (r.name==="home");
   app.classList.toggle("noorange", NO_ORANGE_ACTIVE);
 
 

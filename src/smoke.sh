@@ -1242,6 +1242,33 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 [ "${off//\"/}" = "CLEAN" ] && pass "every rendered size is on the 8-step scale" \
   || fail "off-scale font sizes: $off"
 
+# ── No orange on a COLD first paint (no render() call) ────────────────────
+# The token-table check below tests the FUNCTION. This tests the DOM the first
+# visitor actually receives. Both are needed: the ordering bug that shipped
+# orange to production had a correct sportColor() and a correct token map, and
+# still painted orange, because NO_ORANGE_ACTIVE was assigned AFTER the body
+# string was built. Every console check was a second render and came back clean.
+# This one must not call render() — touching it warms the page and hides the bug.
+# The re-navigation is LOAD-BEARING: without it this assertion runs on a page
+# that dozens of earlier assertions have already rendered, and it passed against
+# the known-bad ordering. An assertion that cannot fail is worse than no
+# assertion, because it manufactures confidence. Verified to go red when the
+# assignment is moved back below the body build.
+$B goto "file://$(pwd)/index.html" >/dev/null 2>&1
+cold=$($B js "
+(()=>{const hue=(r,g,b)=>{const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;
+  if(d<40)return -1;
+  let h=mx===r?((g-b)/d)*60:mx===g?(2+(b-r)/d)*60:(4+(r-g)/d)*60;return h<0?h+360:h};
+ let n=0;
+ document.querySelectorAll('*').forEach(el=>{const cs=getComputedStyle(el);
+  ['color','backgroundColor','borderTopColor','borderLeftColor','fill'].forEach(k=>{
+   const m=(cs[k]||'').match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
+   if(!m)return; if(m[4]!==undefined&&parseFloat(m[4])===0)return;
+   const h=hue(+m[1],+m[2],+m[3]); if(h>=15&&h<=45)n++})});
+ return n===0?'CLEAN':String(n)})()" 2>/dev/null)
+[ "${cold//\"/}" = "CLEAN" ] && pass "no orange on the cold first paint of the landing" \
+  || fail "orange on first paint (render-order bug): $cold elements"
+
 # ── No orange, tested over EVERY sport token, not just the rendered ones ──
 # This assertion exists because the first no-orange pass swept clean locally and
 # shipped 43 orange elements to production. The local sweep only ever saw the
