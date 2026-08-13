@@ -1278,6 +1278,62 @@ img{max-width:100%;display:block}
 .aidock-kbd{margin-left:auto;font-family:var(--mono);font-size:11px;color:#8A93A0;
   border:1px solid #2A313B;border-radius:6px;padding:2px 6px;flex:none}
 @media(max-width:560px){.aidock-chips{display:none}}
+
+/* No-orange landing. The accent family is redefined to slate for this route
+   only; #app.noorange is set by render() when the landing is showing. Every
+   var(--accent) consumer on the page resolves through these, so one block
+   covers buttons, focus rings, hovers and the search affordance. */
+#app.noorange{
+  --accent:#475569; --accent-ink:#334155; --accent-tint:#EEF2F6;
+  --accent-on-dark:#94A3B8;
+  /* GOLD IS ORANGE-FAMILY TOO. The sweep found #7A5E10 (--gold-ink) 162 times
+     on this page — it carries the "Background-checked" badge, so it is the most
+     repeated colour on the landing. The prompt bans amber explicitly, and a
+     hue-based picker sweep does not care what we call the token. Slate keeps
+     the badge legible without warmth. */
+  --gold:#64748B; --gold-ink:#334155; --gold-tint:#EEF2F6;
+}
+
+/* ── ONE CARD GEOMETRY, repeated (Uber Eats / Zillow grammar) ───────────── */
+/* Top padding is tuned so the first card lands 30-40% inside a 900px
+   viewport — the slice IS the scroll cue, so a few pixels here decide whether
+   the fold reads as finished or as continuing. */
+/* .band.peekband, not .peekband. `.band{padding:74px 0}` is declared LATER in
+   this file, and with equal specificity the later rule wins — so the tightened
+   padding was silently losing and the card sat 4px from where it should. */
+.band.peekband{padding:46px 0 64px}
+.peekhead{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
+.peekhead h2{font-family:var(--display);font-size:var(--text-xl);letter-spacing:-.01em}
+.peekhead .lnk{margin-left:auto;background:none;border:0;font-weight:600;
+  font-size:var(--text-sm);color:var(--ink);text-decoration:underline;cursor:pointer}
+/* The row is deliberately NOT inside .shell: it must run to the viewport edge
+   so the last card is sliced, which is the swipe cue. Left padding matches the
+   shell so the first card still aligns with the header above it. */
+.peekrow{display:flex;gap:24px;overflow-x:auto;scroll-snap-type:x mandatory;
+  padding:2px clamp(16px,4vw,32px) 6px;scrollbar-width:none;-ms-overflow-style:none}
+.peekrow::-webkit-scrollbar{display:none}
+.ccard{flex:0 0 280px;scroll-snap-align:start;position:relative;
+  border:1px solid var(--rule);border-radius:12px;background:var(--paper);
+  overflow:hidden;transition:border-color .16s,transform .16s}
+.ccard:hover{border-color:var(--rule-strong);transform:translateY(-2px)}
+/* aspect-ratio on the CONTAINER, set before the image loads — this is what
+   makes CLS zero rather than nearly zero. */
+.ccard-img{aspect-ratio:4/3;width:100%;background:var(--raise);overflow:hidden}
+.ccard-img img{width:100%;height:100%;object-fit:cover;display:block}
+.ccard-body{padding:14px;display:flex;flex-direction:column;gap:5px}
+.ccard-name{font-size:var(--text-base);font-weight:600;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ccard-tag{align-self:flex-start;font-size:var(--text-xs);font-weight:600;
+  border-radius:999px;padding:2px 9px}
+.ccard-meta{font-size:var(--text-sm);color:var(--muted)}
+.ccard-rate{font-size:var(--text-sm);font-weight:600;color:var(--ink)}
+.ccard-hit{position:absolute;inset:0;width:100%;height:100%;background:none;border:0;cursor:pointer}
+.ccard-hit:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:12px}
+@media(max-width:767px){
+  .peekrow{gap:16px}
+  .ccard{flex:0 0 240px}
+  .band.peekband{padding:40px 0 48px}
+}
 .aidock{position:fixed;right:22px;bottom:22px;z-index:85;
   display:flex;flex-direction:column;align-items:flex-end;gap:12px}
 /* The button was --ink, which is #000 — invisible against the coach portal's
@@ -1601,7 +1657,26 @@ table.tbl td{padding:13px 12px;border-top:1px solid var(--rule);vertical-align:m
 /* ── landing bands ───────────────────────────────────────────────── */
 .band{padding:74px 0;border-bottom:1px solid var(--rule)}
 .band.alt{background:var(--raise)}
+/* HERO 70vh, and the reason it is not 100vh: a full-screen hero reads as a
+   finished poster and kills scrolling. 70/75vh guarantees the next section's
+   header and the top of its cards fall inside a 900px viewport — that slice is
+   the scroll cue, so no arrows or bounce animations are needed.
+   min-height rather than height: the headline must never be clipped on a short
+   window, and content wins over the exact number. */
 .band.hero{padding:86px 0 78px}
+#app.noorange .band.hero{
+  /* HEIGHT, not min-height. min-height let the carousel push the hero to 84vh,
+     which put the next section's header 59px BELOW the fold — the peek is the
+     whole point, so the hero has to actually end where it says it does.
+     The carousel is the flexible part and absorbs the difference. */
+  height:70vh;padding:clamp(28px,5vh,64px) 0 0;
+  display:flex;flex-direction:column;justify-content:center;
+  position:relative;overflow:hidden;
+}
+#app.noorange .band.hero .amq{
+  flex:1 1 auto;min-height:0;padding-top:10px;padding-bottom:0;margin-bottom:0;
+}
+@media(max-width:767px){#app.noorange .band.hero{height:75vh}}
 .hero-in{text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px}
 .display{
   font-size:var(--text-hero);font-weight:700;letter-spacing:-.015em;
@@ -2503,6 +2578,12 @@ h2.ctr{margin-bottom:10px}
 /* The validation checklist sits directly on the black, not inside a card. */
 .band.dark .lcheck{color:#DDE3EA}
 .band.dark .lcheck i{background:rgba(240,138,98,.16);color:var(--accent-on-dark)}
+/* A HARDCODED rgba the token override could not reach. #app.noorange
+   redefines --accent-on-dark, but this rule spelled the colour out, so the
+   picker sweep still found it three times on the landing. Literals are exactly
+   what a token sweep misses — which is the argument for tokens, and the reason
+   the acceptance criterion is a RENDERED sweep rather than a source grep. */
+#app.noorange .band.dark .lcheck i{background:rgba(148,163,184,.18);color:var(--accent-on-dark)}
 /* The live-catalogue card stays white on the black ground — that inversion is
    the point of the section, and it is what makes the figures read as a panel
    lifted off the page rather than more text on it. */
@@ -3437,7 +3518,40 @@ const SPORT_GLYPH = {
    falls back to its dusk-stadium gradient — legible, never white. */
 const HERO_IMGS = "__HERO_IMGS__".indexOf("__HERO") === 0 ? [] : [];
 
-const sportColor = s => SPORT_COLOR[s] || "#223140";
+/* ═══ THE NO-ORANGE RULE (owner, 2026-08-13) ═══════════════════════════════
+   "The colour ORANGE must not be represented anywhere on this page… This rule
+   outranks every other styling instruction."
+
+   Scoped to the LANDING page, which is what the prompt says ("this page", and
+   the acceptance is a picker sweep of the rendered page). The coach portal
+   keeps the accent — the assistant prompt in the same message explicitly asks
+   the send affordance to use the existing brand accent, so a global ban would
+   contradict it.
+
+   TWO SPORT COLOURS ARE ORANGE-FAMILY and must be remapped, per the prompt's
+   own note about "excluding any orange-family sport color". They are applied
+   as INLINE styles from sportColor(), so a CSS override cannot reach them
+   without !important everywhere — the remap therefore happens at the source.
+
+   Replacements come from the slate family the prompt names (#475569), kept
+   distinct from each other so Basketball and Football remain separable. */
+const NO_ORANGE = { Basketball:"#475569", Football:"#334155" };
+/* A plain flag, NOT a read of S.route.
+   ---------------------------------------------------------------------------
+   sportColor() is defined here but S is declared further down, and some module
+   calls sportColor during initialisation — so reading S from inside it threw
+   "Cannot access 'S' before initialization" and killed the whole page. `typeof
+   S` does not rescue it either: a const in the temporal dead zone throws on
+   typeof as well, which is the part that surprises people.
+
+   render() sets this flag before it paints, so the value is correct by the
+   time anything visible is drawn, and initialisation-time calls simply see
+   false. */
+var NO_ORANGE_ACTIVE = false;
+const sportColor = s => {
+  const base = SPORT_COLOR[s] || "#223140";
+  return (NO_ORANGE_ACTIVE && NO_ORANGE[s]) ? NO_ORANGE[s] : base;
+};
 /* Card / showcase art is a self-contained sport-tinted SVG data URI, never an
    external host — external image hosts broke the single-file + CSP rule (§9.11). */
 function phShot(sport){
@@ -5045,6 +5159,62 @@ function heroCarouselHTML(){
   </div>`;
 }
 
+/* THE PEEK ROW — the first card row, sliced by the viewport edge.
+   ---------------------------------------------------------------------------
+   The landing had no card row at all, so "the peek" needed one. This is not
+   new information: it is the live catalogue the explore grid already shows,
+   surfaced one section earlier so the fold has something to crop.
+
+   Real coaches when supply exists; SPORT cards otherwise — the prompt's own
+   pre-supply fallback, and the reason is that an empty row and a fake coach
+   are both worse than showing what we genuinely have.
+
+   scroll-snap plus a last card deliberately cut by the right edge is the swipe
+   cue, matching the Uber Eats grammar the prompt asks for. */
+function peekRowHTML(){
+  const live=PROGRAMS.filter(p=>p.live&&!p.sample).slice(0,10);
+  const useCoaches=live.length>=3;
+  const items=useCoaches?live:[...new Set(PROGRAMS.map(p=>p.sport))].slice(0,10);
+  if(!items.length) return "";
+  const card=it=>{
+    if(useCoaches){
+      const p=it;
+      return `<article class="ccard" role="listitem">
+        <div class="ccard-img"><img src="${p.img}" alt="" width="640" height="480"
+          loading="lazy" decoding="async"></div>
+        <div class="ccard-body">
+          <b class="ccard-name">${esc(p.biz)}</b>
+          <span class="ccard-tag" style="background:${sportColor(p.sport)}1A;color:${sportInk?sportInk(p.sport):sportColor(p.sport)}">${esc(p.sport)}</span>
+          <span class="ccard-meta">${esc(p.address||"Chicago, IL")} · ${money(p.price)}</span>
+          ${/* Rating ONLY when real. No reviews renders nothing — never a fake
+               star, which is the one thing a parent cannot verify. */""}
+          ${p.reviews>0?`<span class="ccard-rate num">★ ${p.rating} (${p.reviews})</span>`:""}
+        </div>
+        <button class="ccard-hit" data-open="${esc(p.id)}" aria-label="View ${esc(p.title)}"></button>
+      </article>`;
+    }
+    const sp=it, n=PROGRAMS.filter(x=>x.sport===sp).length;
+    return `<article class="ccard" role="listitem">
+      <div class="ccard-img"><img src="${phScene(sp,0)}" alt="" width="640" height="480"
+        loading="lazy" decoding="async"></div>
+      <div class="ccard-body">
+        <b class="ccard-name">${esc(sp)}</b>
+        <span class="ccard-meta">${n} ${n===1?"coach":"coaches"}</span>
+      </div>
+      <button class="ccard-hit" data-sportjump="${esc(sp)}" aria-label="Browse ${esc(sp)}"></button>
+    </article>`;
+  };
+  return `<section class="band white peekband">
+    <div class="shell">
+      <div class="peekhead">
+        <h2>${useCoaches?"Coaches near you":"Every sport we cover"}</h2>
+        <button class="lnk" data-nav="explore">See all →</button>
+      </div>
+    </div>
+    <div class="peekrow" role="list">${items.map(card).join("")}</div>
+  </section>`;
+}
+
 function landingHTML(){
   const f=landingFacts();
   const heroSports=["Soccer","Basketball","Tennis","Baseball","Swimming"];
@@ -5073,6 +5243,8 @@ function landingHTML(){
   ${/* role="region" + a label, not aria-label on a bare <div>: a div maps to
         role generic, ARIA forbids naming generic, and every major browser
         drops the label. Both marquees were unlabelled in practice. */""}
+  ${peekRowHTML()}
+
   <div class="tick" role="region" aria-label="Businesses on Sporve" style="position:relative">
     <button class="mqpause" data-mqpause aria-pressed="false">Pause</button>
     <div class="tick-track">
@@ -9551,6 +9723,11 @@ function render(){
      sheet dropped them onto a half-inverted page. */
   app.classList.toggle("coachdark",
     S.portal==="coach"&&r.name!=="coachgate");
+  /* No-orange landing (owner, 2026-08-13). Redefines the accent family to
+     slate for this route only; sportColor() handles the two orange-family
+     sport tokens separately, because those are applied as inline styles. */
+  NO_ORANGE_ACTIVE = (r.name==="home");
+  app.classList.toggle("noorange", NO_ORANGE_ACTIVE);
 
 
   /* The light footer band is gone at the owner's request, so no route appends a
