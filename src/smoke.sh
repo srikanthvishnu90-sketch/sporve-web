@@ -921,6 +921,25 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)         fail "a11y: focus-trap probe returned nothing ($trap)" ;;
   esac
 
+  # A BADGE REQUIRES EVIDENCE. background_check_status='verified' was true for
+  # 20 production providers whose background_check_completed_at is NULL — every
+  # badge on the live site was a claim nobody had made. A status column can be
+  # set by anyone with write access; a completion DATE only exists if a check
+  # actually finished. No live listing may be badged without one.
+  ev=$($B js "(function(){
+    var live=PROGRAMS.filter(function(p){return p.live;});
+    if(!live.length) return 'NOLIVE';
+    var lying=live.filter(function(p){return p.verified&&!p.checkedOn;});
+    if(lying.length) return 'UNEVIDENCED:'+lying.length;
+    return 'OK:'+live.filter(function(p){return p.verified;}).length+'of'+live.length;
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$ev" | tr -d '[:space:]')" in
+    OK:*)          pass "trust: no live listing is badged background-checked without a completion date ($(printf '%s' "$ev" | cut -d: -f2))" ;;
+    UNEVIDENCED:*) fail "trust: ${ev#*UNEVIDENCED:} live listing(s) claim a background check with NO completion date — the badge is unbacked" ;;
+    NOLIVE)        fail "trust: no live listings to check" ;;
+    *)             fail "trust: evidence probe returned nothing ($ev)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never

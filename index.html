@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="ec3580cc79cb2a3f">
+<meta name="sporve-build" content="d00d855d537d1703">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -11657,6 +11657,7 @@ document.addEventListener("click",e=>{
     "is_featured", "whats_included", "cancellation_policy", "program_type",
     "city", "state", "latitude", "longitude", "cover_image",
     "providers(id,business_name,bio,location,provider_type,background_check_status," +
+      "background_check_completed_at," +
       "coach_years_coaching,credentials,public_latitude,public_longitude)",
   ].join(",");
 
@@ -11677,10 +11678,17 @@ document.addEventListener("click",e=>{
     return {
       id: r.id,
       biz: pv.business_name || "Sporve provider",
-      /* Derived, not read. `background_check_status` is the column the gate
-         itself keys on; anything else here would be a second definition of
-         "verified" and this repo has been bitten by exactly that before. */
-      verified: pv.background_check_status === "verified",
+      /* THE BADGE NOW REQUIRES EVIDENCE, NOT A FLAG.
+         `background_check_status='verified'` alone was true for 20 providers
+         with background_check_completed_at NULL — every badge on production
+         was a claim nobody had made. A status column can be set by anyone with
+         write access; a COMPLETION DATE only exists if a check actually
+         finished. So the badge keys on both, and until a vendor writes that
+         date no coach is shown as checked.
+         `checkedOn` is carried so the trust surfaces can say WHEN. */
+      verified: pv.background_check_status === "verified"
+                && !!pv.background_check_completed_at,
+      checkedOn: pv.background_check_completed_at || null,
       sport: sport,
       title: r.title || "",
       desc: r.description || "",

@@ -76,6 +76,7 @@
     "is_featured", "whats_included", "cancellation_policy", "program_type",
     "city", "state", "latitude", "longitude", "cover_image",
     "providers(id,business_name,bio,location,provider_type,background_check_status," +
+      "background_check_completed_at," +
       "coach_years_coaching,credentials,public_latitude,public_longitude)",
   ].join(",");
 
@@ -96,10 +97,17 @@
     return {
       id: r.id,
       biz: pv.business_name || "Sporve provider",
-      /* Derived, not read. `background_check_status` is the column the gate
-         itself keys on; anything else here would be a second definition of
-         "verified" and this repo has been bitten by exactly that before. */
-      verified: pv.background_check_status === "verified",
+      /* THE BADGE NOW REQUIRES EVIDENCE, NOT A FLAG.
+         `background_check_status='verified'` alone was true for 20 providers
+         with background_check_completed_at NULL — every badge on production
+         was a claim nobody had made. A status column can be set by anyone with
+         write access; a COMPLETION DATE only exists if a check actually
+         finished. So the badge keys on both, and until a vendor writes that
+         date no coach is shown as checked.
+         `checkedOn` is carried so the trust surfaces can say WHEN. */
+      verified: pv.background_check_status === "verified"
+                && !!pv.background_check_completed_at,
+      checkedOn: pv.background_check_completed_at || null,
       sport: sport,
       title: r.title || "",
       desc: r.description || "",
