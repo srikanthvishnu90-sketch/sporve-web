@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="a1b3d88ec2083e71">
+<meta name="sporve-build" content="55f0cd72d0da616e">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -4186,7 +4186,11 @@ function toggleFav(id){
   const saved=S.favorites.includes(id);
   if(saved){S.favorites=S.favorites.filter(x=>x!==id);render();return;}
   if(!isVerified()){
-    if(S.guestSaves>=3){requireAuth(()=>{S.favorites=[...S.favorites,id];toast("Saved to your list");});return;}
+    /* DESCRIPTOR, not a closure. A closure cannot survive the Google OAuth
+       redirect — the heap is destroyed — so a visitor who signed in with
+       Google returned with the save silently dropped. INTENTS already had a
+       `save` entry; nothing used it. */
+    if(S.guestSaves>=3){S.pendingIntent={kind:"save",id:id};S.modal={type:"authsheet"};render();return;}
     S.guestSaves++;
   }
   S.favorites=[...S.favorites,id];
@@ -9626,12 +9630,12 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   });
   $("[data-msg]").forEach(b=>b.onclick=()=>{
     const id=b.dataset.msg, p=PROGRAMS.find(x=>x.id===id);
-    requireAuth(()=>{
-      let c=S.conversations.find(c=>c.with===p.biz);
-      if(!c){c={id:"conv_"+Date.now(),with:p.biz,programId:p.id,last:"New conversation",at:"2026-08-03T00:00:00.000Z"};
-        S.conversations=[c,...S.conversations];S.messages[c.id]=[];}
-      S.activeConv=c.id;S.modal=null;go("messages");
-    });
+    /* Same reason as save: a descriptor survives the OAuth round trip. */
+    if(!isVerified()){S.pendingIntent={kind:"message",coachId:id};S.modal={type:"authsheet"};render();return;}
+    let c=S.conversations.find(c=>c.with===p.biz);
+    if(!c){c={id:"conv_"+Date.now(),with:p.biz,programId:p.id,last:"New conversation",at:"2026-08-03T00:00:00.000Z"};
+      S.conversations=[c,...S.conversations];S.messages[c.id]=[];}
+    S.activeConv=c.id;S.modal=null;go("messages");
   });
   $("[data-slot]").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("[data-slot]").forEach(x=>x.classList.remove("on"));
@@ -10133,10 +10137,43 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     if(!d.consent){
       err.textContent="Parental consent is required before a child profile can be created (COPPA).";
       err.classList.remove("hide");return;}
-    S.athletes=[...S.athletes,{id:"athlete_"+Date.now(),firstName:d.first.trim(),lastName:d.last.trim(),
+    /* THE CHILD MUST REACH THE SERVER. [CRITICAL-PATH: consent]
+       ---------------------------------------------------------------------
+       This pushed to S.athletes and stopped. The row never existed in the
+       database, so the COPPA gate — which refuses an ATHLETE INSERT without
+       parent_consent, let alone a booking — had nothing to check. The parent
+       added a child, tried to book, and got a consent error for a child they
+       had just consented to. The failure landed one screen away from its
+       cause, which is the worst place to put it.
+
+       The local push stays for a signed-out visitor: they can still describe
+       their athlete, and it is written for real the moment they sign in. */
+    const local={id:"athlete_"+Date.now(),firstName:d.first.trim(),lastName:d.last.trim(),
       dob:`${d.year}-01-01`,preferredSports:[],skillLevel:d.skill||null,parentConsent:true,
-      consentAt:new Date().toISOString(),consentVersion:"v1"}];
-    S.modal=null;render();toast("Child added");
+      consentAt:new Date().toISOString(),consentVersion:"v1"};
+    S.athletes=[...S.athletes,local];
+    S.modal=null;render();
+
+    if(window.SporveBooking&&window.SporveAuth&&window.SporveAuth.isSignedIn()){
+      window.SporveBooking.createAthlete({
+        firstName:local.firstName,lastName:local.lastName,dob:local.dob,
+        skillLevel:local.skillLevel,
+        /* Explicit true, from the checkbox the parent actually ticked — the
+           form already refuses to submit without it. */
+        consent:true,
+      }).then(a=>{
+        if(!a) return;
+        /* serverId is what a booking must send; the local id is a placeholder
+           that no gate would recognise. */
+        local.serverId=a.id; local.id=a.id;
+        S.athletes=S.athletes.map(x=>x===local?local:x);
+        render(); toast("Child added");
+      }).catch(e=>{
+        toast((e&&e.message)||"Saved here, but we could not reach Sporve");
+      });
+    } else {
+      toast("Child added — sign in to save it to your account");
+    }
   };
 
   const bf=document.getElementById("bookForm");
