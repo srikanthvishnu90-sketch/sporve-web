@@ -1465,8 +1465,14 @@ img{max-width:100%;display:block}
    the rest and the reply was legible only through a slot. This is the regression
    behind "you can't even see the response". Empty, it stays a compact pill;
    talking, it commits to the full stage and .aidock-scroll's flex:1 fills it. */
-.aidock-panel.talking{height:min(520px,calc(100vh - 130px))}
-.aidock-panel{width:100%;max-height:min(520px,calc(100vh - 130px));
+/* 620, not 520. Measured on a 900px viewport the panel spent 248px of its 520
+   on chrome — head 68 + chips 32 + composer 148 — leaving the conversation 250px,
+   less than half the box, so a two-message exchange already overflowed and the
+   reply was read through a slot. The composer keeps its reference geometry; the
+   panel grows instead. calc(100vh - 160px) still governs short viewports, so
+   this cannot push the pill off a laptop screen. */
+.aidock-panel.talking{height:min(620px,calc(100vh - 160px))}
+.aidock-panel{width:100%;max-height:min(620px,calc(100vh - 160px));
   display:flex;flex-direction:column;background:#0B0C0E;color:#F5F7F9;
   border:1px solid #333A45;border-radius:18px;overflow:hidden;
   /* The glow: slate, not black — a black shadow on a black panel is invisible
