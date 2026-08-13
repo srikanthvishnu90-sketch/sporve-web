@@ -1242,6 +1242,29 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 [ "${off//\"/}" = "CLEAN" ] && pass "every rendered size is on the 8-step scale" \
   || fail "off-scale font sizes: $off"
 
+# ── The AI pill is centred, and the S is NOT inside it ────────────────────
+# Both halves matter. The spec centres the assistant AND forbids repositioning
+# the S; if they ever share a parent again, centring drags the S to the middle
+# and the "collapses into the S" contract quietly breaks. This asserts the two
+# are separately positioned, that the pill is centred within 2px, and that the
+# fixed pill is compensated for so the last table row stays reachable.
+pill=$($B js "
+(()=>{S.portal='coach';S.aiOpen=true;S.aiCollapsed=false;
+ S.route={name:'dashboard',arg:null};render();
+ const p=document.querySelector('.aipill'),f=document.querySelector('.aidock-fab');
+ if(!p||!f) return 'MISSING';
+ if(p.contains(f)) return 'S_INSIDE_PILL';
+ const pr=p.getBoundingClientRect();
+ const off=Math.abs((pr.left+pr.right)/2 - innerWidth/2);
+ if(off>2) return 'OFFCENTRE_'+Math.round(off);
+ if(Math.round(innerHeight-pr.bottom)>40) return 'NOT_AT_BOTTOM';
+ if(f.textContent.trim()!=='S') return 'FAB_NOT_S';
+ const pad=parseFloat(getComputedStyle(document.getElementById('app')).paddingBottom);
+ if(pad < pr.height) return 'NO_COMPENSATION_'+Math.round(pad);
+ return 'OK'})()" 2>/dev/null)
+[ "${pill//\"/}" = "OK" ] && pass "AI pill centred, S separate, content compensated" \
+  || fail "AI pill invariant broken: $pill"
+
 echo "─────────────────────────────────────────────────────"
 [ "$FAIL" -eq 0 ] && echo "  SMOKE PASSED" || echo "  SMOKE FAILED -- revert, do not push"
 exit $FAIL
