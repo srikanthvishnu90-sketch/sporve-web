@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="55f0cd72d0da616e">
+<meta name="sporve-build" content="7ab44747be75d712">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -5699,6 +5699,10 @@ function productHTML(){
 
 /* ── detail ──────────────────────────────────────────────────────── */
 function detailHTML(id){
+  /* A slot id from a DIFFERENT listing must not survive into this one — it
+     would either vanish from the select or, worse, book someone else's
+     session. Cleared whenever the detail page changes listing. */
+  if(S.slotPickFor!==id){ S.slotPick=null; S.slotPickFor=id; }
   const p=PROGRAMS.find(x=>x.id===id); if(!p) return exploreHTML();
   const slots=slotsFor(id);
   const fav=S.favorites.includes(id);
@@ -7365,7 +7369,13 @@ function modalHTML(){
             ${S.athletes.map(a=>`<option value="${a.id}">${esc(a.firstName+" "+(a.lastName||""))} · age ${ageOf(a.dob)}</option>`).join("")}
           </select></div>
         <div class="field"><label>Session</label>
-          <select name="slot" required>${slots.map(s=>`<option value="${s.id}">${fmtDate(s.date)} · ${s.startTime}–${s.endTime}</option>`).join("")}</select></div>
+          ${/* Pre-select whatever the visitor chose on the detail page. Falls
+               back to the first slot when the modal is opened without one
+               (straight from a card), which is the only safe default. */""}
+          <select name="slot" required>${slots.map((s,i)=>{
+            const chosen = S.slotPick ? s.id===S.slotPick : i===0;
+            return `<option value="${s.id}"${chosen?" selected":""}>${fmtDate(s.date)} · ${s.startTime}–${s.endTime}</option>`;
+          }).join("")}</select></div>
         <div class="field"><label>Tier</label>
           <select name="tier"><option>Standard</option><option>Premium (+$15)</option></select></div>
         <div style="border-top:1px solid var(--rule);margin-top:6px;padding-top:8px">
@@ -9637,9 +9647,20 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
       S.conversations=[c,...S.conversations];S.messages[c.id]=[];}
     S.activeConv=c.id;S.modal=null;go("messages");
   });
+  /* THE SLOT PICKER MUST WRITE THE CHOICE. [CRITICAL-PATH: money]
+     ------------------------------------------------------------------------
+     This toggled a CSS class and nothing else — `on` moved, no state was
+     written, and nothing anywhere read a chosen slot. The book modal then
+     built its <select> fresh and defaulted to the FIRST option. So a parent
+     picked Saturday, opened Book, submitted, and paid for the Tuesday
+     session. No error, no warning: the booking succeeded, for the wrong time.
+
+     Charging someone for a session they did not choose is the worst class of
+     bug this surface can have, because it looks like it worked. */
   $("[data-slot]").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("[data-slot]").forEach(x=>x.classList.remove("on"));
     b.classList.add("on");
+    S.slotPick=b.dataset.slot;
   });
   $("[data-pin]").forEach(b=>b.onclick=()=>{S.mapPick=b.dataset.pin;render();});
   $("[data-info]").forEach(b=>b.onclick=()=>{S.modal=null;go("info",b.dataset.info);});
@@ -11649,6 +11670,18 @@ document.addEventListener("click",e=>{
   var provider = null;
 
   function uid() { return AUTH.userId(); }
+
+  /* Its OWN guard. This called guard() — which is defined inside
+     mod-booking.js's IIFE, not this one. Each module is wrapped in its own
+     closure by build.py, so the name simply did not exist here: clicking
+     "Connect payouts" threw a ReferenceError SYNCHRONOUSLY, before the promise
+     was constructed, so the .catch() in the handler never ran and the button
+     sat disabled on "Opening Stripe…" forever. The one action that lets a
+     coach get paid was unreachable, and it failed in the one way the error
+     handling could not report. */
+  function guard() {
+    return uid() ? null : Promise.reject(new Error("Sign in to continue."));
+  }
 
   /* Columns a coach may set about themselves. An allowlist rather than passing
      the form object straight through: `status`, `verification_status` and
@@ -23133,6 +23166,7 @@ const EPHEMERAL = new Set([
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
   "coachProvider", "cobFocusStep", "bookBusy", "connectBusy", "connectError", "segOpen", "lastBooking",
+  "slotPick", "slotPickFor",
   "fdraft", "fdOpen",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",

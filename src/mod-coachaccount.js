@@ -59,6 +59,18 @@
 
   function uid() { return AUTH.userId(); }
 
+  /* Its OWN guard. This called guard() — which is defined inside
+     mod-booking.js's IIFE, not this one. Each module is wrapped in its own
+     closure by build.py, so the name simply did not exist here: clicking
+     "Connect payouts" threw a ReferenceError SYNCHRONOUSLY, before the promise
+     was constructed, so the .catch() in the handler never ran and the button
+     sat disabled on "Opening Stripe…" forever. The one action that lets a
+     coach get paid was unreachable, and it failed in the one way the error
+     handling could not report. */
+  function guard() {
+    return uid() ? null : Promise.reject(new Error("Sign in to continue."));
+  }
+
   /* Columns a coach may set about themselves. An allowlist rather than passing
      the form object straight through: `status`, `verification_status` and
      `background_check_status` all live on this table, and a PATCH built from
