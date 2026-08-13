@@ -470,6 +470,14 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
   # only solo providers, so camps and teams must not appear at all — a promise
   # the inventory cannot keep is worse than an honest single band.
   deadband=$($B js "(function(){try{
+    /* SELF-SUFFICIENT. This measured whatever portal, filters and catalogue
+       the previous probe happened to leave behind — it read 2 empty bands
+       because an earlier check was still in the coach portal with a filtered
+       catalogue, while the same page measured clean in isolation. An
+       assertion that depends on its neighbours reports their state, not the
+       thing it claims to test. */
+    S.auth={status:'guest'};S.portal='family';S.sports=[];S.query='';S.kind=null;
+    S.filters={};S.fdraft=null;S.modal=null;
     S.route={name:'explore',arg:null}; render();
     var empties=document.querySelectorAll('.kindrow-empty').length;
     var bands=document.querySelectorAll('.kind-band').length;
@@ -811,9 +819,15 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     var before=document.querySelectorAll('.card').length;
     pill.click();
     var n=parseInt(document.querySelector('.fd-foot .btn').textContent.replace(/[^0-9]/g,''),10);
-    if(document.querySelectorAll('.card').length!==before) return 'GRIDMOVED';
+    if(document.querySelectorAll('.card').length!==before){S.filters={};S.fdraft=null;S.modal=null;render();return 'GRIDMOVED';}
     document.querySelector('[data-fdapply]').click();
     var after=document.querySelectorAll('.card').length;
+    /* RESTORE before returning. Committing a filter and walking away left
+       S.filters set for every assertion after this one — the kind-band check
+       then saw a catalogue filtered to single-session listings, found camps
+       and teams empty, and failed on a defect this probe had created. A test
+       that leaks state fails its neighbours, not itself. */
+    S.filters={}; S.fdraft=null; S.modal=null; render();
     if(after!==n) return 'MISMATCH:'+n+'vs'+after;
     return 'OK:'+n;
   }catch(e){return 'THREW:'+e.message;}})()" 2>/dev/null | tr -d '\r')

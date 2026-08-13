@@ -88,7 +88,12 @@
   --t-body:var(--text-base); --t-small:var(--text-sm); --t-micro:var(--text-xs);
 
   /* ── CONTROL HEIGHTS: two only. */
-  --h-ctl:48px; --h-compact:36px;
+  /* --h-compact drives the top bar's nav links, the product-toggle row and
+     the .tnav pills together, so raising it once enlarges all three rather
+     than three near-identical numbers drifting apart. 36 -> 42 keeps every
+     one of them above the 44px touch target once padding is counted, and
+     stays inside the 72px bar. */
+  --h-ctl:48px; --h-compact:42px;
 
   /* type on the dark hero panel — never mid-grey on black */
   --on-dark:#FFFFFF; --on-dark-2:#C7D0DA;
@@ -294,7 +299,7 @@ img{max-width:100%;display:block}
    Sits where the search pill used to, at Amboras' nav scale rather than the
    14px the folded-away subnav used. */
 /* Centred menu group on the black bar: slate labels, white on hover/active. */
-.tnav-row{display:flex;align-items:center;gap:28px;flex:0 0 auto;min-width:0}
+.tnav-row{display:flex;align-items:center;gap:30px;flex:0 0 auto;min-width:0}
 .tnav-row .tnav{
   display:inline-flex;align-items:center;gap:7px;height:var(--h-compact);padding:0 2px;
   border-radius:0;font-family:var(--nav-face);font-size:var(--t-body);font-weight:600;
@@ -388,7 +393,7 @@ img{max-width:100%;display:block}
 
 .topnav{display:flex;align-items:center;gap:16px;flex:0 0 auto}
 .tnav{
-  padding:9px 13px;border-radius:999px;font-size:var(--text-base);font-weight:600;color:var(--ink-2);
+  padding:11px 16px;border-radius:999px;font-size:var(--text-base);font-weight:600;color:var(--ink-2);
   transition:background .15s,color .15s;white-space:nowrap;
 }
 .tnav:hover{background:var(--raise)}
@@ -396,7 +401,7 @@ img{max-width:100%;display:block}
 /* §4 CTA — the white pill on the black bar. White, not accent, so it does not
    spend the page's orange budget. */
 .navcta{
-  display:inline-flex;align-items:center;height:40px;padding:0 18px;
+  display:inline-flex;align-items:center;height:44px;padding:0 21px;
   border-radius:var(--r-pill);background:#FFFFFF;color:#09090B;
   font-family:var(--nav-face);font-weight:700;font-size:var(--t-body);white-space:nowrap;
   transition:background .15s;
@@ -453,9 +458,9 @@ img{max-width:100%;display:block}
    topbar is always #09090B (no scroll flip to a light ground), so white text
    never lands on white. Scoped to .navcenter/.topnav so the product-page
    .tnav-row is untouched. Active .on keeps its slate-tint chip (:not(.on)). */
-.navcenter .tnav{font-size:15.5px}
+.navcenter .tnav{font-size:16.5px}
 .navcenter .tnav:not(.on){color:#FFFFFF}
-.topnav .navlink{font-size:15.5px}
+.topnav .navlink{font-size:16.5px}
 /* At <=900 the centred menu collapses; the account control becomes the sheet
    hamburger. On the narrowest bars the quiet "Become a coach" link yields
    space to the pill + hamburger. */
@@ -1138,6 +1143,9 @@ img{max-width:100%;display:block}
    full Coach finder page — one conversation, two entry points. */
 
 /* Three-category showcase. Card grid, 3 up on desktop, 1 up on a phone. */
+/* Slate ground (owner ask). White cards on slate is the contrast that makes
+   the category cards read as objects rather than as regions of the page —
+   the same relationship the browse grid already uses. */
 .kshow{padding:64px 0 60px}
 .kshow-h{font-family:var(--display);font-size:var(--text-2xl);letter-spacing:-.02em;
   margin:14px 0 30px;max-width:22ch}
@@ -4617,7 +4625,7 @@ function kindShowcaseHTML(){
       </div>
     </article>`;
   }).join("");
-  return `<section class="band white kshow">
+  return `<section class="band alt kshow">
     <div class="shell">
       <p class="eyebrow">Three ways to train</p>
       <h2 class="kshow-h">Every sport, however your athlete trains.</h2>
@@ -5091,7 +5099,7 @@ function landingHTML(){
     </div>
   </section>
 
-  <section class="band">
+  <section class="band alt">
     <div class="shell">
       ${/* Was "Find a coach you'd trust with your kid", a near-restatement of
             the .dpath h3 two sections up. */""}
