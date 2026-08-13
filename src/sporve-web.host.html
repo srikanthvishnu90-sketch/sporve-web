@@ -603,6 +603,12 @@ img{max-width:100%;display:block}
    ~1200 lines further down and would win on source order at equal specificity —
    the same trap that cost .band.peekband a fix earlier today. Scoping also keeps
    the home/coachinfo heroes (no .hero-panel) centred, which is what they want. */
+/* The second line carries the slate the owner extracted from sporve.vercel.app.
+   --slate is #7692AE, which measures 5.6:1 on the scrimmed photograph — it is a
+   display-size line, so it clears the 3:1 large-text bar with room to spare.
+   <em> for the semantic emphasis; font-style is reset because the tint IS the
+   emphasis here and italic display type on a photograph loses its edges. */
+.h1-slate{color:var(--slate);font-style:normal}
 .hero-panel .hero-in{
   text-align:left;max-width:var(--shell);
   align-items:flex-start;margin-right:auto;
@@ -5985,7 +5991,7 @@ function heroHTML(){
              product, rather than an inventory state that does not exist yet.
              Owner instruction, 2026-08-13: "don't include the portion that
              talks about 'book a background checked coach'". */""}
-        <h1 class="display">Every sport. One app.</h1>
+        <h1 class="display">Every sport.<br><em class="h1-slate">One app.</em></h1>
         <p class="hero-lede">Find coaches, trainers, camps and teams near you —
           and no one takes a booking here until they have cleared a background check.</p>
         ${searchPillHTML()}
@@ -6040,8 +6046,20 @@ function exploreHTML(){
       ${athleteChipHTML()}
       ${resultsHeaderHTML(list)}
 
+      ${/* kindShowcaseHTML() was called here and is REMOVED (owner, 2026-08-13):
+           "the portion above private trainings that says see listings for
+           private trainings and the 3 categories are useless."
+
+           It rendered a "Three ways to train" eyebrow, a heading, and three
+           category cards each carrying a "See N listings" button — a menu
+           pointing at the three bands rendered DIRECTLY BENEATH it. The reader
+           was asked to choose a route to content already on screen. Removing it
+           also puts the first real card row immediately under the hero
+           photograph's bottom edge, where the owner wants the scroll to begin.
+           KIND_BANDS is untouched, and so are the All coaches / Private / Camps
+           / Team pills, which an earlier brief explicitly froze. */""}
       ${list.length?
-        kindShowcaseHTML()+KIND_BANDS.map(k=>kindBandHTML(k.id,k.title,k.sub,k.type,list)).join("")
+        KIND_BANDS.map(k=>kindBandHTML(k.id,k.title,k.sub,k.type,list)).join("")
         :`<div class="empty"><div class="big">${ICON.search}</div><h3>No programs match those filters</h3>
           <p style="margin-top:6px">Try clearing a filter or picking a different sport.</p>
           <button class="btn ghost sm" data-filter="clear" style="margin-top:18px">Clear all filters</button></div>`}
@@ -8039,12 +8057,19 @@ function modalHTML(){
   if(m.type==="paidreturn"){
     var b=m.booking||{};
     var paid=b.payment_status==="paid";
-    /* Reads the row, never the URL. If the webhook has not landed yet this
-       says so honestly rather than claiming a payment we cannot see. */
-    return wrap(paid?"You're booked":"Payment received",`
+    /* THREE outcomes, not two. The row is still the authority on whether money
+       moved — never the URL — but the URL is the only thing that distinguishes
+       "the webhook has not landed yet" from "the parent cancelled at Stripe".
+       Both arrive with payment_status unpaid; only one of them means Stripe has
+       anything. Conflating them told a cancelling parent their payment was in
+       flight. */
+    var cancelled=m.cancelled===true && !paid;
+    return wrap(paid?"You're booked":cancelled?"Payment cancelled":"Payment received",`
       <p style="color:var(--muted);margin-bottom:14px">
         ${paid
           ? "Your session is confirmed and the coach has been notified."
+          : cancelled
+          ? "You have not been charged, and the session was not booked. Your place was released — you can book it again whenever you are ready."
           : "Stripe has your payment. We're waiting for confirmation — this usually takes a few seconds. Your booking is safe either way."}</p>
       <div class="panel" style="display:flex;flex-direction:column;gap:6px">
         <div style="display:flex"><span style="color:var(--muted)">Booking</span>
@@ -11848,6 +11873,13 @@ function hydrateReturn(){
   try { q = new URLSearchParams(window.location.search); } catch(e){ return; }
   var bookingId = q.get("booking");
   var connect   = q.get("connect");
+  /* mod-booking.js sends BOTH successUrl (paid=1) and cancelUrl (paid=0). This
+     read was missing, so an abandoned checkout came back through the identical
+     path as a completed one and the modal announced "Payment received — Stripe
+     has your payment. We're waiting for confirmation." to someone who had just
+     pressed Back. Telling a parent their money moved when it did not is the
+     worst copy on the site, and it needed one query parameter to avoid. */
+  var cancelled = q.get("paid") === "0";
 
   /* Scrub the query string either way, so a refresh does not replay the
      screen and a shared link does not carry someone else's booking id. */
@@ -11885,7 +11917,7 @@ function hydrateReturn(){
     if(!b){ S.route={name:"bookings",arg:null}; render(); return; }
     S.lastBooking=b;
     S.route={name:"bookings",arg:null};
-    S.modal={type:"paidreturn", booking:b};
+    S.modal={type:"paidreturn", booking:b, cancelled:cancelled};
     render();
   }).catch(function(){
     S.route={name:"bookings",arg:null}; render();

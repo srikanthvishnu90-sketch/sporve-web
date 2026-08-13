@@ -1245,6 +1245,28 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 [ "${off//\"/}" = "CLEAN" ] && pass "every rendered size is on the 8-step scale" \
   || fail "off-scale font sizes: $off"
 
+# ── A cancelled checkout must never read as a payment ─────────────────────
+# [CRITICAL-PATH: money] mod-booking.js sends successUrl (paid=1) AND cancelUrl
+# (paid=0). hydrateReturn() read neither, so pressing Back at Stripe returned
+# through the identical path as a completed payment and the modal said "Payment
+# received — Stripe has your payment. We're waiting for confirmation." Stripe had
+# nothing. Asserts all three outcomes stay distinct.
+pay=$($B js "
+(()=>{const bad=[];
+ const cases=[[{payment_status:'paid'},false,'You'],
+              [{payment_status:'pending'},true,'cancel'],
+              [{payment_status:'pending'},false,'Payment received']];
+ cases.forEach(([b,c,want],i)=>{
+   S.modal={type:'paidreturn',booking:b,cancelled:c};render();
+   const t=(document.getElementById('layer').innerText||'');
+   if(!new RegExp(want,'i').test(t)) bad.push('case'+i+' missing:'+want);
+   if(c && /stripe has your payment/i.test(t)) bad.push('case'+i+':CANCELLED_CLAIMS_PAID');
+ });
+ S.modal=null;render();
+ return bad.length?bad.join(','):'OK'})()" 2>/dev/null)
+[ "${pay//\"/}" = "OK" ] && pass "cancelled checkout does not claim a payment" \
+  || fail "payment-return copy is wrong: $pay"
+
 # ── ONE photograph, held still ────────────────────────────────────────────
 # Owner, 2026-08-13: assets/hero-stadium.webp is the only photograph on the page,
 # and the slideshow is deleted. The @keyframes it ran were hand-computed against
