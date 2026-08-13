@@ -7268,6 +7268,27 @@ function modalHTML(){
       <button class="btn wide" type="submit" style="margin-top:10px">Add child</button>
     </form>`);
 
+  if(m.type==="paidreturn"){
+    var b=m.booking||{};
+    var paid=b.payment_status==="paid";
+    /* Reads the row, never the URL. If the webhook has not landed yet this
+       says so honestly rather than claiming a payment we cannot see. */
+    return wrap(paid?"You're booked":"Payment received",`
+      <p style="color:var(--muted);margin-bottom:14px">
+        ${paid
+          ? "Your session is confirmed and the coach has been notified."
+          : "Stripe has your payment. We're waiting for confirmation — this usually takes a few seconds. Your booking is safe either way."}</p>
+      <div class="panel" style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex"><span style="color:var(--muted)">Booking</span>
+          <b class="num" style="margin-left:auto">${esc(String(b.id||"").slice(0,8))}</b></div>
+        <div style="display:flex"><span style="color:var(--muted)">Total</span>
+          <b class="num" style="margin-left:auto">${money(b.final_price||0)}</b></div>
+        <div style="display:flex"><span style="color:var(--muted)">Payment</span>
+          <b style="margin-left:auto">${esc(b.payment_status||"pending")}</b></div>
+      </div>
+      <button class="btn wide" data-close="1" style="margin-top:16px">See my bookings</button>`);
+  }
+
   if(m.type==="filters") return filterDrawerHTML();
 
   if(m.type==="book"){
@@ -10708,7 +10729,7 @@ const EPHEMERAL = new Set([
      as before — but a DESCRIPTOR ({kind:"book",…}) survives, which is what lets
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
-  "coachProvider", "cobFocusStep", "bookBusy", "connectBusy", "connectError", "segOpen",
+  "coachProvider", "cobFocusStep", "bookBusy", "connectBusy", "connectError", "segOpen", "lastBooking",
   "fdraft", "fdOpen",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
@@ -10826,6 +10847,66 @@ function hydrateCatalog(){
   window.SporveCatalog.hydrate().then(live=>{ if(live) render(); });
 }
 hydrateCatalog();
+
+/* ── WHERE YOU LAND AFTER PAYING ───────────────────────────────────────────
+   stripe-create-checkout is sent successUrl=/?booking=<id>&paid=1, and until
+   now NOTHING READ IT. A family paid $50, Stripe redirected them back, and
+   they arrived on the marketing homepage — no confirmation, no receipt, no
+   sign that anything had happened. The payment worked and the destination did
+   not exist.
+
+   The webhook is the authority on payment_status, and it is idempotent, so
+   this only READS. It never marks anything paid on the strength of a query
+   parameter — a URL a visitor can edit must not be able to say "I paid". */
+function hydrateReturn(){
+  var q;
+  try { q = new URLSearchParams(window.location.search); } catch(e){ return; }
+  var bookingId = q.get("booking");
+  var connect   = q.get("connect");
+
+  /* Scrub the query string either way, so a refresh does not replay the
+     screen and a shared link does not carry someone else's booking id. */
+  function scrub(){
+    try { history.replaceState(null,"",window.location.pathname); } catch(e){}
+  }
+
+  if(connect==="done"){
+    scrub();
+    if(window.SporveCoach&&window.SporveAuth&&window.SporveAuth.isSignedIn()){
+      window.SporveCoach.load().then(function(pv){
+        S.coachProvider=pv; S.portal="coach"; S.coachTab="finances";
+        S.route={name:"dashboard",arg:null};
+        /* Stripe sends everyone here, finished or not — chargesEnabled is the
+           only thing that says which, so the message is read off the row
+           rather than assumed from the redirect. */
+        toast(pv&&pv.stripe_charges_enabled
+          ? "Payouts are active"
+          : "Stripe still needs a few details before you can be paid");
+        render();
+      }).catch(function(){});
+    }
+    return;
+  }
+
+  if(!bookingId) return;
+  scrub();
+  if(!window.SporveBooking||!window.SporveAuth||!window.SporveAuth.isSignedIn()){
+    /* Signed out on return — the session did not survive the round trip.
+       Send them to Bookings rather than the homepage; it is the screen that
+       answers "did my payment go through". */
+    S.route={name:"bookings",arg:null}; render(); return;
+  }
+  window.SporveBooking.status(bookingId).then(function(b){
+    if(!b){ S.route={name:"bookings",arg:null}; render(); return; }
+    S.lastBooking=b;
+    S.route={name:"bookings",arg:null};
+    S.modal={type:"paidreturn", booking:b};
+    render();
+  }).catch(function(){
+    S.route={name:"bookings",arg:null}; render();
+  });
+}
+hydrateReturn();
 
 /* Wrap render rather than editing it: every mutation path in the host and in
    every module already ends in render(), so this catches all of them without

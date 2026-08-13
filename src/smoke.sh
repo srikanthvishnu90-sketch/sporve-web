@@ -842,6 +842,32 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)          fail "filters: drawer probe returned nothing ($fd)" ;;
   esac
 
+  # EVERY RETURN TARGET WE HAND AN EXTERNAL SERVICE MUST BE READ BACK.
+  # stripe-create-checkout is sent successUrl=/?booking=<id>&paid=1 and
+  # stripe-connect-onboarding is sent /?connect=done. Neither was read, so a
+  # family paid $50 and landed on the marketing homepage with no confirmation.
+  # A redirect target nobody handles is a dead end at the end of a payment.
+  ret=$($B js "(function(){
+    if(typeof hydrateReturn!=='function') return 'NOHANDLER';
+    var src=hydrateReturn.toString();
+    if(src.indexOf('booking')<0) return 'NOBOOKING';
+    if(src.indexOf('connect')<0) return 'NOCONNECT';
+    /* It must READ the row, never trust the URL: a query string a visitor can
+       edit must not be able to assert that a payment happened. */
+    if(/paid===.1.|paid==.1./.test(src)&&src.indexOf('status(')<0) return 'TRUSTSURL';
+    if(src.indexOf('status(')<0) return 'NOVERIFY';
+    return 'OK';
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$ret" | tr -d '[:space:]')" in
+    OK)         pass "return: post-payment and post-Connect redirects are handled, and read the row rather than the URL" ;;
+    NOHANDLER)  fail "return: hydrateReturn() is gone — a paying family lands on the homepage with no confirmation" ;;
+    NOBOOKING)  fail "return: the ?booking= redirect from Stripe checkout is not handled" ;;
+    NOCONNECT)  fail "return: the ?connect=done redirect from Stripe Connect is not handled" ;;
+    TRUSTSURL)  fail "return: payment state is being read from the QUERY STRING — a visitor could edit the URL to claim they paid" ;;
+    NOVERIFY)   fail "return: the booking is not re-read from the server on return" ;;
+    *)          fail "return: probe returned nothing ($ret)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never
