@@ -1255,6 +1255,29 @@ img{max-width:100%;display:block}
 .fd-foot .lnk{background:none;border:0;color:var(--ink);font-weight:600;text-decoration:underline;
   cursor:pointer;font-size:var(--text-sm);min-height:44px}
 .fd-foot .btn{margin-left:auto}
+
+/* ── Part B: context chip, quick actions, collapsed strip ──────────────── */
+.aidock-ctx{display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.aidock-ctxchip{font-family:var(--sans);font-size:11px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:#9AA6B2;
+  background:rgba(154,166,178,.12);border-radius:999px;padding:3px 9px}
+.aidock-ctx .aidock-ic{margin-left:auto;width:28px;height:28px}
+.aidock-chips{display:flex;gap:7px;flex-wrap:wrap;margin:0 12px 8px}
+.aidock-chip{font-family:var(--sans);font-size:var(--text-xs);font-weight:600;
+  color:#C3CBD4;background:#131519;border:1px solid #2A313B;border-radius:999px;
+  padding:6px 12px;min-height:32px;cursor:pointer;transition:.14s}
+.aidock-chip:hover{background:#1B1F26;border-color:#414B57;color:#F5F7F9}
+/* Collapsed: a slim strip. Never overlaps a table row or an action button. */
+.aidock-strip{display:flex;align-items:center;gap:10px;
+  width:min(420px,calc(100vw - 32px));padding:9px 14px;
+  background:#0F1113;border:1px solid #2A313B;border-radius:999px;cursor:pointer;
+  box-shadow:0 0 0 1px rgba(154,166,178,.06),0 0 26px rgba(154,166,178,.12)}
+.aidock-strip:hover{border-color:#414B57}
+.aidock-striptext{font-family:var(--sans);font-size:var(--text-sm);color:#8A93A0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aidock-kbd{margin-left:auto;font-family:var(--mono);font-size:11px;color:#8A93A0;
+  border:1px solid #2A313B;border-radius:6px;padding:2px 6px;flex:none}
+@media(max-width:560px){.aidock-chips{display:none}}
 .aidock{position:fixed;right:22px;bottom:22px;z-index:85;
   display:flex;flex-direction:column;align-items:flex-end;gap:12px}
 /* The button was --ink, which is #000 — invisible against the coach portal's
@@ -1815,6 +1838,15 @@ h2.ctr{margin-bottom:10px}
 #app.coachdark .coachtop{background:rgba(11,12,14,.96)}
 .coachtop-in{display:flex;justify-content:flex-end;align-items:center;gap:4px;min-height:48px;padding:5px 24px}
 .viewas{color:var(--slate)}
+
+/* Wordmark + workspace menu */
+.railmark{font-family:var(--display);font-size:var(--text-base);font-weight:700;
+  letter-spacing:-.01em;color:var(--ink);padding:0 11px 8px}
+#app.coachdark .railmark{color:#F5F7F9}
+.railmenu{display:flex;flex-direction:column;gap:1px;margin:2px 0 4px;
+  border:1px solid var(--rule);border-radius:var(--r-m);padding:4px;background:var(--paper)}
+#app.coachdark .railmenu{background:#131519;border-color:#2A313B}
+.railmenu button{font-size:13px;font-weight:500;padding:6px 9px;min-height:32px}
 .railhead{display:flex!important;gap:9px;align-items:center;padding:8px 11px!important;text-align:left;min-height:40px}
 .railhead b{display:block;font-size:var(--text-base);letter-spacing:-.015em;color:var(--ink)}
 .railhead span span{display:block;font-size:var(--text-sm);color:var(--muted)}
@@ -6177,6 +6209,32 @@ function assistantHTML(){
    as compact rows rather than the page's .pickgrid cards, which need more width
    than a 380px panel has. Ids are dock-specific (aiDockForm / aiDockInput) so
    they never collide with the full page's chatForm when both are on screen. */
+/* PART B — what the assistant SEES, and what it can do here.
+   ---------------------------------------------------------------------------
+   A chatbot answers whatever you type. A coach OS knows which screen you are
+   on and offers the three things you would plausibly want on it. That
+   difference is entirely in these two functions.
+
+   The chip is not decoration: it tells the coach what context the assistant
+   is working from, so a wrong answer is diagnosable rather than mysterious. */
+function aiContext(){
+  if(S.portal!=="coach") return {label:"Sporve", chips:[]};
+  const t=S.coachTab||"dashboard";
+  const MAP={
+    dashboard:["What needs my attention today?","Weekly recap"],
+    roster:   ["Draft reply to parent","Summarize this client","Draft session recap"],
+    inbox:    ["Draft reply to parent","Summarize this thread"],
+    finances: ["Explain this month's payouts","Draft an invoice note"],
+    schedule: ["Fill open slots","Message families about a change"],
+    listings: ["Draft a listing description","Suggest a price"],
+    media:    ["Draft a caption","What photos am I missing?"],
+  };
+  const LABEL={dashboard:"Home",roster:"Clients",inbox:"Messages",finances:"Earnings",
+               schedule:"Schedule",listings:"Listings",media:"Media",operations:"Operations",
+               profile:"Settings",search:"Search"};
+  return {label:LABEL[t]||t, chips:MAP[t]||["What needs my attention today?"]};
+}
+
 function aiDockHTML(){
   /* COACH SIDE ONLY (owner, 2026-08-12). Families get Support, not an AI
      assistant — a parent choosing a coach for their child is not a person who
@@ -6213,6 +6271,18 @@ function aiDockHTML(){
               "Something for a shy 8-year-old"]
              .map(q=>`<button class="btn ghost sm" data-ask="${esc(q)}">${esc(q)}</button>`).join("")}
          </div></div>`;
+  /* B2 — collapsed to a slim strip rather than closed. Coach pages are dense
+     tables; the bar must never sit over a row or an action. Collapsed keeps
+     the assistant one key away without occluding anything. State persists. */
+  if(open&&S.aiCollapsed){
+    return `<div class="aidock">
+      <button class="aidock-strip" data-aiexpand="1" aria-expanded="false">
+        <span class="aidock-ctxchip">${esc(aiContext().label)}</span>
+        <span class="aidock-striptext">Ask Sporve, or draft a reply…</span>
+        <kbd class="aidock-kbd">⌘K</kbd>
+      </button>
+    </div>`;
+  }
   return `<div class="aidock">
     ${open?`<section class="aidock-panel" role="dialog" aria-label="Sporve AI helper">
       <div class="aidock-head">
@@ -6232,8 +6302,19 @@ function aiDockHTML(){
            on the left, model + effort + voice on the right. Two rows rather
            than one, because a single row forces the placeholder to share space
            with five controls and truncates it on a phone. */""}
+      ${(()=>{const cx=aiContext();return cx.chips.length?`
+      <div class="aidock-chips">${cx.chips.map(c=>
+        `<button type="button" class="aidock-chip" data-aichip="${esc(c)}">${esc(c)}</button>`).join("")}</div>`:"";})()}
       <form class="aidock-compose" id="aiDockForm">
-        <input id="aiDockInput" class="aidock-input" placeholder="Write a message…"
+        <div class="aidock-ctx">
+          <span class="aidock-ctxchip">${esc(aiContext().label)}</span>
+          <button type="button" class="aidock-ic" data-aicollapse="1"
+                  aria-label="Collapse the assistant" title="Collapse">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+        </div>
+        <input id="aiDockInput" class="aidock-input" placeholder="Ask Sporve, or draft a reply…"
                aria-label="Message Sporve AI" autocomplete="off">
         <div class="aidock-tools">
           <button type="button" class="aidock-ic" data-aiattach="1" aria-label="Add an attachment">
@@ -6477,7 +6558,13 @@ function coachHTML(){
       ${/* A5 — one row, not three. The avatar initials derive from the coach's
            OWN business name; "AP" was a hardcoded literal that said Apex to
            every coach. "View public profile" moves into the menu. */""}
-      <button class="railhead" data-viewas="1" title="View public profile">
+      ${/* Sporve's own touch #4 — the existing wordmark asset at the top of the
+           sidebar, not recreated or restyled. The references are light-themed;
+           the dark surface plus this mark is what makes the density read as
+           Sporve rather than as Stripe. */""}
+      <div class="railmark">Sporve</div>
+      <button class="railhead" data-railmenu="1" aria-expanded="${!!S.railMenu}" aria-haspopup="menu"
+              title="Workspace">
         <span class="avatar" style="width:24px;height:24px;font-size:10px">${
           esc(coachBusinessName().split(/\s+/).map(w=>w[0]||"").slice(0,2).join("").toUpperCase())}</span>
         <b style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(coachBusinessName())}</b>
@@ -6486,6 +6573,14 @@ function coachHTML(){
              style="margin-left:auto;flex:none;opacity:.6" aria-hidden="true">
           <path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
       </button>
+      ${/* "View public profile" moves off the header into this menu, which is
+           what reclaims the vertical space AND leaves a place for account /
+           settings / switch-org once orgs have more than one coach. */""}
+      ${S.railMenu?`<div class="railmenu" role="menu">
+        <button role="menuitem" data-viewas="1">View public profile</button>
+        <button role="menuitem" data-ctab="profile">Settings</button>
+        <button role="menuitem" data-signout="1">Sign out</button>
+      </div>`:""}
       <div class="raildiv"></div>
       ${GROUPS.map(([g,items])=>`
         ${g?`<div class="railgroup">${esc(g)}</div>`:""}
@@ -10195,6 +10290,17 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
       .catch(e=>{ b.disabled=false; b.textContent="Cancel booking";
                   toast((e&&e.message)||"Could not cancel — try again"); });
   });
+  /* B2/B3 — collapse, expand, and chips that PREFILL rather than send, so the
+     coach can edit before committing. */
+  $("[data-railmenu]").forEach(b=>b.onclick=()=>{S.railMenu=!S.railMenu;render();});
+  $("[data-signout]").forEach(b=>b.onclick=()=>{doSignOut();S.portal="family";go("home");});
+  $("[data-aicollapse]").forEach(b=>b.onclick=()=>{S.aiCollapsed=true;render();});
+  $("[data-aiexpand]").forEach(b=>b.onclick=()=>{S.aiCollapsed=false;render();
+    const i=document.getElementById("aiDockInput"); if(i) i.focus();});
+  $("[data-aichip]").forEach(b=>b.onclick=()=>{
+    const i=document.getElementById("aiDockInput");
+    if(i){ i.value=b.dataset.aichip; i.focus(); }
+  });
   $("[data-aitoggle]").forEach(b=>b.onclick=()=>{S.aiOpen=!S.aiOpen;render();});
   /* Attach and dictate are in the reference image, so the controls are there —
      but neither is wired to anything yet. They SAY so rather than failing
@@ -10957,6 +11063,17 @@ document.addEventListener("click",e=>{
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape"&&S.segOpen){S.segOpen=null;render();}
 });
+/* Cmd/Ctrl+K summons the assistant from anywhere in the coach portal. Opens
+   and expands it if needed, then focuses the input — the shortcut is useless
+   if it only works when the bar is already open. Coach-only, because the dock
+   does not exist on family routes. */
+document.addEventListener("keydown",e=>{
+  if(!(e.key==="k"||e.key==="K")||!(e.metaKey||e.ctrlKey)) return;
+  if(S.portal!=="coach") return;
+  e.preventDefault();
+  S.aiOpen=true; S.aiCollapsed=false; render();
+  const i=document.getElementById("aiDockInput"); if(i) i.focus();
+});
 document.addEventListener("click",e=>{
   if(!S.cmdModelOpen) return;
   if(e.target.closest(".cmdmodelwrap")) return;
@@ -11002,7 +11119,7 @@ const EPHEMERAL = new Set([
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
   "coachProvider", "cobFocusStep", "bookBusy", "connectBusy", "connectError", "segOpen", "lastBooking",
-  "slotPick", "slotPickFor", "msgUndelivered",
+  "slotPick", "slotPickFor", "msgUndelivered", "railMenu",
   "fdraft", "fdOpen",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
