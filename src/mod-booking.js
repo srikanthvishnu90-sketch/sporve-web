@@ -163,6 +163,34 @@
       }).then(function (r) { return (r && r[0]) || null; });
     },
 
+    /* CANCEL. [CRITICAL-PATH: money]
+       -----------------------------------------------------------------------
+       The parent may set status/cancelled_at/cancellation_reason on their own
+       row and NOTHING ELSE — verified against production by attempting the
+       greedy version first: a PATCH carrying payment_status:'paid',
+       final_price:0 and refund_amount:9999 is refused by a trigger with
+       "Not allowed to modify booking financial or identity fields." RLS scopes
+       ROWS, not columns, so that trigger is the actual control and it holds.
+
+       THE REFUND IS NOT ISSUED HERE, and cannot be. refund_amount stays 0
+       after a client cancel because money movement belongs to Stripe and to a
+       server that can read the cancellation policy snapshot. Cancelling
+       therefore RELEASES THE SLOT and records the request; it does not promise
+       money back, and the UI must not say otherwise until a refund function
+       exists. */
+    cancel: function (bookingId, reason) {
+      var no = guard(); if (no) return no;
+      return API.from("bookings", "id=eq." + encodeURIComponent(bookingId), {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: {
+          status: "cancelled",
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: String(reason || "").slice(0, 500) || null,
+        },
+      }).then(function (r) { return (r && r[0]) || null; });
+    },
+
     mine: function () {
       if (!uid()) return Promise.resolve([]);
       return API.from("bookings",

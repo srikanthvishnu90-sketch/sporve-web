@@ -894,6 +894,33 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)              fail "honesty: probe returned nothing ($honest)" ;;
   esac
 
+  # MODALS MUST TRAP FOCUS AND CLOSE ON ESCAPE. Ten of eleven declared
+  # aria-modal="true" with neither — Tab past the last field and focus lands on
+  # the page behind while a screen reader is told that content does not exist.
+  trap=$($B js "(function(){
+    S.modal={type:'authsheet'};render();
+    var box=document.querySelector('[role=dialog], .modal');
+    if(!box) return 'NOMODAL';
+    var f=[].slice.call(box.querySelectorAll('button,input,select,a[href]'))
+            .filter(function(e){return e.offsetParent!==null;});
+    if(!f.length) return 'NOFOCUSABLES';
+    f[f.length-1].focus();
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true}));
+    var wrapped=document.activeElement===f[0];
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    var closed=!document.querySelector('[role=dialog], .modal');
+    S.modal=null;render();
+    if(!wrapped) return 'NOTRAP';
+    if(!closed)  return 'NOESCAPE';
+    return 'OK';
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$trap" | tr -d '[:space:]')" in
+    OK)        pass "a11y: modals trap Tab and close on Escape" ;;
+    NOTRAP)    fail "a11y: Tab escapes the modal — focus lands behind a surface declaring aria-modal" ;;
+    NOESCAPE)  fail "a11y: Escape does not close the modal" ;;
+    *)         fail "a11y: focus-trap probe returned nothing ($trap)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never

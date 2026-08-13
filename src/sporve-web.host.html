@@ -5840,7 +5840,16 @@ function bookingsHTML(){
         </div>
         <div style="text-align:right">
           <div class="num" style="font-size:var(--text-lg);font-weight:700;letter-spacing:-.03em">${money(b.price)}</div>
-          <button class="btn ghost sm" data-open="${b.programId}" style="margin-top:9px">View program</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px">
+            <button class="btn ghost sm" data-open="${b.programId}">View program</button>
+            ${/* ITEM 5 — a parent who paid had NO way to cancel, on a page whose
+                 own copy promises "the refund trail". Only live bookings get
+                 this: a seeded demo row has nothing to cancel. */""}
+            ${b.live&&b.status!=="cancelled"
+              ? `<button class="btn ghost sm" data-cancelbooking="${esc(b.id)}">Cancel booking</button>`
+              : ""}
+            ${b.status==="cancelled"?`<span class="pill warn">Cancelled</span>`:""}
+          </div>
         </div></div>`}).join("")}</div>`
     :`<div class="empty"><div class="big">${PICON.receipt}</div><h3>No bookings yet</h3>
       <button class="btn" data-nav="explore" style="margin-top:18px">Explore programs</button></div>`}
@@ -9632,7 +9641,11 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   $("[data-editlisting]").forEach(b=>b.onclick=()=>requireAuth(()=>{S.modal={type:"editlisting",id:b.dataset.editlisting};render();}));
   $("[data-signups]").forEach(b=>b.onclick=()=>{S.modal={type:"signups",id:b.dataset.signups};render();});
   $("[data-addtrainer]").forEach(b=>b.onclick=()=>requireAuth(()=>{S.modal={type:"addtrainer"};render();}));
-  $("[data-save]").forEach(b=>b.onclick=()=>toast("Changes saved"));
+  /* ITEM 8 — this toasted "Changes saved" and saved nothing. Every other dead
+     control in the app is honest ("isn't wired up yet"); this one asserted a
+     write that never happened, which is the difference between an unfinished
+     feature and a false statement. */
+  $("[data-save]").forEach(b=>b.onclick=()=>toast("Saving isn't connected yet — this won't persist"));
   /* Reset the portal too. Without it, render() kept short-circuiting to the
      coach dashboard and a signed-out user still looked signed in. */
   $("[data-logout]").forEach(b=>b.onclick=()=>{
@@ -10087,6 +10100,21 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     if(e.currentTarget.classList.contains("fd-scrim")&&e.target.closest(".fd")) return;
     S.filters=Object.assign({},S.filters,fdraft());
     S.fdraft=null;S.modal=null;render();});
+  /* Cancel. Confirm first — this releases the slot and cannot be undone from
+     here. The copy deliberately does NOT promise money back: refund_amount is
+     server-controlled and stays 0 on a client cancel, so claiming a refund
+     would be a promise this code cannot keep. */
+  $("[data-cancelbooking]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.cancelbooking;
+    if(!window.confirm("Cancel this booking? Your slot is released immediately. "+
+       "Any refund follows the coach's cancellation policy and is handled by Sporve support.")) return;
+    b.disabled=true; b.textContent="Cancelling…";
+    window.SporveBooking.cancel(id,"cancelled by parent")
+      .then(()=>hydrateBookings())
+      .then(()=>toast("Booking cancelled"))
+      .catch(e=>{ b.disabled=false; b.textContent="Cancel booking";
+                  toast((e&&e.message)||"Could not cancel — try again"); });
+  });
   $("[data-aitoggle]").forEach(b=>b.onclick=()=>{S.aiOpen=!S.aiOpen;render();});
   /* Attach and dictate are in the reference image, so the controls are there —
      but neither is wired to anything yet. They SAY so rather than failing
@@ -11145,6 +11173,34 @@ hydrateReturn();
 /* Wrap render rather than editing it: every mutation path in the host and in
    every module already ends in render(), so this catches all of them without
    touching a single call site. */
+/* ITEM 7 — MODAL FOCUS. Ten of eleven modals declared aria-modal="true" with
+   no focus trap and no initial focus, and Escape closed none of them. Tab past
+   the last field in checkout and focus lands on the page behind, while the
+   screen reader is told that content does not exist — aria-modal makes the
+   claim, and nothing enforced it.
+
+   One delegated handler rather than eleven per-modal implementations: the
+   modal layer is a single container, so the trap belongs to the layer. */
+document.addEventListener("keydown",e=>{
+  const box=document.querySelector('[role="dialog"], .fd, .modal');
+  if(!box) return;
+  if(e.key==="Escape"){
+    /* Same exits the existing close buttons use, so Escape cannot leave a
+       modal half-dismissed with its state still set. */
+    const x=box.querySelector("[data-close],[data-fdclose],[data-aiclose],.x");
+    if(x){ x.click(); } else { S.modal=null; render(); }
+    return;
+  }
+  if(e.key!=="Tab") return;
+  const f=[...box.querySelectorAll(
+    'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+    .filter(el=>el.offsetParent!==null);
+  if(!f.length) return;
+  const first=f[0], last=f[f.length-1];
+  if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+});
+
 const _renderNoPersist = render;
 render = function(){ _renderNoPersist.apply(this, arguments); scheduleSave(); };
 window.addEventListener("pagehide", saveState);
