@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="cb6a0604cb80ede7">
+<meta name="sporve-build" content="65299ce1d4b2f0ce">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -1492,6 +1492,13 @@ img{max-width:100%;display:block}
    slab; the spec wants a PILL that grows into a panel as the thread does. The
    scroll region is flex:1 with overflow-y:auto, so it absorbs the difference
    and the composer stays pinned to the bottom either way. */
+/* .talking gives the panel a real HEIGHT once a conversation exists.
+   max-height alone let the flex children size to their content, so the thread
+   region collapsed to ~171px inside a 441px panel — the composer and header ate
+   the rest and the reply was legible only through a slot. This is the regression
+   behind "you can't even see the response". Empty, it stays a compact pill;
+   talking, it commits to the full stage and .aidock-scroll's flex:1 fills it. */
+.aidock-panel.talking{height:min(520px,calc(100vh - 130px))}
 .aidock-panel{width:100%;max-height:min(520px,calc(100vh - 130px));
   display:flex;flex-direction:column;background:#0B0C0E;color:#F5F7F9;
   border:1px solid #333A45;border-radius:18px;overflow:hidden;
@@ -3809,6 +3816,31 @@ const sportGlyph = s => SPORT_GLYPH[s] || "🏅";
    background check). The gate is the data's provenance, not its shape — real
    listings with genuinely zero reviews still render correctly, because the
    question asked is "is this real" and not "is this non-empty". */
+/* AVATAR INITIALS, DEFENSIVELY. [production bug, 2026-08-13]
+   `u.firstName[0]+u.lastName[0]` was written for the seeded demo user, whose
+   name is always "Alex Mercer". Three real shapes break it:
+
+     {id,email}                     -> undefined[0] THROWS. topbarHTML() is
+                                       called by render() on EVERY route, so
+                                       this does not blank the avatar, it blanks
+                                       the entire application.
+     {firstName:"",lastName:""}     -> ""[0] is undefined; undefined+undefined
+                                       is NaN, and the avatar renders "NaN".
+     {firstName:"Alex",lastName:""} -> renders "Aundefined".
+
+   The last two are reachable today: the profile mapper coerces missing names to
+   "" rather than dropping them, so any account without a surname — a Google
+   sign-in carrying only a display name — lands here. Falls back to the email's
+   first character, then to a neutral glyph, so there is no input for which this
+   throws or prints a JavaScript artefact at a user. */
+function initials(u){
+  if(!u) return "";
+  const a=String(u.firstName||"").trim(), b=String(u.lastName||"").trim();
+  const two=(a[0]||"")+(b[0]||"");
+  if(two) return two.toUpperCase();
+  const e=String(u.email||"").trim();
+  return e ? e[0].toUpperCase() : "";
+}
 const isDemo = p => !(p && p.live === true);
 /* A rating may render only from real data that actually has reviews. Both
    halves matter: the first stops fabrications, the second stops "★ 0". */
@@ -5133,7 +5165,7 @@ function topbarHTML(){
             Both keep the account menu — and therefore sign-in — reachable. */""}
       <button class="acct" data-acct="1" aria-label="Account menu">
         <span class="burger" aria-hidden="true"><span></span><span></span><span></span></span>
-        <span class="avatar">${u?esc(u.firstName[0]+u.lastName[0]):`<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>`}</span>
+        <span class="avatar">${u&&initials(u)?esc(initials(u)):`<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>`}</span>
       </button>
     </nav>
   ${/* The sport chooser used to render here, from the topbar, and was
@@ -6398,8 +6430,8 @@ function profileHTML(){
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px">
       <div class="panel">
         <div style="display:flex;gap:15px;align-items:center">
-          <span class="avatar" style="width:58px;height:58px;font-size:19px">${esc(u.firstName[0]+u.lastName[0])}</span>
-          <div><h3>${esc(u.firstName+" "+u.lastName)}</h3>
+          <span class="avatar" style="width:58px;height:58px;font-size:19px">${esc(initials(u))}</span>
+          <div><h3>${esc([u.firstName,u.lastName].filter(Boolean).join(" ")||u.email||"Your account")}</h3>
             <p style="color:var(--muted);font-size:var(--text-base)">${esc(u.email)}</p>
             <p class="num" style="color:var(--muted);font-size:var(--text-base)">${esc(u.phone||"—")}</p></div>
         </div>
@@ -6412,7 +6444,7 @@ function profileHTML(){
           <h3>Athletes</h3><button class="btn ghost sm" data-addchild="1">+ Add a child</button></div>
         <div style="display:flex;flex-direction:column;gap:11px;margin-top:14px">
           ${S.athletes.map(a=>`<div style="display:flex;gap:12px;align-items:center;padding:11px;border:1px solid var(--rule);border-radius:var(--r-m)">
-            <span class="avatar" style="width:40px;height:40px">${esc(a.firstName[0])}</span>
+            <span class="avatar" style="width:40px;height:40px">${esc(initials(a))}</span>
             <div style="flex:1"><div style="font-weight:700">${esc(a.firstName+" "+(a.lastName||""))}</div>
               <div class="num" style="color:var(--muted);font-size:var(--text-sm)">
                 Age ${ageOf(a.dob)} · ${esc((a.preferredSports||[]).join(", ")||"No sport set")}${a.skillLevel?` · ${esc(a.skillLevel)}`:""}</div></div>
@@ -6710,7 +6742,7 @@ function aiDockHTML(){
       </button>
     </div>${fabHTML(true)}`;
   }
-  return `${open?`<div class="aipill"><section class="aidock-panel" role="dialog" aria-label="Sporve AI helper">
+  return `${open?`<div class="aipill"><section class="aidock-panel${S.chat.length||S.chatThinking?" talking":""}" role="dialog" aria-label="Sporve AI helper">
       <div class="aidock-head">
         <span class="mark" style="width:30px;height:30px;font-size:15px;flex:none">S</span>
         <div style="min-width:0"><b>Sporve AI</b>
@@ -6804,14 +6836,36 @@ function answerFor(q){
   const sport=Object.keys(SPORT_COLOR).find(s=>t.includes(s.toLowerCase()));
   const beginner=/beginner|new to|first time|shy|never played|starting/.test(t);
   const advanced=/advanced|elite|competitive|travel team|tournament|make the/.test(t);
-  let list=PROGRAMS.filter(p=>p.verified);            // G5 — background check is non-negotiable
+  /* G5 — a background check is non-negotiable for a RECOMMENDATION, and this
+     gate stays. But it produced a dead end: no coach has cleared a check yet,
+     so every question returned "I couldn't find a background-checked program —
+     try widening the age range", advice that can never work because the filters
+     were never what excluded anything. The assistant read as broken.
+     verifiedPool is measured separately from the filtered list precisely so the
+     two failures can be told apart below. */
+  const verifiedPool=PROGRAMS.filter(p=>showsVerified(p));
+  let list=verifiedPool.slice();
   if(sport) list=list.filter(p=>p.sport===sport);
   if(age) list=list.filter(p=>+age>=p.minAge&&+age<=p.maxAge);
   if(budget) list=list.filter(p=>p.price<=+budget);
   if(beginner) list=list.filter(p=>/Beginner|All Levels/.test(p.skill));
   if(advanced) list=list.filter(p=>/Advanced|Intermediate|All Levels/.test(p.skill));
   list=list.sort((a,b)=>b.rating-a.rating).slice(0,3);
-  if(!list.length) return {text:"I couldn't find a background-checked program matching all of that. Try widening the age range or budget — I won't suggest a coach who hasn't cleared a check.",picks:[]};
+  if(!list.length){
+    /* Two different failures, two different answers. Telling someone to widen a
+       filter that was never the constraint is worse than saying nothing. */
+    if(!verifiedPool.length){
+      const near=PROGRAMS.filter(p=>!sport||p.sport===sport).slice(0,3);
+      return {
+        text:"No coach has cleared a background check yet — we're onboarding the first ones now, and I won't recommend anyone who hasn't cleared one. "+
+             (near.length
+               ? "I can show you what the marketplace will look like: these are sample listings, not bookable."
+               : "Join the waitlist and I'll have real coaches for you the day they clear."),
+        picks:near.map(p=>p.id),
+      };
+    }
+    return {text:"I couldn't find a background-checked program matching all of that. Try widening the age range or budget — I won't suggest a coach who hasn't cleared a check.",picks:[]};
+  }
   const bits=[];
   if(sport) bits.push(sport.toLowerCase());
   if(age) bits.push(`age ${age}`);

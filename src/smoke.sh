@@ -1245,6 +1245,26 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 [ "${off//\"/}" = "CLEAN" ] && pass "every rendered size is on the 8-step scale" \
   || fail "off-scale font sizes: $off"
 
+# ── topbarHTML must survive any signed-in user shape ──────────────────────
+# `u.firstName[0]+u.lastName[0]` was written for the seeded demo user, who
+# always has both names. A real account with no surname rendered "Aundefined";
+# one with no name fields at all THREW — and because topbarHTML() runs on every
+# route, that blanked the whole application, not just the avatar. This asserts
+# the three shapes a real profile can actually take.
+init=$($B js "
+(()=>{const saved=S.auth;const bad=[];
+ [['none',{id:'x',email:'a@b.c'}],
+  ['empty',{id:'x',email:'a@b.c',firstName:'',lastName:''}],
+  ['firstonly',{id:'x',email:'a@b.c',firstName:'Alex',lastName:''}]].forEach(([k,u])=>{
+   try{S.auth={user:u};S.portal='family';S.route={name:'messages',arg:null};render();
+     const av=document.querySelector('.avatar');const t=av?av.textContent.trim():'';
+     if(/undefined|NaN/.test(t)) bad.push(k+'=\"'+t+'\"');
+   }catch(e){ bad.push(k+'=THREW') }});
+ S.auth=saved;S.route={name:'home',arg:null};render();
+ return bad.length?bad.join(','):'OK'})()" 2>/dev/null)
+[ "${init//\"/}" = "OK" ] && pass "topbar survives every signed-in profile shape" \
+  || fail "avatar initials break on real profiles: $init"
+
 # ── Seeded listings may never claim a rating or a background check ────────
 # [CRITICAL-PATH: trust] Thirty seeded listings shipped with authored ratings,
 # authored review counts and — for twenty of them — a "Background-checked" pill,
