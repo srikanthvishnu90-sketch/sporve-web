@@ -136,12 +136,36 @@ codebase. He is the only person accountable for it. Assume he knows the
 product cold and the implementation not at all — explain at that level,
 neither talking down nor assuming.
 
-**After every single change, give a five-sentence technical reading.** Not a
-diff summary. Five sentences, in CS/engineering language, covering: what
-changed, the mechanism (why it works), what it touches downstream, what would
-break it, and how it was verified. Short and dense beats long and gentle. Use
-the real names — selector specificity, cascade, custom property inheritance,
-render cycle, RLS policy, idempotency key.
+**Founder Learning Protocol (owner, 2026-08-13). SUPERSEDES the five-sentence
+reading and the end-of-turn recap.** Any turn that creates or modifies code
+ends with a section titled **`WHAT I DID — PLAIN ENGLISH`**, with these five
+parts in this order:
+
+1. **The change in one sentence** — no jargon, as if to a smart friend who has
+   never coded.
+2. **File-by-file** — for each file touched: one line on what that file's job
+   is in the app overall, one line on what changed in it.
+3. **One concept worth learning** — exactly ONE per session, 3–4 sentences,
+   explained with an analogy from sports, lifting or business.
+4. **The risk** — one sentence on what a USER would actually experience if the
+   change is wrong ("a parent could be charged twice", "the page loads blank").
+5. **One quiz question** — a single question testing comprehension of THIS
+   change. Grade the answer in the next turn honestly. **Do not flatter it.**
+   Grade like a strict but fair TA and say plainly when it is wrong, and why.
+
+Plain language, first person, concise. Never "refactored the logic" — say what
+the logic actually does. Never skip the section, even for a small change; for
+trivial ones (typos, renames) parts 3 and 5 may be one line each.
+
+**Wrong twice on the same concept → `LEARNING_DEBT.md`.** Append that concept
+with a 5-line explanation, so the weak spots accumulate into a personal
+textbook rather than being re-explained from scratch each time.
+
+The old five-sentence reading is retired as a separate deliverable, but its
+habits still apply INSIDE part 2: use the real names — selector specificity,
+cascade, custom property inheritance, render cycle, RLS policy, idempotency
+key — and gloss each one in a short "which just means…" clause. Short and
+dense beats long and gentle.
 
 **Predict-then-correct on anything non-trivial.** Before showing a diff on a
 CRITICAL-PATH change, ask him to state what he thinks it requires — which
@@ -158,9 +182,9 @@ radius. Reference it, weave those topics into explanations, and when a debrief
 exposes a new gap, add a row. When he answers one cold, move it to Closed with
 the date.
 
-**Do not let this slow shipping.** The five-sentence reading costs seconds.
+**Do not let this slow shipping.** The PLAIN ENGLISH section costs seconds.
 The predict step costs two minutes and only applies to critical-path work.
-If pressure forces a cut, keep the readings — they run inside the existing
+If pressure forces a cut, keep the section — it runs inside the existing
 workflow rather than beside it.
 
 ## 8. Teach as you go — explain every edit
@@ -288,6 +312,6 @@ Act by tier:
 The rails that make "just push it" safe and are never removed: never push to
 `main` (branch + PR + CodeRabbit, rule 11); never commit red (checks pass or the
 change is reverted); never apply a RED-set change unattended; always end with the
-verified live URL (rule 1); always give the five-sentence reading (rule 7).
+verified live URL (rule 1); always end with `WHAT I DID — PLAIN ENGLISH` (rule 7).
 Unattended scheduled agents remain **read-only** — they think and report; the
 in-session brain executes.
