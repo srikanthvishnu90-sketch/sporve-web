@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="d00d855d537d1703">
+<meta name="sporve-build" content="c1aca1e73311e02c">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -6578,6 +6578,7 @@ function coachHTML(){
     roster:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4"/><path d="M17 11a3 3 0 1 0-1.8-5.4M18 20c0-2.3-.9-3.9-2.3-4.8"/>',
     inbox:'<path d="M20.5 12.5c0 4-3.8 7-8.5 7a10 10 0 0 1-2.8-.4L4 21l1.3-3.7A6.7 6.7 0 0 1 3.5 12.5c0-3.9 3.8-7 8.5-7s8.5 3.1 8.5 7z"/>',
     listings:'<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>',
+    approvals:'<path d="M4 5.5h16v13H4z"/><path d="M8 11l3 3 5-5"/>',
     finances:'<rect x="2.5" y="6" width="19" height="13" rx="2.5"/><path d="M2.5 10.5h19"/><circle cx="17.5" cy="14.5" r="1.3"/>',
     operations:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>',
     media:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M3 17l5-4.5 4 3.5 3-2.5 6 5"/>',
@@ -6589,7 +6590,7 @@ function coachHTML(){
     [null,      [["dashboard","Home"],["search","Search"]]],
     ["Clients", [["roster","Clients"],["inbox","Messages"],["schedule","Schedule"]]],
     ["Catalog", [["listings","Listings"],["media","Media"]]],
-    ["Business",[["finances","Earnings"],["operations","Operations"]]],
+    ["Business",[["finances","Earnings"],["approvals","Approvals"],["operations","Operations"]]],
   ];
   const core=[["dashboard","Home"],["search","Search"],["schedule","Schedule"],
               ["roster","Clients"],["inbox","Messages"],["listings","Listings"],
@@ -7270,6 +7271,40 @@ function coachBody(t){
      (Automated messages). Four rail entries collapsed into one, each still its
      own screen behind a sub-tab. Sub-views that come from modules are probed
      with modView() so the tab degrades to whatever is actually in the build. */
+  if(t==="approvals"){
+    /* §10 — every drafted action in one place, one tap each.
+       Renders from S.coachQueue, hydrated from outbound_messages. The empty
+       state is the honest one: the lifecycle worker drafts these, and with no
+       bookings yet there is nothing to approve — so it says that rather than
+       implying the feature is broken. */
+    const q=S.coachQueue||[];
+    const LABEL={booking_confirmed:"Booking confirmed",reminder_24h:"24-hour reminder",
+      post_session:"Post-session recap",no_show_followup:"No-show follow-up",
+      rebook_nudge:"Rebooking nudge"};
+    return `<div class="sec-head" style="margin-top:18px"><h1>Approvals</h1></div>
+      <p style="color:var(--muted);margin-bottom:16px;max-width:64ch">
+        Messages Sporve drafted for you. Nothing is sent until you approve it.</p>
+      ${q.length?`<div style="display:flex;flex-direction:column;gap:10px">
+        ${q.map(m=>`<div class="panel" style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:9px">
+            <span class="k" style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)">${esc(LABEL[m.event_type]||m.event_type)}</span>
+            <span class="pill ${m.status==="approved"?"gold":"warn"}" style="margin-left:auto">${esc(m.status)}</span>
+          </div>
+          <p style="font-size:var(--text-sm)">${esc(
+            (m.content&&(m.content.body||m.content.text||m.content.message))||"(no draft body)")}</p>
+          ${m.status==="approved"
+            ? `<span style="color:var(--muted);font-size:var(--text-xs)">Approved — the worker will send it.</span>`
+            : `<div style="display:flex;gap:8px">
+                <button class="btn sm" data-qdecide="approve:${esc(m.id)}">Approve</button>
+                <button class="btn ghost sm" data-qdecide="redraft:${esc(m.id)}">Send back</button>
+                <button class="btn ghost sm" data-qdecide="reject:${esc(m.id)}">Skip</button>
+               </div>`}
+        </div>`).join("")}
+      </div>`:`<div class="empty"><h3>Nothing waiting</h3>
+        <p style="margin-top:6px">Sporve drafts reminders, recaps and rebooking nudges after
+          sessions. They will appear here for your approval before anything is sent.</p></div>`}`;
+  }
+
   if(t==="operations"){
     const iv0=modView("insights"), pv=modView("policies"), mv=modView("messages");
     /* Insights carries a client watchlist — real athletes and parents by name —
@@ -10341,6 +10376,17 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   });
   /* B2/B3 — collapse, expand, and chips that PREFILL rather than send, so the
      coach can edit before committing. */
+  /* Decide, then re-read from the server rather than patching S locally — the
+     trigger may have refused, and the row is the only thing that knows. */
+  $("[data-qdecide]").forEach(b=>b.onclick=()=>{
+    const i=b.dataset.qdecide.indexOf(":");
+    const decision=b.dataset.qdecide.slice(0,i), id=b.dataset.qdecide.slice(i+1);
+    b.disabled=true;
+    window.SporveCoach.decide(id,decision)
+      .then(()=>hydrateQueue())
+      .then(()=>toast(decision==="approve"?"Approved":decision==="reject"?"Skipped":"Sent back to draft"))
+      .catch(e=>{b.disabled=false;toast((e&&e.message)||"Could not update that message");});
+  });
   $("[data-railmenu]").forEach(b=>b.onclick=()=>{S.railMenu=!S.railMenu;render();});
   $("[data-signout]").forEach(b=>b.onclick=()=>{doSignOut();S.portal="family";go("home");});
   $("[data-aicollapse]").forEach(b=>b.onclick=()=>{S.aiCollapsed=true;render();});
@@ -12208,6 +12254,51 @@ document.addEventListener("click",e=>{
       return API.fn("stripe-connect-onboarding", {
         returnUrl: window.location.origin + "/?connect=done",
       });
+    },
+
+    /* §10 — THE APPROVAL QUEUE.
+       -----------------------------------------------------------------------
+       Reads outbound_messages, which already existed: the lifecycle worker
+       drafts messages into it and a coach approves them before anything is
+       sent. What did not exist was a write path — the table carried only
+       om_select_owner[SELECT], so a coach could read every draft and approve
+       none of them. A queue you can only look at is not an approval queue.
+
+       VOCABULARY IS READ FROM THE CONSTRAINT, NOT GUESSED. The check is
+         pending | processing | drafted | approved | sent | skipped
+       so "reject" is `skipped` and "send back" is `drafted`. My first attempt
+       used 'rejected'/'draft'; neither exists, and it would have blocked every
+       legitimate rejection.
+
+       `sent` is deliberately NOT settable here. A client that can write it can
+       claim a message was delivered that never left — the trigger refuses it,
+       and this client does not try. */
+    queue: function () {
+      if (!uid()) return Promise.resolve([]);
+      return API.from("outbound_messages",
+        "select=id,event_type,status,content,scheduled_for,created_at," +
+        "approved_at,booking_id,child_id" +
+        "&status=in.(pending,processing,drafted,approved)" +
+        "&order=created_at.desc&limit=50"
+      ).then(function (r) { return r || []; });
+    },
+
+    /* One call for all three coach decisions, because they differ only by the
+       status written — and keeping them together stops a fourth verb being
+       invented that the trigger would then refuse. */
+    decide: function (id, decision) {
+      var no = guard(); if (no) return no;
+      var MAP = { approve: "approved", reject: "skipped", redraft: "drafted" };
+      var status = MAP[decision];
+      if (!status) return Promise.reject(new Error("Unknown decision: " + decision));
+      return API.from("outbound_messages", "id=eq." + encodeURIComponent(id), {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        /* approved_by / approved_at are stamped by the trigger. Sending them
+           from here would be a self-reported audit field, which is worth
+           nothing. */
+        body: { status: status },
+      }).then(function (r) { return (r && r[0]) || null; });
     },
 
     current: function () { return provider; },
@@ -23533,7 +23624,7 @@ const EPHEMERAL = new Set([
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
   "coachProvider", "cobFocusStep", "bookBusy", "connectBusy", "connectError", "segOpen", "lastBooking",
-  "slotPick", "slotPickFor", "msgUndelivered", "railMenu",
+  "slotPick", "slotPickFor", "msgUndelivered", "railMenu", "coachQueue",
   "fdraft", "fdOpen",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
@@ -23638,6 +23729,7 @@ function hydrateAuth(){
       render();
       hydrateBookings();
       hydrateAthletes();
+      hydrateQueue();
       if(parked) setTimeout(()=>runIntent(parked),60);
     })
     .catch(()=>{ /* stay a guest; RLS is the real control either way */ });
@@ -23777,6 +23869,13 @@ function hydrateAthletes(){
     });
     render();
   }).catch(function(){ /* keep whatever is on screen rather than blanking it */ });
+}
+
+function hydrateQueue(){
+  if(!window.SporveCoach||!window.SporveAuth||!window.SporveAuth.isSignedIn()) return Promise.resolve();
+  return window.SporveCoach.queue().then(function(rows){
+    S.coachQueue=rows||[]; render();
+  }).catch(function(){});
 }
 
 hydrateReturn();

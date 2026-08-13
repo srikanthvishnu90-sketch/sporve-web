@@ -259,6 +259,51 @@
       });
     },
 
+    /* §10 — THE APPROVAL QUEUE.
+       -----------------------------------------------------------------------
+       Reads outbound_messages, which already existed: the lifecycle worker
+       drafts messages into it and a coach approves them before anything is
+       sent. What did not exist was a write path — the table carried only
+       om_select_owner[SELECT], so a coach could read every draft and approve
+       none of them. A queue you can only look at is not an approval queue.
+
+       VOCABULARY IS READ FROM THE CONSTRAINT, NOT GUESSED. The check is
+         pending | processing | drafted | approved | sent | skipped
+       so "reject" is `skipped` and "send back" is `drafted`. My first attempt
+       used 'rejected'/'draft'; neither exists, and it would have blocked every
+       legitimate rejection.
+
+       `sent` is deliberately NOT settable here. A client that can write it can
+       claim a message was delivered that never left — the trigger refuses it,
+       and this client does not try. */
+    queue: function () {
+      if (!uid()) return Promise.resolve([]);
+      return API.from("outbound_messages",
+        "select=id,event_type,status,content,scheduled_for,created_at," +
+        "approved_at,booking_id,child_id" +
+        "&status=in.(pending,processing,drafted,approved)" +
+        "&order=created_at.desc&limit=50"
+      ).then(function (r) { return r || []; });
+    },
+
+    /* One call for all three coach decisions, because they differ only by the
+       status written — and keeping them together stops a fourth verb being
+       invented that the trigger would then refuse. */
+    decide: function (id, decision) {
+      var no = guard(); if (no) return no;
+      var MAP = { approve: "approved", reject: "skipped", redraft: "drafted" };
+      var status = MAP[decision];
+      if (!status) return Promise.reject(new Error("Unknown decision: " + decision));
+      return API.from("outbound_messages", "id=eq." + encodeURIComponent(id), {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        /* approved_by / approved_at are stamped by the trigger. Sending them
+           from here would be a self-reported audit field, which is worth
+           nothing. */
+        body: { status: status },
+      }).then(function (r) { return (r && r[0]) || null; });
+    },
+
     current: function () { return provider; },
     clear: function () { provider = null; },
 
