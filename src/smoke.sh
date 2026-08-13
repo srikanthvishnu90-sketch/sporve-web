@@ -868,6 +868,32 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     *)          fail "return: probe returned nothing ($ret)" ;;
   esac
 
+  # NO FABRICATED MESSAGES, AND NO SEEDED VERIFICATION SHOWN TO A REAL COACH.
+  # Two honesty defects the frontend audit found: a setTimeout appended a coach
+  # reply no human wrote, and every settings/checklist surface read
+  # SEED.providerProfile (status "approved", stripeAccountId "acct_mock...") so
+  # a brand-new unchecked coach was told they were Verified.
+  honest=$($B js "(function(){
+    if(/I'll get back to you shortly/.test(document.documentElement.innerHTML)) return 'FAKEREPLY';
+    if(typeof coachState!=='function') return 'NOSTATE';
+    /* A real coach (live provider row, pending + unchecked) must NOT see
+       approved/verified/payouts pills or invented metrics. */
+    S.coachProvider={business_name:'Probe',status:'pending',
+      background_check_status:'none',stripe_charges_enabled:false};
+    var st=coachState();
+    if(!st.isReal) return 'NOTREAL';
+    if(st.approved||st.verified||st.payouts||st.listed) return 'CLAIMSTOOMUCH';
+    S.coachProvider=null;
+    return 'OK';
+  })()" 2>/dev/null | tr -d '\r')
+  case "$(printf '%s' "$honest" | tr -d '[:space:]')" in
+    OK)             pass "honesty: no fabricated coach reply, and a pending coach is not shown as verified" ;;
+    FAKEREPLY)      fail "honesty: the fabricated coach reply is back — a message attributed to a coach that no human wrote" ;;
+    CLAIMSTOOMUCH)  fail "honesty: a pending, unchecked coach is being reported as approved/verified/paid" ;;
+    NOSTATE)        fail "honesty: coachState() is gone; the portal is reading the seed again" ;;
+    *)              fail "honesty: probe returned nothing ($honest)" ;;
+  esac
+
   # Nothing above is worth anything if the live render throws. The 13-route
   # sweep near the top of this file runs on file://, which never hydrates — so
   # without this, eleven of the thirteen visitor-reachable routes had never

@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="7ab44747be75d712">
+<meta name="sporve-build" content="813cd45ade336052">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -6002,6 +6002,9 @@ function messagesHTML(){
         <div class="msg-scroll" id="msgscroll">
           ${msgs.map(m=>`<div class="bub ${m.me?"me":"them"}">${esc(m.text)}</div>`).join("")}
         </div>
+        ${S.msgUndelivered?`<div class="err" role="status" style="margin:0 20px 10px">
+          Messaging isn't connected yet — your coach won't receive this. Contact details
+          are on their listing until we ship it.</div>`:""}
         <form class="msg-compose" id="composeForm">
           <input id="composeInput" placeholder="Write a message" aria-label="Message" autocomplete="off">
           <button class="btn" type="submit" aria-label="Send">${ICON.send}</button>
@@ -6460,7 +6463,10 @@ function gettingStarted(){
     ["Add an intro video",mediaPct>=70,"media"],
     ["Set services & pricing",mine.length>0,"listings"],
     ["Set availability",(S.recurringSlots||[]).length>0,"slots"],
-    ["Pass your background check",pp.status==="approved","profile"],
+    /* Was pp.status==="approved" off the SEED, which is always true — so a
+       coach who had never been checked opened on a ticked background check.
+       Derives from their own row when they have one. */
+    ["Pass your background check",coachState().verified,"profile"],
     /* chargesEnabled, not "an account exists". A coach can start Stripe
        onboarding and abandon it half way — the account id is written, but
        Stripe still refuses charges, and checkout still 409s. Ticking this on
@@ -6469,6 +6475,36 @@ function gettingStarted(){
     ["Connect payouts",!!(S.coachProvider&&S.coachProvider.stripe_charges_enabled)||!!(pp.stripeAccountId&&!S.coachProvider),"finances"],
   ];
   return {steps,done:steps.filter(s=>s[1]).length,total:steps.length};
+}
+
+/* THE COACH'S REAL STATE, not the seed's.
+   ---------------------------------------------------------------------------
+   SEED.providerProfile carries status:"approved" and
+   stripeAccountId:"acct_mockstripe123". Every panel that read it therefore told
+   a brand-new, unapproved, unchecked coach that they were Verified, background
+   -check cleared and payouts connected — directly beneath the sentence "a
+   business can never mark itself verified."
+
+   This returns the LIVE row when there is one, and only falls back to the seed
+   for the demo account. `isReal` is what a panel should branch on before
+   claiming anything about approval, verification or money. */
+function coachState(){
+  const pv=S.coachProvider;
+  if(pv) return {
+    isReal:true,
+    businessName:pv.business_name||"Your coaching business",
+    status:pv.status, verified:pv.background_check_status==="verified",
+    approved:pv.status==="approved",
+    payouts:!!pv.stripe_charges_enabled,
+    connectStarted:!!pv.stripe_account_id,
+    listed:pv.status==="approved"&&pv.background_check_status==="verified",
+  };
+  return {
+    isReal:false,
+    businessName:SEED.providerProfile.businessName,
+    status:SEED.providerProfile.status, verified:true, approved:true,
+    payouts:!!SEED.providerProfile.stripeAccountId, connectStarted:true, listed:true,
+  };
 }
 
 /* PAYOUTS — the coach-facing half of Stripe Connect.
@@ -6514,7 +6550,12 @@ function dashboardHTML(){
   const pp=SEED.providerProfile;
   const mine=coachListings();
   const gs=gettingStarted();
-  const live=gs.done>=6;                         // operating mode vs launch mode
+  /* `gs.done>=6` is a CHECKLIST gate, not a data gate — it was standing in for
+     "this data is real". So the moment a real coach ticked six boxes, the tiles
+     stopped showing em-dashes and started showing 248 profile views and $1,395
+     earnings that belong to nobody. A real coach never sees invented figures:
+     the demo account still does, because that is what it is for. */
+  const live=gs.done>=6 && !coachState().isReal;                         // operating mode vs launch mode
   const first=(S.auth.user&&S.auth.user.firstName)||"Marcus";
   const hr=17;                                   // clock pinned to 2026-08-03 evening
   const partOfDay=hr<12?"Good morning":hr<18?"Good afternoon":"Good evening";
@@ -7121,15 +7162,25 @@ function coachBody(t){
              read "Verified / cleared / connected" for a brand-new coach, and
              contradicted gettingStarted() computing from the same fields */""}
         <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px">
-          ${pp.status==="approved"
-            ? `<span class="pill gold">${ICON.shield} Verified</span>`
-            : `<span class="pill warn">Verification pending</span>`}
-          ${pp.backgroundCheck==="cleared"||pp.status==="approved"
+          ${/* Derived from the coach's OWN row when they have one. These read
+               pp = SEED.providerProfile, whose status is "approved" and whose
+               stripeAccountId is "acct_mockstripe123" — so a brand-new,
+               unapproved, unchecked coach was shown Verified / cleared /
+               connected, immediately under the sentence saying a business can
+               never mark itself verified. */""}
+          ${coachState().approved
+            ? `<span class="pill gold">${ICON.shield} Approved</span>`
+            : `<span class="pill warn">Pending review</span>`}
+          ${coachState().verified
             ? `<span class="pill good">Background check cleared</span>`
-            : `<span class="pill warn">Background check in progress</span>`}
-          ${pp.stripeAccountId
+            : `<span class="pill warn">Background check not started</span>`}
+          ${coachState().payouts
             ? `<span class="pill slate">Payouts connected</span>`
             : `<span class="pill warn">Payouts not set up</span>`}</div>
+        ${coachState().isReal&&!coachState().listed
+          ? `<p style="color:var(--muted);font-size:var(--text-sm);margin-top:10px">
+              You are not publicly listed yet. Families cannot find or book you until
+              your profile is approved and your background check clears.</p>`:""}
       </div>
       <button class="btn" style="margin-top:18px" type="submit" id="bizSave" disabled>Save changes</button>
     </form>`;
@@ -10403,13 +10454,23 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     S.messages[cid]=[...(S.messages[cid]||[]),{id:"m"+Date.now(),me:true,text,at:new Date().toISOString()}];
     const c=S.conversations.find(c=>c.id===cid); if(c) c.last=text;
     render();
-    setTimeout(()=>{
-      S.messages[cid]=[...S.messages[cid],{id:"m"+Date.now(),me:false,
-        text:"Thanks for reaching out! I'll get back to you shortly with the details.",at:new Date().toISOString()}];
-      const c2=S.conversations.find(c=>c.id===cid);
-      if(c2) c2.last="Thanks for reaching out! I'll get back to you shortly with the details.";
-      render();
-    },1100);
+    /* THE COACH DID NOT SAY THIS.
+       ----------------------------------------------------------------------
+       A setTimeout used to append "Thanks for reaching out! I'll get back to
+       you shortly with the details." as `me:false` — a message attributed to
+       the coach, that no human wrote, one second after the parent hit send.
+       It persisted through sessionStorage, so it read as durable history.
+
+       That is not a stub, it is a fabricated statement from a named adult to
+       a parent about their child's coaching. Deleted, not replaced with a
+       better fake.
+
+       Messaging still does not reach the server — there is no conversations
+       table call anywhere in this codebase — so the honest thing is to SAY
+       so at the point of use rather than simulate a reply. The banner below
+       is what a parent sees instead. */
+    S.msgUndelivered=true;
+    render();
   };
 }
 
@@ -23166,7 +23227,7 @@ const EPHEMERAL = new Set([
      an intent live through a full-page OAuth redirect. The serialiser does the
      discrimination for us; no type check needed. */
   "coachProvider", "cobFocusStep", "bookBusy", "connectBusy", "connectError", "segOpen", "lastBooking",
-  "slotPick", "slotPickFor",
+  "slotPick", "slotPickFor", "msgUndelivered",
   "fdraft", "fdOpen",
   "cmdDraft", "cmdSending", "cmdError", "cmdPending", "cmdAction", "cmdModelOpen",
   "chatThinking", "sportOpen", "sportAnchor", "faqOpen", "forgotSent", "mapPick",
