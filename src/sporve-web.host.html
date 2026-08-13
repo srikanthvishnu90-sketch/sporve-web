@@ -544,12 +544,13 @@ img{max-width:100%;display:block}
      panel breaks out of it and runs edge to edge on a 20px gutter, so the
      photograph is the widest thing on the page. */
   width:calc(100% - 40px);max-width:1760px;margin:0 auto;
-  /* The frame carries the PHOTOGRAPHS' proportion, not an arbitrary height.
-     The two are 1000x558 (1.792) and 1000x671 (1.490); 1000/612 is their
-     geometric mean, so each gives up the same 4.4% per edge and neither is
-     stretched. Squaring the frame to one of them would have cost the other
-     ~17%. This is why the panel is tall — a short frame is what crops. */
-  aspect-ratio:1000/612;
+  /* One photograph now, so the frame is ITS proportion exactly and nothing is
+     cropped or stretched: hero-stadium.webp is 1376x768. The old 1000/612 was a
+     geometric mean splitting the difference between two photos that no longer
+     exist. Capped at 92vh so the panel bottom — and the content that straddles
+     it — stays on screen at 1440x900. */
+  aspect-ratio:1376/768;
+  max-height:92vh;
   border-radius:var(--r-card);
   display:grid;place-items:center;
   /* near-black with a slate tint under ~4% lightness variance — material,
@@ -557,49 +558,56 @@ img{max-width:100%;display:block}
      with no photographs still puts white type on something dark. */
   background:radial-gradient(120% 88% at 50% 0%,#141922 0%,#0E1116 58%,var(--ink) 100%);
 }
-/* ── hero slideshow ────────────────────────────────────────────────
-   One .hero-slide per photograph, all stacked on the panel. Each runs the
-   same keyframe on its own delay: hold in place, slide OUT to the right,
-   jump (while off-screen, so it is never seen) to the left park, wait its
-   turn, slide back IN from the left. Every visible move is rightward, and
-   the outgoing photo leaves exactly as the incoming one arrives.
+/* ── hero media: ONE photograph, no slideshow ──────────────────────────
+   The slideshow is deleted (owner, 2026-08-13: "delete the 2 images ... as well
+   as the animation"). It cross-faded assets/hero-1-swimming.jpg and
+   hero-2-tennis.jpg on a 7.6s cycle whose @keyframes stops were hand-computed
+   against a TWO-photo loop — build.py still warns when the count is not 2. With
+   a single photograph those stops are meaningless and the animation would have
+   translated the only image off-screen for half of every cycle.
 
-   Cadence: 3s hold + .8s slide = 3.8s per photograph. The keyframe stops
-   below are that cadence expressed against a TWO-photo cycle (7.6s):
-   3.0/7.6 = 39.474%, 3.8/7.6 = 50%, 6.8/7.6 = 89.474%. Add a third
-   photograph to assets/ and these percentages have to be recomputed
-   against the new cycle length — see heroMediaHTML(). */
+   assets/hero-stadium.webp is now the only photograph on the page: 60 KB at
+   1376x768, inlined as a data URI like everything else so the page survives the
+   CSP that blocks external requests. */
 .hero-media{position:absolute;inset:0;overflow:hidden}
-/* ::after is painted after the slides, so the scrim rides above the photo
-   and below .hero-in. It only exists when a photograph does. */
+.hero-still{
+  position:absolute;inset:0;background-position:center;background-size:cover;
+  background-repeat:no-repeat;
+}
+/* THE SCRIM IS GRADED LEFT, not top-to-bottom. The headline sits at the left
+   content margin, so the darkness has to be where the type is; the previous
+   vertical gradient darkened the sky (where nothing is written) and left the
+   lit bleachers under the text. Two layers: a strong left wedge for contrast,
+   and a light global veil so the right side still reads as evening rather than
+   as a photograph with a stripe on it. */
 .hero-media::after{
   content:"";position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(9,11,16,.48) 0%,rgba(9,11,16,.64) 55%,rgba(9,11,16,.82) 100%);
+  background:
+    linear-gradient(90deg,rgba(6,8,12,.90) 0%,rgba(6,8,12,.78) 32%,rgba(6,8,12,.28) 62%,rgba(6,8,12,.10) 100%),
+    linear-gradient(180deg,rgba(6,8,12,.30) 0%,rgba(6,8,12,.22) 60%,rgba(6,8,12,.46) 100%);
 }
-.hero-slide{
-  position:absolute;inset:0;background-position:center;background-size:cover;
-  background-repeat:no-repeat;will-change:transform;
-  animation:heroSlide var(--hero-cycle,7.6s) cubic-bezier(.65,0,.35,1) infinite;
-}
-/* Horizontal wipe plus a slow scale settle: the frame arrives at 1.04 and
-   eases down to 1.0 while it holds, so the still period is never actually
-   still. 0% and 100% carry the same scale or the loop would jump. */
-@keyframes heroSlide{
-  0%        {transform:translateX(0) scale(1.04)}      /* on screen, zooming */
-  39.474%   {transform:translateX(0) scale(1)}         /* settled, hold ends */
-  50%       {transform:translateX(100%) scale(1)}      /* slid off to the right */
-  50.001%   {transform:translateX(-100%) scale(1.04)}  /* invisible re-park */
-  89.474%   {transform:translateX(-100%) scale(1.04)}  /* waiting off to the left */
-  100%      {transform:translateX(0) scale(1.04)}      /* slid back on, rightward */
-}
-@media (prefers-reduced-motion:reduce){
-  .hero-slide{animation:none}
-  .hero-slide + .hero-slide{display:none}    /* first photograph, held still */
+@media(max-width:767px){
+  /* On a phone the text spans the full width, so a left wedge would leave the
+     right-hand words on bare photograph. Vertical grading there instead. */
+  .hero-media::after{
+    background:linear-gradient(180deg,rgba(6,8,12,.55) 0%,rgba(6,8,12,.72) 55%,rgba(6,8,12,.88) 100%);
+  }
 }
 .hero-in{
   position:relative;z-index:1;text-align:center;max-width:820px;width:100%;
   padding:96px 24px;display:flex;flex-direction:column;align-items:center;gap:16px;
 }
+/* LEFT-ALIGNED, and scoped to .hero-panel ON PURPOSE. The scrim is graded left
+   and the type has to follow it; centring would put half the headline on the lit
+   bleachers. Two classes, not one, because a bare `.hero-in` rule is re-declared
+   ~1200 lines further down and would win on source order at equal specificity —
+   the same trap that cost .band.peekband a fix earlier today. Scoping also keeps
+   the home/coachinfo heroes (no .hero-panel) centred, which is what they want. */
+.hero-panel .hero-in{
+  text-align:left;max-width:var(--shell);
+  align-items:flex-start;margin-right:auto;
+}
+.hero-panel .hero-in .hero-lede{max-width:60ch;margin-left:0}
 /* Scoped to .hero-panel, NOT .hero. These were written for the explore page's
    dark panel and leaked onto every `class="band hero"` section — which is the
    family landing AND the coach landing, rendering both headlines white on
@@ -2725,7 +2733,10 @@ h2.ctr{margin-bottom:10px}
    longer perceptible and the two inlined photos buying nothing. Retuned to
    land near 37% top / 13% bottom: clearly darker than the original 58%/20%,
    still a photograph. Change one of these two and recompute the other. */
-.hero-slide{filter:brightness(.72) contrast(1.05) saturate(.92)}
+/* Renamed .hero-slide -> .hero-still with the slideshow. The filter is kept:
+   the scrim handles contrast for the type, this handles the photograph itself
+   so the bleachers read as dusk rather than as a lit stadium. */
+.hero-still{filter:brightness(.72) contrast(1.05) saturate(.92)}
 /* `.card.feature .fov img` was in this selector and matched nothing -- .fov
    holds the text overlay, the photo is in .shot, which the first half covers. */
 .card .shot img{filter:brightness(.88) contrast(1.03)}
@@ -5943,18 +5954,15 @@ function searchPillHTML(){
     </button>
   </form>`;
 }
-/* 3s on screen + .8s of travel per photograph. Changing this changes the
-   cycle length below, but the @keyframes stops are written against a
-   two-photograph cycle — see the note above .hero-media. */
-const HERO_STEP = 3.8;
 function heroMediaHTML(){
   if(!HERO_IMGS.length) return "";
-  const slides = HERO_IMGS.map((u,i)=>
-    `<div class="hero-slide" style="background-image:url('${u}');animation-delay:${(-i*HERO_STEP).toFixed(3)}s"></div>`
-  ).join("");
-  /* aria-hidden: decorative. The headline carries the meaning. */
-  return `<div class="hero-media" aria-hidden="true"
-     style="--hero-cycle:${(HERO_IMGS.length*HERO_STEP).toFixed(3)}s">${slides}</div>`;
+  /* ONE photograph, held still. HERO_IMGS[0] is the only entry build.py inlines
+     now that assets/ holds a single hero-*.webp; taking [0] rather than mapping
+     means dropping a second file into assets/ can never silently reintroduce a
+     slideshow whose keyframes no longer exist. */
+  return `<div class="hero-media" aria-hidden="true">
+     <div class="hero-still" style="background-image:url('${HERO_IMGS[0]}')"></div>
+   </div>`;
 }
 function heroHTML(){
   return `<section class="hero">

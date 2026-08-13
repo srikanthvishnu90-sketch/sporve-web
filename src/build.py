@@ -201,9 +201,9 @@ print("sport colours: %d pages, all AA-verified" % len(PAGE_SPORT))
 
 # The hero photographs are inlined as data URIs rather than linked, for the same
 # single-file/CSP reason as the fonts. Every assets/hero-*.{jpg,jpeg,png,webp} is
-# picked up, sorted by filename — that sort IS the slideshow order, so the names
-# carry it (hero-1-swimming.jpg, hero-2-tennis.jpg). With none present the token
-# stays and the CSS gradient fallback renders instead.
+# picked up, sorted by filename. The slideshow is gone (2026-08-13): the hero is
+# one still, assets/hero-stadium.webp, and heroMediaHTML() draws HERO_IMGS[0]
+# only. With none present the token stays and the CSS gradient fallback renders.
 HERO_TOKEN = "__HERO_IMGS__"
 MIME = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "webp": "webp"}
 hero_dir = os.path.join(ROOT, "assets")
@@ -221,11 +221,13 @@ if heroes:
                           "[%s]" % ",".join('"%s"' % u for u in uris))
     print("hero images: %d inlined (%.0f KB) — %s"
           % (len(heroes), hero_bytes / 1024, ", ".join(os.path.basename(h) for h in heroes)))
-    if len(heroes) != 2:
-        print("       NOTE: the @keyframes stops in the host are written against a")
-        print("       TWO-photograph cycle. %d photographs will still cycle, but the"
-              % len(heroes))
-        print("       hold/slide split will be off — recompute them (see .hero-media).")
+    if len(heroes) != 1:
+        print("       NOTE: the hero is a SINGLE still now — the slideshow and its")
+        print("       @keyframes were deleted 2026-08-13. heroMediaHTML() renders")
+        print("       HERO_IMGS[0] only, so the other %d file(s) here are inlined as"
+              % (len(heroes) - 1))
+        print("       base64 and shipped to every visitor WITHOUT ever being drawn.")
+        print("       Remove them from assets/ or the page carries dead bytes.")
 else:
     print("hero images: none at assets/hero-*.* — gradient fallback in use")
 

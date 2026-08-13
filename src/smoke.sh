@@ -1245,6 +1245,30 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 [ "${off//\"/}" = "CLEAN" ] && pass "every rendered size is on the 8-step scale" \
   || fail "off-scale font sizes: $off"
 
+# ── ONE photograph, held still ────────────────────────────────────────────
+# Owner, 2026-08-13: assets/hero-stadium.webp is the only photograph on the page,
+# and the slideshow is deleted. The @keyframes it ran were hand-computed against
+# a TWO-photo cycle, so a second file in assets/ would not just add an image — it
+# would reinstate a cycle whose stops no longer exist, and translate the only
+# photograph off-screen for half of it. This asserts both halves.
+onepic=$($B js "
+(()=>{S.portal='family';S.route={name:'explore',arg:null};render();
+ if(document.querySelectorAll('.hero-slide').length) return 'SLIDESHOW_BACK';
+ const st=document.querySelector('.hero-still');
+ if(!st) return 'NO_HERO_STILL';
+ if(getComputedStyle(st).animationName!=='none') return 'ANIMATED_'+getComputedStyle(st).animationName;
+ let raster=0;
+ document.querySelectorAll('img').forEach(i=>{ if(!/^data:image\/svg/.test(i.src)) raster++ });
+ document.querySelectorAll('*').forEach(e=>{
+   if(/url\(\"?data:image\/(webp|jpeg|jpg|png)/.test(getComputedStyle(e).backgroundImage)) raster++ });
+ if(raster>2) return 'RASTER_PHOTOS_'+raster;   // the still counts once as bg, once via ::after stacking
+ const hi=document.querySelector('.hero-panel .hero-in');
+ if(!hi||getComputedStyle(hi).textAlign!=='left') return 'HERO_TEXT_NOT_LEFT';
+ S.route={name:'home',arg:null};render();
+ return 'OK'})()" 2>/dev/null)
+[ "${onepic//\"/}" = "OK" ] && pass "hero is one still photograph, left-aligned, no slideshow" \
+  || fail "single-image hero rule broken: $onepic"
+
 # ── The hero may not promise a background check the catalogue cannot back ─
 # [CRITICAL-PATH: trust] A genuine first visit boots on `explore` (measured: the
 # state literal is explore and `route` is not in EPHEMERAL, so empty storage
