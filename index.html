@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="8f7d6d7196d508f3">
+<meta name="sporve-build" content="ed68740961638d7f">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -11991,11 +11991,22 @@ document.addEventListener("click",e=>{
        function 503s otherwise, which is how it failed for everyone before. */
     checkout: function (bookingId) {
       var no = guard(); if (no) return no;
+      /* NORMALISE THE RESPONSE KEY. The Edge Function returns `checkoutUrl`;
+         this client read `r.url` and got undefined — so a booking row was
+         created, a real Stripe session was opened, and the family was sent
+         nowhere. No error was thrown on either side: the fetch succeeded, the
+         object was valid, and the only symptom was a page that did nothing.
+         Caught by driving the live flow rather than reading the contract.
+         Both keys are exposed so a caller cannot pick the wrong one. */
       return API.fn("stripe-create-checkout", {
         bookingId: bookingId,
         origin: window.location.origin,
         successUrl: window.location.origin + "/?booking=" + encodeURIComponent(bookingId) + "&paid=1",
         cancelUrl: window.location.origin + "/?booking=" + encodeURIComponent(bookingId) + "&paid=0",
+      }).then(function (r) {
+        r = r || {};
+        var u = r.checkoutUrl || r.url || null;
+        return { url: u, checkoutUrl: u, sessionId: r.sessionId || null, raw: r };
       });
     },
 

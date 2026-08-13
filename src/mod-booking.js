@@ -179,11 +179,22 @@
        function 503s otherwise, which is how it failed for everyone before. */
     checkout: function (bookingId) {
       var no = guard(); if (no) return no;
+      /* NORMALISE THE RESPONSE KEY. The Edge Function returns `checkoutUrl`;
+         this client read `r.url` and got undefined — so a booking row was
+         created, a real Stripe session was opened, and the family was sent
+         nowhere. No error was thrown on either side: the fetch succeeded, the
+         object was valid, and the only symptom was a page that did nothing.
+         Caught by driving the live flow rather than reading the contract.
+         Both keys are exposed so a caller cannot pick the wrong one. */
       return API.fn("stripe-create-checkout", {
         bookingId: bookingId,
         origin: window.location.origin,
         successUrl: window.location.origin + "/?booking=" + encodeURIComponent(bookingId) + "&paid=1",
         cancelUrl: window.location.origin + "/?booking=" + encodeURIComponent(bookingId) + "&paid=0",
+      }).then(function (r) {
+        r = r || {};
+        var u = r.checkoutUrl || r.url || null;
+        return { url: u, checkoutUrl: u, sessionId: r.sessionId || null, raw: r };
       });
     },
 
