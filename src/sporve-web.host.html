@@ -346,7 +346,13 @@ img{max-width:100%;display:block}
 }
 .tnav-row .tnav:hover,
 .prodwrap:hover>.tnav,.prodwrap:focus-within>.tnav{background:none;color:#FFFFFF}
-.tnav-row .tnav.on{background:none;color:#FFFFFF}
+/* THE ITALIC IS THE ACCENT. Instrument Serif's italic is the expressive part of
+   the family, and using it only on the ACTIVE item makes selection legible
+   without a pill, a underline or a colour change doing the work — the same
+   editorial move the closer already makes with <em>one app.</em>
+   Scoped to .on so the italic marks state rather than decorating every tab. */
+.tnav-row .tnav.on{background:none;color:#FFFFFF;font-style:italic}
+.rail button.on{font-style:italic}
 .tnav-row .badge{
   display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;
   border-radius:999px;background:var(--slate);color:var(--slate-on);font-size:var(--text-xs);font-weight:700;
@@ -1660,10 +1666,20 @@ img{max-width:100%;display:block}
 /* PART A — operator density. 13px in the UI face, 6-8px vertical padding,
    ~32-34px rows, 16px icon with a 10px gap. The sidebar does NOT widen: the
    point is smaller type and tighter spacing so chrome recedes and data leads. */
+/* Instrument Serif on the provider rail (owner, 2026-08-13), via --nav-face —
+   the same token the product toggle and the nav links already read, so the
+   three chrome surfaces speak in one voice rather than three.
+
+   Size and density are UNCHANGED at 13px / 32px min-height: an earlier spec
+   fixed those deliberately for operator density and this instruction was about
+   the face, not the rhythm. Weight goes 500 -> 600 because Instrument Serif is
+   a display face with a smaller x-height than the grotesque it replaces; at the
+   same weight it would read lighter than the rest of the chrome at this size. */
 .rail button{
   display:flex;align-items:center;gap:10px;padding:6px 11px;min-height:32px;
   border-radius:var(--r-m);position:relative;
-  font-family:var(--sans);font-size:13px;line-height:1.15;font-weight:500;
+  font-family:var(--nav-face);font-size:13px;line-height:1.15;font-weight:600;
+  letter-spacing:.005em;
   color:var(--muted);text-align:left;width:100%;transition:.14s;
 }
 .rail button svg{width:16px;height:16px;flex:none;opacity:.72;transition:opacity .14s}
@@ -2287,6 +2303,37 @@ h2.ctr{margin-bottom:10px}
    text is white / white-alpha LITERALS (§3). closer-title uses Instrument
    Serif via --display; its clamp caps at 54px (an on-scale --text-hero max)
    because 64px is off the 8-step type scale the smoke test enforces. */
+/* Airbnb-pattern footer: columns of plain links under small headers, a rule,
+   then the base bar. Grid rather than flex so the brand column can take the
+   remainder and the three link columns stay equal. */
+.foot-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 1.3fr;
+  gap:32px 28px;padding:8px 0 30px}
+/* LITERALS, not tokens. The close zone is a DARK ground and --muted/--ink-2
+   resolve for a light one — the first version measured foot-link at 1.14:1,
+   which is invisible. CLAUDE.md §3 says this in as many words: "Text on a black
+   ground is white or slate. Never a token that can resolve dark. Use literals
+   in .band.dark." These are the same literals .band.dark already uses. */
+.foot-head{font-family:var(--sans);font-size:var(--text-xs);font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:#9AA6B2;margin-bottom:12px}
+.foot-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+/* A real control, not a styled span: it is focusable, it is in the tab order,
+   and it announces as a button. Left-aligned because a centred link column
+   reads as a poster, not a directory. */
+.foot-link{background:none;border:0;padding:0;cursor:pointer;text-align:left;
+  font-family:var(--sans);font-size:var(--text-sm);color:#C3CBD4;
+  line-height:1.45;transition:color .14s}
+.foot-link:hover{color:#FFFFFF;text-decoration:underline;text-underline-offset:3px}
+.foot-brand .wordmark{display:block;margin-bottom:10px}
+.foot-blurb{font-family:var(--sans);font-size:var(--text-sm);color:#9AA6B2;
+  line-height:1.5;max-width:38ch;margin-bottom:12px}
+/* #A8C2DC, not --slate/--slate-ink: the slate family is tuned for a light
+   ground and #7692AE measures 3.5:1 here. This is the same hue lifted toward
+   white, which is the move §3 prescribes for accent-on-dark. */
+.foot-mail{font-family:var(--sans);font-size:var(--text-sm);color:#A8C2DC;
+  font-weight:600;text-decoration:none}
+.foot-mail:hover{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:900px){.foot-grid{grid-template-columns:1fr 1fr;gap:28px 20px}}
+@media(max-width:560px){.foot-grid{grid-template-columns:1fr}}
 .close-zone{background:#0B0C0E;border-top:1px solid #1C222B;padding:74px 0 34px}
 /* The 1.4fr track held the four link columns; with those gone the closer is a
    single full-width column. The title's clamp floor rises so it fills the band
@@ -8684,21 +8731,67 @@ function notifSettingsHTML(){
    there is now no global footer at all, so this is the only footer region in
    the app. All text is white / white-alpha LITERALS on the dark ground
    (§3: never a token that can resolve dark). */
+/* THE FOOTER, to the Airbnb pattern the owner sent: columns of plain text links
+   under small headers, then a rule, then a base bar.
+
+   EVERY DESTINATION IS A ROUTE THAT EXISTS. The columns below are built from
+   INFO (privacy/help/legal/accessibility), PAGE_META (16 mini-pages) and the
+   module routes — I enumerated all three before writing this rather than
+   inventing labels and pointing them at info:legal, which is exactly the defect
+   the audit found in ABOUT_GROUPS (About, Careers and Press all landing on one
+   generic page). A footer whose links collapse onto each other is worse than a
+   short footer: it looks like a company with policies and turns out not to be.
+
+   No "Careers"/"Press"/"Investors" row. Those pages do not exist, and a
+   pre-launch marketplace inventing an About-us tree is the same lie in a
+   different font. What is here is what is real. */
+const FOOT_COLS=[
+  ["Support",[
+    ["Help centre","info:help"],
+    ["Trust & Safety","nav:trust"],
+    ["How background checks work","page:background-checks"],
+    ["Accessibility","info:accessibility"],
+  ]],
+  ["Families",[
+    ["Browse coaches","nav:explore"],
+    ["Bookings & receipts","page:bookings-receipts"],
+    ["Messaging a coach","page:messaging"],
+    ["Media & consent","page:media-consent"],
+  ]],
+  ["Sporve",[
+    ["What is Sporve?","page:what-is"],
+    ["Become a coach","nav:coachinfo"],
+    ["Pricing","nav:pricing"],
+    ["Privacy & security","info:privacy"],
+    ["Terms","info:legal"],
+  ]],
+];
 function closeZoneHTML(){
+  const cols=FOOT_COLS.map(([head,links])=>`
+    <div class="foot-col">
+      <h3 class="foot-head">${esc(head)}</h3>
+      <ul class="foot-list">${links.map(([label,dest])=>
+        `<li><button class="foot-link" data-foot="${esc(dest)}">${esc(label)}</button></li>`
+        ).join("")}</ul>
+    </div>`).join("");
   return `<footer class="close-zone">
     <div class="shell">
-      <div class="closer">
-        <div class="closer-left">
+      <div class="foot-grid">${cols}
+        <div class="foot-col foot-brand">
           <span class="wordmark">sporve</span>
-          <h2 class="closer-title">Every sport,<br><em>one app.</em></h2>
-          <a class="closer-link" data-nav="page:what-is">What is Sporve?
-            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"
-                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7h10M8 3l4 4-4 4"/></svg></a>
+          <p class="foot-blurb">Every sport. One app. Find coaches, trainers,
+            camps and teams — and no one takes a booking here until they have
+            cleared a background check.</p>
+          <a class="foot-mail" href="mailto:support@sporve.com">support@sporve.com</a>
         </div>
       </div>
       <div class="closer-base">
-        <span>© 2026 Sporve Inc. All rights reserved. · Chicago, IL</span>
-        <span>Sporve is a marketplace connecting families with independent coaches.</span>
+        <span>© 2026 Sporve Inc. · Chicago, IL</span>
+        ${/* The independent-contractor disclosure. A marketplace that does not
+             employ the people it lists has to say so, plainly, where a parent
+             can find it — this is the line the brief asked for. */""}
+        <span>Sporve is a marketplace connecting families with independent
+          coaches; coaches are independent professionals, not Sporve employees.</span>
       </div>
     </div></footer>`;
 }
@@ -10624,6 +10717,11 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     S.sportOpen=false;
     if(kind==="nav") go(val);
     else if(kind==="info") go("info",val);
+    /* `page:` was missing, so every footer link pointing at a mini-page fell
+       through the chain and did nothing. Added rather than routed to info: —
+       a link that silently no-ops and a link that lands on the wrong page are
+       the same defect wearing different clothes. */
+    else if(kind==="page") go("page",val);
     else if(kind==="tab"){S.portal="coach";setCoachTab(val);go("dashboard");}
     else if(kind==="coach"){S.portal="coach";S.route={name:"home",arg:null};window.scrollTo(0,0);render();}
   });

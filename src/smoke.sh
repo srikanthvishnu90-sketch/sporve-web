@@ -1245,6 +1245,40 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 [ "${off//\"/}" = "CLEAN" ] && pass "every rendered size is on the 8-step scale" \
   || fail "off-scale font sizes: $off"
 
+# ── Every footer link resolves, and to a DISTINCT page ────────────────────
+# A footer whose links collapse onto one generic page is worse than a short one:
+# it looks like a company with policies and turns out not to be. The audit found
+# exactly that in ABOUT_GROUPS (About, Careers and Press all landing on
+# info:legal). Asserts no duplicate destinations, no 404s, plus the support
+# address and the independent-contractor disclosure.
+foot=$($B js "
+(()=>{S.portal='family';S.route={name:'explore',arg:null};render();
+ const links=[...document.querySelectorAll('.foot-link')];
+ if(links.length<10) return 'TOO_FEW_'+links.length;
+ const d=links.map(b=>b.dataset.foot);
+ const dup=d.filter((x,i)=>d.indexOf(x)!==i);
+ if(dup.length) return 'DUPLICATE_'+dup[0];
+ const bad=[];
+ d.forEach(x=>{const parts=x.split(':'),k=parts[0],v=parts[1];
+   if(k==='nav') S.route={name:v,arg:null};
+   else if(k==='info') S.route={name:'info',arg:v};
+   else S.route={name:'page',arg:v};
+   render();
+   const t=document.getElementById('app').innerText;
+   if(/Page not found/i.test(t)||t.trim().length<120) bad.push(x)});
+ S.route={name:'explore',arg:null};render();
+ if(bad.length) return 'UNRESOLVED_'+bad.join('/');
+ if(!document.querySelector('.foot-mail')) return 'NO_SUPPORT_EMAIL';
+ if(!/independent professionals, not Sporve employees/.test(document.body.innerText)) return 'NO_DISCLOSURE';
+ return 'OK'})()" 2>/dev/null)
+[ "${foot//\"/}" = "OK" ] && pass "every footer link resolves to a distinct page" \
+  || fail "footer link graph broken: $foot"
+# This probe walks 13 routes to prove each resolves, which churns S far enough
+# that the catalogue check below saw a filtered PROGRAMS and reported a false
+# sample-data fallback. Reload rather than hand-restore: the next assertion
+# should see a page in exactly the state a visitor gets, not one I tidied.
+$B goto "file://$(pwd)/index.html" >/dev/null 2>&1
+
 # ── A cancelled checkout must never read as a payment ─────────────────────
 # [CRITICAL-PATH: money] mod-booking.js sends successUrl (paid=1) AND cancelUrl
 # (paid=0). hydrateReturn() read neither, so pressing Back at Stripe returned
