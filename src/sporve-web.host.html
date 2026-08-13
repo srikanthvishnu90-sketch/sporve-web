@@ -1334,6 +1334,30 @@ img{max-width:100%;display:block}
   .ccard{flex:0 0 240px}
   .band.peekband{padding:40px 0 48px}
 }
+/* The demo label. Deliberately NOT styled like .verifline (gold, shield,
+   earned) or .pendline (amber, "pending", implies a check is under way). A
+   demo listing has not earned anything and nothing is in progress — it is
+   scenery. Slate, which §3 freezes as chrome, says exactly that. */
+/* The DEMO DATA badge: mono, slate outline pill, sitting WITH the header
+   rather than under it — the brief is explicit that this is not a footnote. */
+.demodata{font-family:var(--mono);font-size:10.5px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;padding:5px 9px;
+  border-radius:var(--r-pill);color:#475569;background:transparent;
+  border:1px solid rgba(71,85,105,.38);white-space:nowrap;align-self:center}
+.demobanner{margin:10px 0 0;font-family:var(--sans);font-size:var(--text-sm);
+  color:var(--muted);line-height:1.5;max-width:64ch}
+.demobanner .lnk{font-size:inherit}
+.demoline{display:flex;align-items:center;gap:6px;padding:7px 0 0;
+  font-family:var(--sans);font-size:var(--text-xs);font-weight:600;
+  color:var(--muted);letter-spacing:.01em}
+.demoline svg{width:13px;height:13px;flex:none;opacity:.75}
+/* The corner watermark chip, per the brief: top-left, always rendered, never
+   hover-only. position:absolute against .shot, which is already relative. */
+.demochip{position:absolute;top:10px;left:10px;z-index:2;
+  font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;padding:4px 8px;border-radius:var(--r-pill);
+  background:rgba(255,255,255,.94);color:#334155;
+  border:1px solid rgba(51,65,85,.22);pointer-events:none}
 .aidock{position:fixed;right:22px;bottom:22px;z-index:85;
   display:flex;flex-direction:column;align-items:flex-end;gap:12px}
 
@@ -1417,19 +1441,36 @@ img{max-width:100%;display:block}
    here. The panel widens when it is open so the bar has room for the control
    row — the previous 380px would have crushed "Opus 5 · High" against the mic. */
 .aidock-panel{width:100%}
-.aidock-compose{display:flex;flex-direction:column;gap:6px;margin:0 12px 12px;
-  padding:14px 16px 10px;background:#0F1113;border:1px solid #2A313B;
-  border-radius:22px;box-shadow:0 0 0 1px rgba(154,166,178,.06),
+/* Geometry matched to the owner's reference composer (2026-08-13): a taller,
+   airier bar with a larger corner radius and the message field given its own
+   breathing room above the control row. The one deliberate difference the owner
+   named is the slate glow, which stays — see the box-shadow below. */
+.aidock-compose{display:flex;flex-direction:column;gap:10px;margin:0 12px 12px;
+  padding:18px 18px 12px;background:#0F1113;border:1px solid #2A313B;
+  border-radius:26px;box-shadow:0 0 0 1px rgba(154,166,178,.06),
                                 0 0 34px rgba(154,166,178,.14)}
 .aidock-compose:focus-within{border-color:#414B57;
   box-shadow:0 0 0 1px rgba(154,166,178,.10),0 0 42px rgba(154,166,178,.20)}
+/* --text-md (15.5px), not the reference's ~17px. Every rendered size on this
+   site must land on the 8-step scale and smoke.sh fails the build otherwise;
+   15.5 is the nearest step up from the previous 14.5 and reads at the same
+   weight on screen. Matching the reference exactly would have cost the scale. */
 .aidock-input{width:100%;background:none;border:0;outline:none;color:#F5F7F9;
-  font-family:var(--sans);font-size:var(--text-base);line-height:1.4;padding:2px 0}
+  font-family:var(--sans);font-size:var(--text-md);line-height:1.4;padding:4px 0 2px}
 /* #8A93A0 on #0F1113 is 5.6:1 — placeholder text still has to be readable. */
 .aidock-input::placeholder{color:#8A93A0}
 .aidock-tools{display:flex;align-items:center;gap:8px}
+/* The attach control is a FILLED ROUNDED SQUARE in the reference, not the
+   borderless circle every other icon here uses — it is the one affordance that
+   reads as a button rather than a glyph, which is why it carries a fill. Scoped
+   to [data-aiattach] so the mic, send and collapse icons keep the circular
+   treatment they share with the rest of the dock. */
+.aidock-ic[data-aiattach]{width:38px;height:38px;border-radius:11px;
+  background:#22262B;color:#E6EAEE}
+.aidock-ic[data-aiattach]:hover{background:#2C323A;color:#FFFFFF}
 .aidock-ic{width:34px;height:34px;flex:none;display:grid;place-items:center;
   background:none;border:0;border-radius:999px;color:#C3CBD4;cursor:pointer;
+  transition:background .15s,color .15s;
   transition:background .14s,color .14s}
 .aidock-ic:hover{background:#1B1F26;color:#F5F7F9}
 .aidock-model{margin-left:auto;display:flex;align-items:center;gap:7px;
@@ -3658,6 +3699,38 @@ const sportInk = s => {
 };
 const sportGlyph = s => SPORT_GLYPH[s] || "🏅";
 
+/* ═══ DEMO INVENTORY: WHAT A SEEDED LISTING IS ALLOWED TO CLAIM ═══════════
+   [CRITICAL-PATH: trust]
+
+   The catalogue is seeded. Real rows come from Supabase through mod-catalog.js
+   and carry `live:true`; the built-in RAW array has no such key, so `!p.live`
+   is the demo marker. Thirty seeded listings were rendering an invented rating,
+   an invented review count, and — for twenty of them — a "Background-checked"
+   pill, directly beneath a landing headline that read "Every listing here is a
+   real one. No placeholder inventory and no seeded numbers."
+
+   That is not a styling defect. A background-check claim is the single load
+   -bearing promise this marketplace makes to a parent, and the owner's own
+   standing rule already settles it: the claim stays off the site until a real
+   vendor integration exists. `verified` in RAW is an authored 0/1 constant with
+   no check behind it, exactly as `rating` is an authored number with no booking
+   behind it.
+
+   So: demo listings may show what they ARE (a sport, an age band, a price
+   shape) and never what they have EARNED (a rating, a review count, a cleared
+   background check). The gate is the data's provenance, not its shape — real
+   listings with genuinely zero reviews still render correctly, because the
+   question asked is "is this real" and not "is this non-empty". */
+const isDemo = p => !(p && p.live === true);
+/* A rating may render only from real data that actually has reviews. Both
+   halves matter: the first stops fabrications, the second stops "★ 0". */
+const showsRating = p => !isDemo(p) && p.reviews > 0;
+/* A background-check claim may render only from a real row whose check is
+   recorded. mod-catalog.js already sets `verified` from
+   background_check_status === "verified" AND a non-null completed_at, so on
+   live data this is evidence-backed; on demo data it is always false. */
+const showsVerified = p => !isDemo(p) && p.verified === true;
+
 /* ── PICON: the product-card icon set ───────────────────────────────
    Extends the existing stroke vocabulary rather than starting a second icon
    family. Same 24-grid, same 2px round-cap stroke, same currentColor as the
@@ -4480,18 +4553,19 @@ function cardHTML(p){
     <div class="shot">
       <img src="${p.img}" alt="${esc(p.title)}" loading="lazy">
       <span class="sporttag"><i style="background:${sportColor(p.sport)}"></i>${esc(p.sport)}</span>
+      ${isDemo(p)?`<span class="demochip">Demo</span>`:""}
       <button class="heart ${fav?"on":""}" data-fav="${p.id}" aria-label="${fav?"Remove from saved":"Save"} ${esc(p.title)}">${ICON.heart(fav)}</button>
       <button data-open="${p.id}" style="position:absolute;inset:0;width:100%;height:100%" aria-label="View ${esc(p.title)}"></button>
     </div>
     <div class="row1">
       <span class="biz">${esc(p.biz)}</span>
-      <span class="rate num">${ICON.star}&nbsp;${p.rating}</span>
+      ${showsRating(p)?`<span class="rate num">${ICON.star}&nbsp;${p.rating}</span>`:""}
     </div>
     <div class="ttl">${esc(p.title)}</div>
     <div class="meta num">Ages ${p.minAge}–${p.maxAge} · ${esc(p.skill)}</div>
-    ${p.sample
-      ? `<div class="pendline">${ICON.shield} Sample listing</div>`
-      : p.verified
+    ${isDemo(p)
+      ? `<div class="demoline">${ICON.shield} Demo listing — not bookable</div>`
+      : showsVerified(p)
         ? `<div class="verifline">${ICON.shield} Background-checked</div>`
         : `<div class="pendline">${ICON.shield} Verification pending</div>`}
     <div class="price num"><b>${money(p.price)}</b> <span style="color:var(--muted)">${modelLabel(p.model)}</span></div>
@@ -4506,6 +4580,7 @@ function featureCardHTML(p){
   return `<div class="card feature">
     <div class="shot">
       <img src="${p.img}" alt="${esc(p.title)}" loading="lazy">
+      ${isDemo(p)?`<span class="demochip">Demo</span>`:""}
       <button class="heart ${fav?"on":""}" data-fav="${p.id}" aria-label="${fav?"Remove from saved":"Save"} ${esc(p.title)}">${ICON.heart(fav)}</button>
       <div class="fov">
         <div>
@@ -4513,15 +4588,17 @@ function featureCardHTML(p){
           <h3>${esc(p.title)}</h3>
           <div class="biz2">${esc(p.biz)}</div>
         </div>
-        <span class="featrate num">${ICON.star}&nbsp;${p.rating}</span>
+        ${showsRating(p)?`<span class="featrate num">${ICON.star}&nbsp;${p.rating}</span>`:""}
       </div>
       <button data-open="${p.id}" style="position:absolute;inset:0;width:100%;height:100%;z-index:1" aria-label="View ${esc(p.title)}"></button>
     </div>
     <div class="featfoot">
       <span class="featloc">${ICON.pin}${esc(p.address)}</span>
-      ${p.verified
-        ? `<span class="verifline" style="padding:0">${ICON.shield} Background-checked</span>`
-        : `<span class="pendline" style="padding:0">${ICON.shield} Verification pending</span>`}
+      ${isDemo(p)
+        ? `<span class="demoline" style="padding:0">${ICON.shield} Demo listing</span>`
+        : showsVerified(p)
+          ? `<span class="verifline" style="padding:0">${ICON.shield} Background-checked</span>`
+          : `<span class="pendline" style="padding:0">${ICON.shield} Verification pending</span>`}
       <span class="featprice num">${money(p.price)} / ${esc(modelLabel(p.model).replace(/^per /,""))}</span>
     </div>
   </div>`;
@@ -5214,7 +5291,7 @@ function heroCarouselHTML(){
         <i style="background:${sportInk(p.sport)}"></i>${esc(p.sport)}</span>
       ${/* No title= alongside .vis-hide: Chrome exposes title on a generic
             span as the accessible description, so the two double-announced. */""}
-      ${p.verified?`<span class="verifline"
+      ${showsVerified(p)?`<span class="verifline"
         ><span class="vis-hide">Background-checked</span>${ICON.shield}</span>`:""}
     </span>
     <b>${esc(p.title)}</b>
@@ -5256,18 +5333,24 @@ function peekRowHTML(){
           <span class="ccard-meta">${esc(p.address||"Chicago, IL")} · ${money(p.price)}</span>
           ${/* Rating ONLY when real. No reviews renders nothing — never a fake
                star, which is the one thing a parent cannot verify. */""}
-          ${p.reviews>0?`<span class="ccard-rate num">★ ${p.rating} (${p.reviews})</span>`:""}
+          ${showsRating(p)?`<span class="ccard-rate num">★ ${p.rating} (${p.reviews})</span>`:""}
         </div>
         <button class="ccard-hit" data-open="${esc(p.id)}" aria-label="View ${esc(p.title)}"></button>
       </article>`;
     }
-    const sp=it, n=PROGRAMS.filter(x=>x.sport===sp).length;
+    const sp=it;
+    /* NO COUNT. This used to read "${n} coaches" off
+       PROGRAMS.filter(...).length — which, before real supply exists, counts
+       SEEDED listings and presents the total as real availability. A number is
+       the most credible thing on a card and the easiest to disprove. The sport
+       name and the formats offered are true statements; the count is not one
+       yet, so it renders only when the row is showing live coaches. */
     return `<article class="ccard" role="listitem">
       <div class="ccard-img"><img src="${phScene(sp,0)}" alt="" width="640" height="480"
         loading="lazy" decoding="async"></div>
       <div class="ccard-body">
         <b class="ccard-name">${esc(sp)}</b>
-        <span class="ccard-meta">${n} ${n===1?"coach":"coaches"}</span>
+        <span class="ccard-meta">Private · group · camps</span>
       </div>
       <button class="ccard-hit" data-sportjump="${esc(sp)}" aria-label="Browse ${esc(sp)}"></button>
     </article>`;
@@ -5275,9 +5358,17 @@ function peekRowHTML(){
   return `<section class="band white peekband">
     <div class="shell">
       <div class="peekhead">
-        <h2>${useCoaches?"Coaches near you":"Every sport we cover"}</h2>
+        <h2>${useCoaches?"Coaches near you":"Explore the marketplace"}</h2>
+        ${useCoaches?"":`<span class="demodata">Demo data</span>`}
         <button class="lnk" data-nav="explore">See all →</button>
       </div>
+      ${/* The banner is PERMANENT, not a dismissible toast and not a footnote.
+           It renders whenever the row is not showing live coaches, and it is
+           the same condition that drives the header — one source of truth, so
+           the badge and the banner can never disagree. */""}
+      ${useCoaches?"":`<p class="demobanner">These are sample listings that show how
+        Sporve works. Real verified coaches are onboarding now —
+        <button class="lnk" data-nav="coachinfo">join the waitlist</button> to be first.</p>`}
     </div>
     <div class="peekrow" role="list">${items.map(card).join("")}</div>
   </section>`;
@@ -5344,10 +5435,18 @@ function landingHTML(){
     <div class="shell lgrid">
       <div data-rev>
         <div class="eyebrow" style="color:var(--accent-on-dark)">What's on Sporve today</div>
-        <h2 style="margin-top:12px">Every listing here is a real one.</h2>
+        ${/* WAS: "Every listing here is a real one." / "No placeholder inventory
+             and no seeded numbers." Both were false. The catalogue is seeded:
+             thirty listings with authored ratings and review counts, twenty of
+             them asserting a background check that no vendor has performed. The
+             claim sat directly above the cards making it. Rewritten to say what
+             is actually true — these are the RULES the marketplace runs on, and
+             the sample inventory is labelled as sample. */""}
+        <h2 style="margin-top:12px">The rules every listing runs on.</h2>
         <p class="sub" style="margin-top:14px">
-          No placeholder inventory and no seeded numbers. The catalogue below is the
-          same data the search, the map and the assistant read from.</p>
+          The catalogue below is sample inventory, shown so you can see how Sporve
+          works — every demo card is labelled. Real coaches are onboarding now, and
+          these are the rules they clear before a listing goes live.</p>
         <div class="lchecks">
           ${[["Per-person background checks, not business-level"],
              ["Reviews unlock only after a completed session"],
@@ -5996,7 +6095,7 @@ function detailHTML(id){
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:9px">
             <span class="pill" style="background:${sportColor(p.sport)}1A;color:${sportColor(p.sport)}">
               ${sportGlyph(p.sport)} ${esc(p.sport)}</span>
-            ${p.verified?`<span class="pill gold">${ICON.shield} Background-checked</span>`
+            ${showsVerified(p)?`<span class="pill gold">${ICON.shield} Background-checked</span>`
                         :`<span class="pill warn">${ICON.shield} Verification pending</span>`}
             ${p.featured?`<span class="pill slate">Featured</span>`:""}
           </div>
@@ -6029,7 +6128,7 @@ function detailHTML(id){
               ${fmtDate(s.date)} · ${s.startTime}–${s.endTime} ${s.tz}</div>
           </div><span class="num" style="color:var(--muted);font-size:var(--text-sm)">${esc(s.address)}</span></div>`).join("")}
       </div>
-      ${p.verified?"":`<div class="panel" style="margin-top:30px;background:var(--warn-tint);border-color:transparent">
+      ${showsVerified(p)?"":`<div class="panel" style="margin-top:30px;background:var(--warn-tint);border-color:transparent">
         <div style="display:flex;gap:11px"><span style="color:var(--warn);flex:0 0 auto">${ICON.shield}</span><div>
           <h3 style="color:var(--warn)">Background check in progress</h3>
           <p style="color:var(--ink-2);margin-top:5px;font-size:var(--text-base)">
@@ -6413,8 +6512,8 @@ function assistantHTML(){
                    <span class="pi">
                      <b>${esc(p.title)}</b>
                      <span class="num" style="color:var(--muted);font-size:var(--text-sm)">${esc(p.biz)} · ${money(p.price)} ${modelLabel(p.model)}</span>
-                     <span class="num" style="font-size:var(--text-sm);color:var(--muted)">${ICON.star} ${p.rating} · ages ${p.minAge}–${p.maxAge}</span>
-                     ${p.verified?`<span class="pill gold" style="width:fit-content">${ICON.shield} Background-checked</span>`:""}
+                     <span class="num" style="font-size:var(--text-sm);color:var(--muted)">${showsRating(p)?ICON.star+" "+p.rating+" · ":""}ages ${p.minAge}–${p.maxAge}</span>
+                     ${showsVerified(p)?`<span class="pill gold" style="width:fit-content">${ICON.shield} Background-checked</span>`:""}
                    </span></button>`}).join("")}</div>`:""}
              </div>`).join("")
         :`<div style="margin:auto;text-align:center;max-width:420px;padding:20px">
@@ -7836,6 +7935,15 @@ function modalHTML(){
 
   if(m.type==="filters") return filterDrawerHTML();
 
+  if(m.type==="demo"){
+    return wrap("This is a demo listing",`
+      <p style="color:var(--muted);font-size:var(--text-sm);line-height:1.6">
+        This listing is sample inventory — it shows how Sporve works, but there is
+        no real coach behind it and it cannot be booked.</p>
+      <p style="color:var(--muted);font-size:var(--text-sm);line-height:1.6;margin-top:10px">
+        Want real coaches near you? Real verified coaches are onboarding now.</p>
+      <button class="btn wide" data-nav="coachinfo" style="margin-top:18px">Join the waitlist</button>`);
+  }
   if(m.type==="book"){
     /* Reached from a card click (a live id) but also from a seeded booking's
        "View program", so fall back before dereferencing. */
@@ -7849,7 +7957,7 @@ function modalHTML(){
         <img src="${p.img}" alt="" style="width:70px;height:70px;border-radius:var(--r-m);object-fit:cover">
         <div><b>${esc(p.title)}</b>
           <div style="color:var(--muted);font-size:var(--text-sm)">${esc(p.biz)} · ${esc(p.sport)}</div>
-          ${p.verified?`<span class="pill gold" style="margin-top:5px">${ICON.shield} Background-checked</span>`:""}</div>
+          ${showsVerified(p)?`<span class="pill gold" style="margin-top:5px">${ICON.shield} Background-checked</span>`:""}</div>
       </div>
       ${/* A `required` select with no options cannot be submitted and gives no
            reason why. Now that the list is the parent's REAL children, empty is
@@ -8182,7 +8290,7 @@ Marcus Chen, marcus@example.com"></textarea></div>
             <b>${esc(p.biz)}</b><span class="num">${ICON.star} ${p.rating}</span></div>
           <div style="color:var(--muted);font-size:var(--text-base);margin-top:3px">${esc(p.title)}</div>
           <div class="num" style="color:var(--muted);font-size:var(--text-sm)">Ages ${p.minAge}–${p.maxAge} · ${esc(p.skill)}</div>
-          ${p.verified?`<span class="pill gold" style="margin-top:8px">${ICON.shield} Background-checked</span>`:""}
+          ${showsVerified(p)?`<span class="pill gold" style="margin-top:8px">${ICON.shield} Background-checked</span>`:""}
           <div class="num" style="font-weight:700;margin-top:9px">${money(p.price)} ${modelLabel(p.model)}</div>
         </div>
       </div>
@@ -10178,6 +10286,16 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   /* book + message run through the auth gate; the intent resumes after sign-in */
   $("[data-book]").forEach(b=>b.onclick=()=>{
     const id=b.dataset.book;
+    /* DEMO LISTINGS ARE NON-BOOKABLE. [CRITICAL-PATH: money]
+       Checked BEFORE requireAuth, deliberately. If the demo gate ran after the
+       auth gate, a signed-out visitor clicking a sample card would be sent
+       through a sign-up they did not need, to reach a booking that cannot
+       exist. The cheapest correct answer comes first.
+       The card still opens its detail page — the sample inventory is there to
+       show how Sporve works, which is Part 2's own premise — but the money
+       path stops here and offers the waitlist instead. */
+    const prog=PROGRAMS.find(x=>x.id===id);
+    if(isDemo(prog)){ S.modal={type:"demo"}; render(); return; }
     requireAuth(()=>{S.modal={type:"book",programId:id};render();});
   });
   $("[data-msg]").forEach(b=>b.onclick=()=>{

@@ -1242,6 +1242,31 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 [ "${off//\"/}" = "CLEAN" ] && pass "every rendered size is on the 8-step scale" \
   || fail "off-scale font sizes: $off"
 
+# ── Seeded listings may never claim a rating or a background check ────────
+# [CRITICAL-PATH: trust] Thirty seeded listings shipped with authored ratings,
+# authored review counts and — for twenty of them — a "Background-checked" pill,
+# under a landing headline reading "Every listing here is a real one." A
+# background-check claim is the one promise this marketplace makes to a parent,
+# and `verified` in RAW is a hand-written 0/1 with no vendor behind it. This
+# asserts the gate holds on the browse grid, where all 30 demo rows render.
+trust=$($B js "
+(()=>{S.portal='family';S.route={name:'explore',arg:null};render();
+ const demo=PROGRAMS.filter(p=>!(p.live===true)).length;
+ if(!demo) return 'NO_DEMO_ROWS_TO_TEST';
+ const stars=document.querySelectorAll('.rate,.featrate').length;
+ const checks=document.querySelectorAll('.verifline').length;
+ const chips=document.querySelectorAll('.demochip').length;
+ const cards=document.querySelectorAll('.card').length;
+ if(stars) return 'FAKE_RATINGS_'+stars;
+ if(checks) return 'FAKE_BACKGROUND_CHECKS_'+checks;
+ if(chips<cards) return 'UNLABELLED_DEMO_CARDS_'+(cards-chips);
+ /* Restore the route: S persists to sessionStorage, so leaving the page on
+    explore changes what the NEXT assertion loads. */
+ S.route={name:'home',arg:null};render();
+ return 'OK'})()" 2>/dev/null)
+[ "${trust//\"/}" = "OK" ] && pass "seeded listings claim no rating and no background check" \
+  || fail "demo inventory is making trust claims: $trust"
+
 # ── No orange on a COLD first paint (no render() call) ────────────────────
 # The token-table check below tests the FUNCTION. This tests the DOM the first
 # visitor actually receives. Both are needed: the ordering bug that shipped
@@ -1254,6 +1279,12 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 # the known-bad ordering. An assertion that cannot fail is worse than no
 # assertion, because it manufactures confidence. Verified to go red when the
 # assignment is moved back below the body build.
+# Clear persisted state BEFORE the reload. S round-trips through sessionStorage,
+# so whichever route the previous assertion left behind is the route this page
+# restores — and the orange ban is scoped to `home`. Without this the check
+# inherited route=explore and reported 6 "orange" elements that were correctly
+# orange. Cold means cold: no stored route, no warm render, nothing carried in.
+$B js "sessionStorage.clear();'ok'" >/dev/null 2>&1
 $B goto "file://$(pwd)/index.html" >/dev/null 2>&1
 cold=$($B js "
 (()=>{const hue=(r,g,b)=>{const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;
