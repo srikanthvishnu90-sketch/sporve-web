@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="5d890f0df6a09870">
+<meta name="sporve-build" content="a1b3d88ec2083e71">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -23198,6 +23198,7 @@ function hydrateAuth(){
          in sessionStorage; the closure it replaced could not have. */
       const parked=S.pendingIntent; S.pendingIntent=null;
       render();
+      hydrateBookings();
       if(parked) setTimeout(()=>runIntent(parked),60);
     })
     .catch(()=>{ /* stay a guest; RLS is the real control either way */ });
@@ -23272,6 +23273,42 @@ function hydrateReturn(){
     S.route={name:"bookings",arg:null}; render();
   });
 }
+/* ── A FAMILY MUST SEE THE BOOKING THEY JUST PAID FOR ──────────────────────
+   bookingsHTML() rendered S.bookings, which is SEEDED — grep showed
+   SporveBooking.mine() referenced nowhere in the host. So a parent could pay
+   $50, be redirected back, land on Bookings, and see three demo bookings and
+   not their own. The payment path was real all the way to the database and
+   the one screen that answers "did it work" was still a mock.
+
+   Live rows are mapped into the shape bookingsHTML already reads and placed
+   FIRST, so the newest real booking is at the top. The seeded rows are kept
+   behind them rather than deleted: they are what the demo account shows, and
+   removing them would empty the screen for anyone signed out. A real row is
+   distinguishable by `live`. */
+function hydrateBookings(){
+  if(!window.SporveBooking||!window.SporveAuth||!window.SporveAuth.isSignedIn()) return;
+  window.SporveBooking.mine().then(function(rows){
+    if(!rows||!rows.length) return;
+    var mapped=rows.map(function(b){
+      var p=programById(b.program_id)||{};
+      var slot=(slotsFor(b.program_id)||[]).filter(function(x){return x.id===b.session_id;})[0]||{};
+      return {
+        id:b.id, live:true,
+        athlete:"", programId:b.program_id, program:p.title||"Session",
+        sessionId:b.session_id, session:slot.title||p.title||"Session",
+        date:slot.date||String(b.created_at||"").slice(0,10),
+        startTime:slot.startTime||"", tier:b.selected_tier||"",
+        price:Number(b.final_price)||0,
+        status:b.status, paymentStatus:b.payment_status,
+        createdAt:String(b.created_at||"").slice(0,10), sport:p.sport||"",
+      };
+    });
+    var seeded=(S.bookings||[]).filter(function(x){return !x.live;});
+    S.bookings=mapped.concat(seeded);
+    render();
+  }).catch(function(){ /* stay on the seeded view rather than blanking it */ });
+}
+
 hydrateReturn();
 
 /* Wrap render rather than editing it: every mutation path in the host and in
