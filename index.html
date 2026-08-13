@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="2717d10cb17cdff6">
+<meta name="sporve-build" content="e33a17c40f2ba0fd">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -10725,7 +10725,7 @@ async function submitCommand(text){
   if(S.cmdSending||!text||!text.trim())return;
   const q=text.trim();
   S.cmdDraft=q;S.cmdSending=true;S.cmdError="";S.cmdPending=null;render();
-  let a=null;
+  let a=null, failed=false;
   try{
     const r=await fetch("/api/ai",{
       method:"POST",
@@ -10736,8 +10736,26 @@ async function submitCommand(text){
       }),
     });
     if(r.ok) a=await r.json();
-  }catch(_){ /* offline, blocked, or no function — handled below */ }
+    else failed=true;
+  }catch(_){ failed=true; }
   S.cmdSending=false;
+  /* A FAILED REQUEST MUST NOT LOOK LIKE A DIFFERENT ANSWER.
+     ------------------------------------------------------------------------
+     This swallowed every error and fell through to runCommand(), the LOCAL
+     regex router. So with the function down or the key missing, a coach typed
+     "message the Monday squad" and got "Opened your inbox" — a wrong action,
+     presented as the right one, with no indication the request had failed.
+     A local fallback is fine; silently substituting it for a remote answer is
+     not, because the coach cannot tell which one they got.
+
+     The fallback still runs — it is better than nothing — but it says so. */
+  if(failed){
+    /* toast(), not S.cmdError. Setting cmdError would have been the same bug
+       this fix exists to remove: grep shows NO template reads it, so the
+       message would have been "displayed" to nobody. A value written and never
+       read is not an error state, it is a comment. */
+    toast("Sporve AI is unreachable — using the basic command matcher, so check the result");
+  }
   if(!a||!a.action||a.action==="unknown"){ runCommand(q); return; }
   applyAction(a,q);
 }
