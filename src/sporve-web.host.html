@@ -4149,7 +4149,21 @@ function toggleFav(id){
 }
 
 /* ═══════════════════ FILTERING ═══════════════════ */
-function visiblePrograms(){
+/* The composed filter chain, with the drawer's own filters made an argument.
+   ---------------------------------------------------------------------------
+   fdraftCount() counted PROGRAMS with only matchesFilters() applied, while the
+   grid ALSO applies sport, query, where, age, verifiedOnly and price. So with
+   Soccer selected (3 results) the drawer footer promised "Show 30 results" and
+   committing produced 3 — on the one control whose entire job is to predict
+   the result. The comment above matchesFilters claimed the two could not
+   disagree; they disagreed on every filtered search.
+
+   Both callers now go through this, so the promise and the grid are the same
+   computation with a different filter object. */
+function programsMatching(f){
+  return visiblePrograms(f).length;
+}
+function visiblePrograms(overrideFilters){
   let list=PROGRAMS.slice();
   if(S.sports.length) list=list.filter(p=>S.sports.includes(p.sport));
   if(S.query.trim()){
@@ -4173,7 +4187,8 @@ function visiblePrograms(){
      through matchesFilters(), so the number on "Show N results" and the number
      of cards that appear cannot disagree — which they would the moment two
      copies of the rule drifted. */
-  if(typeof matchesFilters==="function") list=list.filter(p=>matchesFilters(p,S.filters));
+  if(typeof matchesFilters==="function")
+    list=list.filter(p=>matchesFilters(p,overrideFilters||S.filters));
   /* the age segment — a listing only shows if it actually takes that athlete */
   if(S.ageQuery!=null&&S.ageQuery!==""){
     const a=Number(S.ageQuery);
@@ -4546,8 +4561,8 @@ function matchesFilters(p,f){
   return true;
 }
 function fdraftCount(){
-  const f=fdraft();
-  return PROGRAMS.filter(p=>matchesFilters(p,f)).length;
+  /* Same chain the grid runs, with the DRAFT filters swapped in. */
+  return programsMatching(fdraft());
 }
 function fgroup(id,title,open,body){
   return `<section class="fd-group">
@@ -7365,11 +7380,23 @@ function modalHTML(){
           <div style="color:var(--muted);font-size:var(--text-sm)">${esc(p.biz)} · ${esc(p.sport)}</div>
           ${p.verified?`<span class="pill gold" style="margin-top:5px">${ICON.shield} Background-checked</span>`:""}</div>
       </div>
+      ${/* A `required` select with no options cannot be submitted and gives no
+           reason why. Now that the list is the parent's REAL children, empty is
+           the ordinary first-booking case, so it gets a route forward. The
+           conditional stays INSIDE the field rather than wrapping the form —
+           a ternary straddling the form breaks the template literal and
+           renders neither branch, which is exactly what it did first. */""}
       <form id="bookForm" style="margin-top:18px">
         <div class="field"><label>Athlete</label>
+          ${S.athletes.length?`
           <select name="athlete" required>
             ${S.athletes.map(a=>`<option value="${a.id}">${esc(a.firstName+" "+(a.lastName||""))} · age ${ageOf(a.dob)}</option>`).join("")}
-          </select></div>
+          </select>`:`
+          <p style="color:var(--muted);font-size:var(--text-sm);margin:0 0 8px">
+            Add your athlete first — we need their age and your consent before a
+            coach can take a booking.</p>
+          <button class="btn ghost sm" type="button" data-athleteswitch="1">Add your athlete</button>`}
+          </div>
         <div class="field"><label>Session</label>
           ${/* Pre-select whatever the visitor chose on the detail page. Falls
                back to the first slot when the modal is opened without one
@@ -10953,6 +10980,7 @@ function hydrateAuth(){
       const parked=S.pendingIntent; S.pendingIntent=null;
       render();
       hydrateBookings();
+      hydrateAthletes();
       if(parked) setTimeout(()=>runIntent(parked),60);
     })
     .catch(()=>{ /* stay a guest; RLS is the real control either way */ });
@@ -11061,6 +11089,37 @@ function hydrateBookings(){
     S.bookings=mapped.concat(seeded);
     render();
   }).catch(function(){ /* stay on the seeded view rather than blanking it */ });
+}
+
+/* THE ATHLETES A PARENT ACTUALLY HAS.
+   ---------------------------------------------------------------------------
+   S.athletes was seeded from SEED.athletes ("Julian Mercer") and
+   SporveBooking.athletes() — the only server read — had ZERO callers. So a
+   parent signing in on a new device saw a child they never created, and the
+   booking form's athlete <select> offered that seeded client-side id. No
+   RLS-scoped athletes row matches it, so the booking failed the consent gate
+   on a child the UI had just presented as theirs — an error one screen from
+   its cause.
+
+   Server rows REPLACE the seeded ones for a signed-in parent rather than
+   merging: a seeded child is not a real child, and leaving it in the list is
+   what put an unbookable id in the picker. */
+function hydrateAthletes(){
+  if(!window.SporveBooking||!window.SporveAuth||!window.SporveAuth.isSignedIn()) return;
+  window.SporveBooking.athletes().then(function(rows){
+    if(!Array.isArray(rows)) return;
+    S.athletes=rows.map(function(a){
+      return {
+        id:a.id, serverId:a.id, live:true,
+        firstName:a.first_name||"", lastName:a.last_name||"",
+        dob:a.date_of_birth||null,
+        preferredSports:a.preferred_sports||[], skillLevel:a.skill_level||null,
+        parentConsent:!!a.parent_consent, consentAt:a.consent_at,
+        consentVersion:a.consent_version,
+      };
+    });
+    render();
+  }).catch(function(){ /* keep whatever is on screen rather than blanking it */ });
 }
 
 hydrateReturn();
