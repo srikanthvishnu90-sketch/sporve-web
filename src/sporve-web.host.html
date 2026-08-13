@@ -1492,6 +1492,10 @@ img{max-width:100%;display:block}
    panel grows instead. calc(100vh - 160px) still governs short viewports, so
    this cannot push the pill off a laptop screen. */
 .aidock-panel.talking{height:min(620px,calc(100vh - 160px))}
+/* At rest the "panel" IS the bar: no border, no ground, no glow of its own —
+   the composer supplies all three. Only .talking (a live conversation) turns it
+   back into a surface that has to hold a scrolling thread. */
+.aidock-panel:not(.talking){background:none;border:0;box-shadow:none;overflow:visible}
 .aidock-panel{width:100%;max-height:min(620px,calc(100vh - 160px));
   display:flex;flex-direction:column;background:#0B0C0E;color:#F5F7F9;
   border:1px solid #333A45;border-radius:18px;overflow:hidden;
@@ -1535,6 +1539,15 @@ img{max-width:100%;display:block}
    Amboras arrangement. The previous two-row split (field, then a control strip
    beneath) made the bubble 148px tall and was the single biggest consumer of
    the panel; collapsing it hands that height back to the conversation. */
+/* The X sits ON the bar, top-right, because the bar is now the whole widget and
+   there is no header left to hang it from. */
+.aidock-compose{position:relative}
+.aidock-x{position:absolute;top:10px;right:12px;width:26px;height:26px;
+  display:grid;place-items:center;background:none;border:0;border-radius:999px;
+  color:#C3CBD4;cursor:pointer;transition:background .15s,color .15s}
+.aidock-x:hover{background:rgba(255,255,255,.14);color:#FFFFFF}
+/* Room for it, so a long first line never runs under the X. */
+.aidock-compose .aidock-input{padding-right:34px}
 .aidock-row{display:flex;align-items:center;gap:8px;width:100%}
 .aidock-row .aidock-input{flex:1 1 auto;min-width:0}
 
@@ -1553,9 +1566,12 @@ img{max-width:100%;display:block}
    reads as a button rather than a glyph, which is why it carries a fill. Scoped
    to [data-aiattach] so the mic, send and collapse icons keep the circular
    treatment they share with the rest of the dock. */
-.aidock-ic[data-aiattach]{width:34px;height:34px;border-radius:999px;
-  background:none;color:#DCE3EA}
-.aidock-ic[data-aiattach]:hover{background:rgba(255,255,255,.14);color:#FFFFFF}
+/* A FILLED ROUNDED SQUARE, per the reference — the one control in the bar that
+   reads as a button rather than a glyph. Reverted from the circular treatment I
+   applied from a different screenshot last turn. */
+.aidock-ic[data-aiattach]{width:38px;height:38px;border-radius:11px;
+  background:rgba(255,255,255,.13);color:#FFFFFF}
+.aidock-ic[data-aiattach]:hover{background:rgba(255,255,255,.22);color:#FFFFFF}
 .aidock-ic{width:34px;height:34px;flex:none;display:grid;place-items:center;
   background:none;border:0;border-radius:999px;color:#DCE3EA;cursor:pointer;
   transition:background .15s,color .15s;
@@ -6805,48 +6821,46 @@ function aiDockHTML(){
       </button>
     </div>${fabHTML(true)}`;
   }
+  /* THE WIDGET IS THE BAR. Owner, 2026-08-13: "all that should show on the
+     screen is the exact layout and format of [the reference] at the bottom of
+     the screen, outside of that and an X button, that's it."
+
+     Removed: the "Sporve AI / Real listings only" header, the empty state (S
+     mark, "What are you training for?", three suggestion buttons) and the
+     context-chip row. They were 380px of furniture wrapped around a 100px
+     control, and the owner has now twice reported not being able to see the
+     thing he was typing into.
+
+     JUDGEMENT CALL, flag it and overrule me if it is wrong: the message thread
+     still renders ABOVE the bar once a conversation exists. A literal reading
+     of "nothing more" would hide replies too, and being unable to see the
+     answer is the exact bug reported two turns ago. At rest — which is what the
+     reference shows and what a coach sees on arrival — it is the bar alone. */
   return `${open?`<div class="aipill"><section class="aidock-panel${S.chat.length||S.chatThinking?" talking":""}" role="dialog" aria-label="Sporve AI helper">
-      <div class="aidock-head">
-        <span class="mark" style="width:30px;height:30px;font-size:15px;flex:none">S</span>
-        <div style="min-width:0"><b>Sporve AI</b>
-          <span class="aidock-sub">Real listings only — never invented</span></div>
-        ${S.chat.length?`<button class="btn ghost sm" data-chatclear="1" style="margin-left:auto">Clear</button>`:""}
-        <button class="x" data-aiclose="1" aria-label="Close">${ICON.x}</button>
-      </div>
+      ${S.chat.length||S.chatThinking?`
       <div class="aidock-scroll" id="aidockScroll">
         ${thread}
         ${S.chatThinking?`<div class="bub them" style="align-self:flex-start;display:flex;gap:5px;align-items:center">
           <i class="dotdot"></i><i class="dotdot" style="animation-delay:.16s"></i><i class="dotdot" style="animation-delay:.32s"></i></div>`:""}
-      </div>
-      ${/* Composer, to the Amboras reference: the quick-action chips sit INSIDE
-           the bubble along its top edge, and the field shares ONE row with its
-           controls — model, attach, voice, send — rather than stacking a
-           control strip beneath it. The two-row version measured 148px tall and
-           was the largest single consumer of the panel; folding it to one row
-           hands that height back to the conversation, which is what the owner
-           was complaining about when he could not see replies. */""}
+      </div>`:""}
       <form class="aidock-compose" id="aiDockForm">
-        ${(()=>{const cx=aiContext();return cx.chips.length?`
-        <div class="aidock-chips">${cx.chips.map(c=>
-          `<button type="button" class="aidock-chip" data-aichip="${esc(c)}">${esc(c)}</button>`).join("")}
-          <button type="button" class="aidock-ic" data-aicollapse="1" style="margin-left:auto;width:26px;height:26px"
-                  aria-label="Collapse the assistant" title="Collapse">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-          </button></div>`:"";})()}
-        <div class="aidock-row">
-        <input id="aiDockInput" class="aidock-input" placeholder="Ask Sporve, or draft a reply…"
+        ${/* Two rows, matching the reference exactly: the message field owns the
+             top line, the controls sit beneath it. I merged these onto one row
+             last turn from a different screenshot and it was wrong — the field
+             has to be able to hold a sentence without sharing its line. */""}
+        <input id="aiDockInput" class="aidock-input" placeholder="Write a message…"
                aria-label="Message Sporve AI" autocomplete="off">
-          <span class="aidock-model">
+        <div class="aidock-row">
+          <button type="button" class="aidock-ic" data-aiattach="1" aria-label="Add an attachment">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14"/></svg></button>
+          <span class="aidock-model" style="margin-left:auto">
             <b>Opus 5</b><span class="aidock-effort">High</span>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M6 9l6 6 6-6"/></svg>
           </span>
-          <button type="button" class="aidock-ic" data-aiattach="1" aria-label="Add an attachment">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14"/></svg></button>
           <button type="button" class="aidock-ic" data-aivoice="1" aria-label="Dictate a message">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
@@ -6857,6 +6871,10 @@ function aiDockHTML(){
                  stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
               <path d="M4 10v4M8 7v10M12 5v14M16 8v8M20 11v2"/></svg></button>
         </div>
+        <button type="button" class="aidock-x" data-aiclose="1" aria-label="Close Sporve AI">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </form>
     </section></div>`:""}${fabHTML(open)}`;
 }
