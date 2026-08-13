@@ -1245,6 +1245,26 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 [ "${off//\"/}" = "CLEAN" ] && pass "every rendered size is on the 8-step scale" \
   || fail "off-scale font sizes: $off"
 
+# ── The hero may not promise a background check the catalogue cannot back ─
+# [CRITICAL-PATH: trust] A genuine first visit boots on `explore` (measured: the
+# state literal is explore and `route` is not in EPHEMERAL, so empty storage
+# keeps it). Its headline read "Book a background-checked coach for your kid."
+# while production carried 20 providers flagged verified with no evidence and
+# the cards below correctly rendered zero badges. The page must not claim in its
+# hero what showsVerified() refuses to claim in its cards.
+hero=$($B js "
+(()=>{S.portal='family';
+ const bad=[];
+ ['explore','home'].forEach(r=>{S.route={name:r,arg:null};render();
+   const h=document.getElementById('app').innerText.slice(0,400);
+   if(/book a background.?checked coach/i.test(h)) bad.push(r+':headline');
+   if(/real coaches, verified/i.test(h)) bad.push(r+':lede');
+ });
+ S.route={name:'home',arg:null};render();
+ return bad.length?bad.join(','):'OK'})()" 2>/dev/null)
+[ "${hero//\"/}" = "OK" ] && pass "hero claims no background check the data cannot back" \
+  || fail "hero promises an unearned background check: $hero"
+
 # ── topbarHTML must survive any signed-in user shape ──────────────────────
 # `u.firstName[0]+u.lastName[0]` was written for the seeded demo user, who
 # always has both names. A real account with no surname rendered "Aundefined";

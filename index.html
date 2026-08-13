@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="46ec8f78af727b93">
+<meta name="sporve-build" content="a455dd218dece3d8">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -5514,7 +5514,9 @@ function landingHTML(){
   <section class="band hero">
     <div class="shell hero-in">
       <h1 class="display">Coaching. Booked.</h1>
-      <p class="lede">Book a background-checked coach for your kid — any sport, in minutes.</p>
+      ${/* Same false claim as the explore hero, same fix — see the note there. */""}
+      <p class="lede">Every sport, one app — and no one takes a booking here
+        until they have cleared a background check.</p>
       ${searchPillHTML()}
       <div class="chiprow">
         ${heroSports.map(s=>`<button class="hchip" data-sportjump="${esc(s)}">
@@ -6008,10 +6010,25 @@ function heroHTML(){
     <div class="hero-panel">
       ${heroMediaHTML()}
       <div class="hero-in">
-        ${/* The locked one-liner. The previous headline spoke to an adult
-             athlete about a gym, and Sporve does not sell facilities. */""}
-        <h1 class="display">Book a background-checked coach for your kid.</h1>
-        <p class="hero-lede">Any sport. Real coaches, verified. Booked in minutes.</p>
+        ${/* [CRITICAL-PATH: trust] This headline used to read "Book a
+             background-checked coach for your kid." and the lede "Any sport.
+             Real coaches, verified. Booked in minutes."
+
+             This is the FIRST SENTENCE a visitor reads — a genuine first visit
+             boots on this route, measured, not assumed — and both claims are
+             false. Production carries 21 providers flagged verified, 20 of them
+             with no completion timestamp and no vendor behind the flag; the
+             site itself now renders zero background-check badges because
+             showsVerified() requires evidence. A page cannot promise in its
+             headline what every card beneath it correctly refuses to claim.
+
+             The replacement promises the RULE, which is true and is the actual
+             product, rather than an inventory state that does not exist yet.
+             Owner instruction, 2026-08-13: "don't include the portion that
+             talks about 'book a background checked coach'". */""}
+        <h1 class="display">Every sport. One app.</h1>
+        <p class="hero-lede">Find coaches, trainers, camps and teams near you —
+          and no one takes a booking here until they have cleared a background check.</p>
         ${searchPillHTML()}
       </div>
     </div>
