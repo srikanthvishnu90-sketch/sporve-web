@@ -1242,6 +1242,31 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 [ "${off//\"/}" = "CLEAN" ] && pass "every rendered size is on the 8-step scale" \
   || fail "off-scale font sizes: $off"
 
+# ── No orange, tested over EVERY sport token, not just the rendered ones ──
+# This assertion exists because the first no-orange pass swept clean locally and
+# shipped 43 orange elements to production. The local sweep only ever saw the
+# DEMO catalogue; production hydrates from live Supabase and rendered Climbing
+# and Softball, which were orange and unmapped. Walking the rendered DOM tests
+# the data you happen to have. This walks the TOKEN TABLE, so it tests the data
+# you might get. Both sportColor and sportInk, both grounds.
+noor=$($B js "
+(()=>{NO_ORANGE_ACTIVE=true;
+ const hue=(hex)=>{const n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; if(!d)return 0;
+  let h=mx===r?((g-b)/d)*60:mx===g?(2+(b-r)/d)*60:(4+(r-g)/d)*60; return h<0?h+360:h};
+ const bad=[];
+ Object.keys(SPORT_COLOR).forEach(k=>{
+   [sportColor(k),sportInk(k)].forEach(c=>{
+     const h=hue(c);
+     const n=parseInt(c.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+     if(Math.max(r,g,b)-Math.min(r,g,b)<40) return;   // neutral, no hue to speak of
+     if(h>=15&&h<=45) bad.push(k+'='+c);
+   })});
+ NO_ORANGE_ACTIVE=false;
+ return bad.length?bad.join(','):'CLEAN'})()" 2>/dev/null)
+[ "${noor//\"/}" = "CLEAN" ] && pass "no-orange holds for every sport token, mark and ink" \
+  || fail "orange sport tokens unmapped on the landing: $noor"
+
 # ── The AI pill is centred, and the S is NOT inside it ────────────────────
 # Both halves matter. The spec centres the assistant AND forbids repositioning
 # the S; if they ever share a parent again, centring drags the S to the middle

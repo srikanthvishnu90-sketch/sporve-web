@@ -3560,14 +3560,50 @@ const HERO_IMGS = "__HERO_IMGS__".indexOf("__HERO") === 0 ? [] : [];
    the send affordance to use the existing brand accent, so a global ban would
    contradict it.
 
-   TWO SPORT COLOURS ARE ORANGE-FAMILY and must be remapped, per the prompt's
-   own note about "excluding any orange-family sport color". They are applied
-   as INLINE styles from sportColor(), so a CSS override cannot reach them
-   without !important everywhere — the remap therefore happens at the source.
+   SPORT COLOURS IN THE ORANGE BAND must be remapped, per the prompt's own note
+   about "excluding any orange-family sport color". They are applied as INLINE
+   styles from sportColor(), so a CSS override cannot reach them without
+   !important everywhere — the remap happens at the source.
 
-   Replacements come from the slate family the prompt names (#475569), kept
-   distinct from each other so Basketball and Football remain separable. */
-const NO_ORANGE = { Basketball:"#475569", Football:"#334155" };
+   THE SET IS DERIVED, NOT HAND-WRITTEN, AND THAT IS THE WHOLE POINT.
+   ---------------------------------------------------------------------------
+   The first version was a literal `{Basketball, Football}` — the two orange
+   sports I happened to see while testing against the DEMO catalogue. It swept
+   clean locally and then shipped 43 orange elements to production, because
+   production hydrates the peek row from live Supabase listings and those
+   listings carry sports the demo data never rendered: Climbing (#CE6600) and
+   Softball (#B77800) were never on screen locally, so nothing flagged them.
+
+   A hand-maintained deny-list cannot hold against data it has never seen. The
+   set is therefore computed from SPORT_COLOR itself by converting each token to
+   HSL and testing the hue band — the same test the acceptance sweep uses. Add a
+   new orange sport tomorrow and it is remapped automatically; the ban cannot
+   drift away from the check that enforces it.
+
+   Replacements come from the frozen slate family (§3), assigned round-robin
+   over a four-step ramp in sorted key order so the mapping is deterministic
+   across builds and adjacent sports stay visually separable. */
+const NO_ORANGE_RAMP = ["#475569", "#334155", "#52606F", "#3E4C5A"];
+const NO_ORANGE = (() => {
+  /* Hue of a #rrggbb, 0–360. Only the hue is needed: saturation is irrelevant
+     because every SPORT_COLOR token is already saturated by construction. */
+  const hue = hex => {
+    const n = parseInt(hex.slice(1), 16);
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (!d) return 0;
+    let h = mx === r ? ((g - b) / d) * 60
+          : mx === g ? (2 + (b - r) / d) * 60
+          :            (4 + (r - g) / d) * 60;
+    return h < 0 ? h + 360 : h;
+  };
+  const map = {};
+  Object.keys(SPORT_COLOR).sort().forEach(k => {
+    const h = hue(SPORT_COLOR[k]);
+    if (h >= 15 && h <= 45) map[k] = NO_ORANGE_RAMP[Object.keys(map).length % NO_ORANGE_RAMP.length];
+  });
+  return map;
+})();
 /* A plain flag, NOT a read of S.route.
    ---------------------------------------------------------------------------
    sportColor() is defined here but S is declared further down, and some module
