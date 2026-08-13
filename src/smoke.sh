@@ -117,11 +117,14 @@ done
 # computed-style defects that only a browser measuring real pixels catches.
 #
 # The coach portal is held at zero because it was built clean and there is no
-# reason to let it rot. The family portal carries 16 pre-existing failures, so
+# reason to let it rot. The family portal carried 16 pre-existing failures; the
+# 2026-08-13 slate adoption took that to 6 (the new --slate-ink is 5.62:1 where
+# the old slate-as-text was failing), so the ratchet is now 6. Lower it again
+# whenever a change improves it — a baseline that never drops is a todo, not a test.
 # it is ratcheted instead of gated: the number may fall, never rise. Blocking
 # on it today would stop every unrelated change until someone fixes 16 old
 # defects, which is how a check gets deleted rather than satisfied.
-FAMILY_CONTRAST_BASELINE=16
+FAMILY_CONTRAST_BASELINE=6
 # Fail closed. If the audit file is missing or the harness returns nothing,
 # `${n:-0}` would coerce empty to zero and every assertion below would report
 # PASS without measuring a pixel — a check that goes green when it cannot run
