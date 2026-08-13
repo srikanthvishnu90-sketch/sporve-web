@@ -1245,6 +1245,26 @@ return bad.size?[...bad].join(','):'CLEAN'})()" 2>/dev/null)
 [ "${off//\"/}" = "CLEAN" ] && pass "every rendered size is on the 8-step scale" \
   || fail "off-scale font sizes: $off"
 
+# ── The composer bubble: grey slate, white type, one row ──────────────────
+# Owner, 2026-08-13, to the Amboras reference. The contrast pairing is the point:
+# the brand slate #7692AE is only 3.23:1 against white and is NOT safe for text
+# someone types and re-reads, so the bubble is the darker sibling #3E4C5A
+# (white 8.80:1, placeholder 5.37:1). Also asserts the single row, because the
+# two-row version was 148px and was the reason replies had no room.
+comp=$($B js "
+(()=>{S.portal='coach';S.route={name:'dashboard',arg:null};S.aiOpen=true;S.aiCollapsed=false;render();
+ const f=document.querySelector('.aidock-compose'),i=document.querySelector('.aidock-input');
+ if(!f||!i) return 'NO_COMPOSER';
+ if(getComputedStyle(i).color!=='rgb(255, 255, 255)') return 'TYPE_NOT_WHITE';
+ const bg=getComputedStyle(f).backgroundColor;
+ if(bg!=='rgb(62, 76, 90)') return 'BUBBLE_NOT_SLATE_'+bg;
+ if(!document.querySelector('.aidock-row')) return 'NOT_ONE_ROW';
+ if(f.getBoundingClientRect().height>130) return 'BUBBLE_TOO_TALL_'+Math.round(f.getBoundingClientRect().height);
+ S.portal='family';S.route={name:'home',arg:null};render();
+ return 'OK'})()" 2>/dev/null)
+[ "${comp//\"/}" = "OK" ] && pass "composer is a grey-slate bubble, white type, one row" \
+  || fail "composer regressed: $comp"
+
 # ── Every footer link resolves, and to a DISTINCT page ────────────────────
 # A footer whose links collapse onto one generic page is worse than a short one:
 # it looks like a company with policies and turns out not to be. The audit found
