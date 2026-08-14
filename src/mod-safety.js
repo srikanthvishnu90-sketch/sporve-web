@@ -331,7 +331,7 @@
     ["clock",  "Checks are re-run",            "A badge that stops being true stops showing."],
   ];
   const RULES = [
-    ["Reports reach a person", "Filed untriaged, read by Sporve's safety team. Identity concerns first."],
+    ["Reports go to safety@sporve.com", "During beta a report opens an email to Sporve's safety address. Send it, and keep your copy — that email IS the record."],
     ["Refunds are reviewed",   "Full refund, partial refund, or a written denial."],
     ["Deletion is a case",     "Payment and safety records stay under legal hold. We write back."],
   ];
@@ -404,7 +404,7 @@
 
         <div class="sf-note sf-note-warn sf-emergency" role="note">
           <h3>If anyone is in danger, call emergency services first</h3>
-          <p>Report here afterwards. We suspend accounts and preserve records.</p>
+          <p>Report here afterwards. During beta this opens an email to safety@sporve.com — send it so there is a record we can act on.</p>
         </div>
       </div>
     </section>
@@ -573,9 +573,38 @@
         return showErr("sfReportErr", "Details must be 10 to 4000 characters.");
 
       const category = CATEGORY_LABEL[d.category] ? d.category : "other";
+      /* [CRITICAL-PATH: child safety] THIS MODULE HAS ZERO NETWORK CALLS.
+         `rg 'SporveAPI|API.from|fetch\(' mod-safety.js` returns nothing: every
+         submission below lands in memory, persists only to sessionStorage, and
+         dies with the tab. Yet it minted a reference number and a "Submitted"
+         status, and the surrounding copy told a parent a human reads it.
+
+         A parent reporting that a coach behaved unsafely toward their child
+         believed Sporve was investigating. Sporve never knew.
+
+         Until safety_reports exists with a triage path, the honest surface is
+         email: the report opens a pre-filled message to safety@sporve.com, and
+         the sent mail — held by the parent, not by us — is the record. The local
+         entry is kept ONLY as the parent's own copy and is labelled as such; it
+         no longer claims a case number Sporve is holding. Deleting the false
+         claim is hours of work; building the triage system is weeks, and the
+         claim must not survive the wait. */
+      (function mailTheReport(){
+        try{
+          var body =
+            "A safety report was started on Sporve.\n\n"+
+            "Category: "+(CATEGORY_LABEL[category]||category)+"\n"+
+            (providerId?("Provider: "+providerId+"\n"):"")+
+            (bookingId?("Booking: "+bookingId+"\n"):"")+
+            "\nWhat happened:\n"+details+"\n";
+          window.location.href = "mailto:safety@sporve.com"
+            + "?subject=" + encodeURIComponent("Safety report — " + (CATEGORY_LABEL[category]||category))
+            + "&body=" + encodeURIComponent(body);
+        }catch(e){}
+      })();
       const r = {
         id: "rep_" + Date.now(),
-        ref: ref("SR", s.reports.length + 1),
+        ref: "your copy",
         category, details, providerId, bookingId, conversationId,
         status: "submitted", priority: "untriaged",
         createdAt: today(), at: nowISO(),

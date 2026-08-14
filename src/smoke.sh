@@ -1408,6 +1408,23 @@ init=$($B js "
 [ "${init//\"/}" = "OK" ] && pass "topbar survives every signed-in profile shape" \
   || fail "avatar initials break on real profiles: $init"
 
+# ── A safety surface may not promise what no code delivers ────────────────
+# [CRITICAL-PATH: child safety] mod-safety.js has ZERO network calls, yet it
+# minted case numbers ("SR-0001") and told parents "Reports reach a person —
+# read by Sporve's safety team". A parent reporting a coach's conduct toward
+# their child believed Sporve was investigating; Sporve never knew. Until a real
+# safety_reports table with triage exists, the claim must not exist either.
+safe=$($B js "
+(()=>{const src=[...document.querySelectorAll('script')].map(s=>s.textContent).join('');
+ const bad=[];
+ if(/Reports reach a person/.test(src)) bad.push('CLAIMS_A_HUMAN_READS_IT');
+ if(/We suspend accounts and preserve records/.test(src)) bad.push('CLAIMS_ENFORCEMENT');
+ if(/ref\(\"SR\"/.test(src)) bad.push('MINTS_CASE_NUMBER');
+ if(!/safety@sporve\.com/.test(src)) bad.push('NO_REAL_ROUTE');
+ return bad.length?bad.join(','):'OK';})()" 2>/dev/null)
+[ "${safe//\"/}" = "OK" ] && pass "safety reports promise only what the code delivers" \
+  || fail "the safety surface makes a promise nothing backs: $safe"
+
 # ── The Add-a-child form may never offer an under-13 ──────────────────────
 # [CRITICAL-PATH: consent] It offered birth years 2022-2008 — ages 4 to 18 — and
 # wrote date_of_birth behind one unverified checkbox, while Sporve's own
