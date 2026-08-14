@@ -7376,12 +7376,15 @@ function histDropHTML(up){
   const sess=[...S.chatSessions].sort((a,b)=>(b.ts||0)-(a.ts||0));
   const rel=ts=>{const m=Math.round((Date.now()-(ts||0))/60000);
     return m<1?"just now":m<60?m+"m ago":m<1440?Math.round(m/60)+"h ago":Math.round(m/1440)+"d ago";};
+  /* type="button" is load-bearing on every row: the upward variant renders
+     INSIDE the composer <form>, where a typeless button is a submit —
+     picking a chat would have sent whatever sat in the input. */
   return `<div class="aimax-hist${up?" up":""}" role="menu" aria-label="Previous chats">
-    <button class="aimax-histrow aimax-histnew" data-ainew="1" role="menuitem">
+    <button type="button" class="aimax-histrow aimax-histnew" data-ainew="1" role="menuitem">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
            stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       New chat</button>
-    ${sess.length?sess.map(s=>`<button class="aimax-histrow${s.id===S.chatSessionId?" on":""}"
+    ${sess.length?sess.map(s=>`<button type="button" class="aimax-histrow${s.id===S.chatSessionId?" on":""}"
         data-aihistpick="${esc(s.id)}" role="menuitem">
         <b>${esc(s.title)}</b><span class="num">${rel(s.ts)}</span></button>`).join("")
       :`<p class="aimax-histempty">No previous chats yet.</p>`}
@@ -12833,7 +12836,10 @@ function chatLoadSession(id){
   if(!s) return;
   chatArchive();
   chatEpoch++;
+  /* Loading a chat is a request to SEE it — clear the tuck, or a session
+     picked while the thread was hidden would restore invisible. */
   S.chat=(s.msgs||[]).slice(); S.chatSessionId=id; S.chatThinking=false; S.aiHistOpen=false;
+  S.aiThreadHidden=false;
   render();
 }
 

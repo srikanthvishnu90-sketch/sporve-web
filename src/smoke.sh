@@ -1668,6 +1668,7 @@ ams=$($B js "
  if(S.chatSessionId!==savedId)bad.push('RESTORE_ID');
  if(!S.chatSessions.some(s=>s.id===savedId))bad.push('RESTORE_LIST');
  S.chat=[];S.chatSessions=[];S.chatSessionId=null;S.aiMax=false;S.aiHistOpen=false;
+ S.aiThreadHidden=false;
  saveState();
  S.portal='family';S.route={name:'home',arg:null};render();document.body.classList.remove('reg-coach');
  return bad.length?bad.join(','):'OK'})()" 2>/dev/null)
