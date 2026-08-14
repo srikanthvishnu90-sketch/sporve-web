@@ -8568,8 +8568,11 @@ function coachBody(t){
                worker; offering an Approve button that can only fail is the lie
                this screen just stopped telling. A legacy 'approved' row is one
                the old bug stranded: it can be recovered by sending it back to
-               draft, then approving it properly. */""}
-          ${m.status==="drafted"
+               draft, then approving it properly. A row mid-decision shows
+               "Working…" — no live button exists to be double-fired. */""}
+          ${(S.qDeciding&&S.qDeciding[m.id])
+            ? `<span style="color:var(--muted);font-size:var(--text-xs)">Working…</span>`
+            : m.status==="drafted"
             ? `<div style="display:flex;gap:8px">
                 <button class="btn sm" data-qdecide="approve:${esc(m.id)}">Approve &amp; send</button>
                 <button class="btn ghost sm" data-qdecide="reject:${esc(m.id)}">Skip</button>
@@ -11905,15 +11908,27 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   $("[data-qdecide]").forEach(b=>b.onclick=()=>{
     const i=b.dataset.qdecide.indexOf(":");
     const decision=b.dataset.qdecide.slice(0,i), id=b.dataset.qdecide.slice(i+1);
-    b.disabled=true;
+    /* IN-FLIGHT GUARD IN STATE, not just on the DOM node. b.disabled alone
+       blocks a second click on THIS element, but any render() during the
+       async gap (a toast auto-dismiss, another handler) rebuilds the queue and
+       would mint a fresh, enabled twin button for the same id — a second click
+       on the twin fires a second lifecycle-approve, and the parent receives the
+       message twice. Marking the id in S.qDeciding makes the render draw a
+       "Working…" row instead of live buttons, so no twin can exist; the guard
+       here is the belt to that render's braces. Ephemeral: a reload starts
+       clean. */
+    S.qDeciding=S.qDeciding||{};
+    if(S.qDeciding[id]) return;
+    S.qDeciding[id]=true;
+    const clear=()=>{ if(S.qDeciding) delete S.qDeciding[id]; };
     window.SporveCoach.decide(id,decision)
-      .then(()=>hydrateQueue())
+      .then(()=>{clear();return hydrateQueue();})
       /* "Sent", not "Approved" — approve now delivers via lifecycle-approve and
          the row leaves the queue as 'sent'. The catch surfaces the function's
          own error text (e.g. "No verified guardian to deliver to"), so a send
          that cannot happen says so instead of claiming success. */
       .then(()=>toast(decision==="approve"?"Sent to the family":decision==="reject"?"Skipped":"Sent back to draft"))
-      .catch(e=>{b.disabled=false;toast((e&&e.message)||"Could not update that message");});
+      .catch(e=>{clear();render();toast((e&&e.message)||"Could not update that message");});
   });
   $("[data-railmenu]").forEach(b=>b.onclick=()=>{S.railMenu=!S.railMenu;render();});
   $("[data-signout]").forEach(b=>b.onclick=()=>{doSignOut();S.portal="family";go("home");});
@@ -13017,6 +13032,9 @@ const EPHEMERAL = new Set([
   /* An open dropdown is a gesture, not work — restoring it on reload steals
      the first click. aiMax itself persists, same reasoning as aiOpen. */
   "aiHistOpen",
+  /* In-flight approval decisions — a transient lock, never persisted; a
+     reload must start with no row wrongly stuck in "Working…". */
+  "qDeciding",
   /* From the ported coach-portal work. coachSearchFocus is a one-render flag
      that puts the caret back after #app's innerHTML is replaced; restoring it
      from storage would steal focus into the search box on every page load.

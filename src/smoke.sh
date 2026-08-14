@@ -1725,6 +1725,12 @@ appr=$($B js "
  if(!/data-qdecide=\"approve:d1/.test(html))bad.push('DRAFTED_NO_APPROVE');
  if(/data-qdecide=\"approve:p1/.test(html))bad.push('PENDING_HAS_APPROVE');
  if(/worker will send/i.test(html))bad.push('OLD_WORKER_COPY');
+ // in-flight guard: a row mid-decision shows Working…, no live button (no twin)
+ S.qDeciding={d1:true};render();
+ const h2=document.querySelector('#app').innerHTML;
+ if(/data-qdecide=\"approve:d1/.test(h2))bad.push('TWIN_BUTTON');
+ if(!/Working/.test(h2))bad.push('NO_WORKING_STATE');
+ S.qDeciding={};
  if(window.SporveAuth){window.SporveAuth.isSignedIn=wasSigned;window.SporveAuth.userId=wasUid;}
  S.coachQueue=[];S.portal='family';S.route={name:'home',arg:null};render();document.body.classList.remove('reg-coach');
  return bad.length?bad.join(','):'OK'})()" 2>/dev/null)
