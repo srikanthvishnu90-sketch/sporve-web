@@ -8559,15 +8559,28 @@ function coachBody(t){
         ${q.map(m=>`<div class="panel" style="display:flex;flex-direction:column;gap:8px">
           <div style="display:flex;align-items:center;gap:9px">
             <span class="k" style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)">${esc(LABEL[m.event_type]||m.event_type)}</span>
-            <span class="pill ${m.status==="approved"?"gold":"warn"}" style="margin-left:auto">${esc(m.status)}</span>
+            <span class="pill ${m.status==="drafted"?"warn":m.status==="approved"?"gold":"slate"}" style="margin-left:auto">${esc(m.status)}</span>
           </div>
           <p style="font-size:var(--text-sm)">${esc(
             (m.content&&(m.content.body||m.content.text||m.content.message))||"(no draft body)")}</p>
-          ${m.status==="approved"
-            ? `<span style="color:var(--muted);font-size:var(--text-xs)">Approved — the worker will send it.</span>`
-            : `<div style="display:flex;gap:8px">
-                <button class="btn sm" data-qdecide="approve:${esc(m.id)}">Approve</button>
-                <button class="btn ghost sm" data-qdecide="redraft:${esc(m.id)}">Send back</button>
+          ${/* Only a DRAFTED row can be sent — lifecycle-approve 409s on anything
+               else. A pending/processing row is still being written by the
+               worker; offering an Approve button that can only fail is the lie
+               this screen just stopped telling. A legacy 'approved' row is one
+               the old bug stranded: it can be recovered by sending it back to
+               draft, then approving it properly. */""}
+          ${m.status==="drafted"
+            ? `<div style="display:flex;gap:8px">
+                <button class="btn sm" data-qdecide="approve:${esc(m.id)}">Approve &amp; send</button>
+                <button class="btn ghost sm" data-qdecide="reject:${esc(m.id)}">Skip</button>
+               </div>`
+            : m.status==="approved"
+            ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span style="color:var(--muted);font-size:var(--text-xs)">Stuck from an earlier version — send it back to redraft, then approve.</span>
+                <button class="btn ghost sm" data-qdecide="redraft:${esc(m.id)}">Send back to draft</button>
+               </div>`
+            : `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span style="color:var(--muted);font-size:var(--text-xs)">Sporve is still drafting this.</span>
                 <button class="btn ghost sm" data-qdecide="reject:${esc(m.id)}">Skip</button>
                </div>`}
         </div>`).join("")}
@@ -11895,7 +11908,11 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     b.disabled=true;
     window.SporveCoach.decide(id,decision)
       .then(()=>hydrateQueue())
-      .then(()=>toast(decision==="approve"?"Approved":decision==="reject"?"Skipped":"Sent back to draft"))
+      /* "Sent", not "Approved" — approve now delivers via lifecycle-approve and
+         the row leaves the queue as 'sent'. The catch surfaces the function's
+         own error text (e.g. "No verified guardian to deliver to"), so a send
+         that cannot happen says so instead of claiming success. */
+      .then(()=>toast(decision==="approve"?"Sent to the family":decision==="reject"?"Skipped":"Sent back to draft"))
       .catch(e=>{b.disabled=false;toast((e&&e.message)||"Could not update that message");});
   });
   $("[data-railmenu]").forEach(b=>b.onclick=()=>{S.railMenu=!S.railMenu;render();});
