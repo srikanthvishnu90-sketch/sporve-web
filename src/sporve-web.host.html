@@ -3974,6 +3974,10 @@ function initials(u){
   const e=String(u.email||"").trim();
   return e ? e[0].toUpperCase() : "";
 }
+/* The youngest athlete this product may collect data about. 13 until a
+   verifiable parental-consent flow exists — see the note on the birth-year
+   field. smoke.sh asserts the rendered form never offers younger. */
+const MIN_ATHLETE_AGE = 13;
 const isDemo = p => !(p && p.live === true);
 /* A rating may render only from real data that actually has reviews. Both
    halves matter: the first stops fabrications, the second stops "★ 0". */
@@ -8277,8 +8281,25 @@ function modalHTML(){
         <div class="field"><label>Last name (optional)</label><input name="last" placeholder="Mercer"></div>
       </div>
       <div class="field"><label>Birth year</label>
-        <select name="year" required>${Array.from({length:15},(_,i)=>2026-4-i)
-          .map(y=>`<option value="${y}">${y}</option>`).join("")}</select></div>
+        ${/* [CRITICAL-PATH: consent] 13+ ONLY. This offered 2022-2008 — ages 4 to
+             18 — and wrote date_of_birth to the athletes table behind a single
+             unverified checkbox. Sporve's OWN published privacy notice says the
+             opposite: "During the current beta, adults must not submit personal
+             information about a child under 13" and "Youth profiles will remain
+             unavailable for production use until the required parent notice and
+             verifiable-consent flow are live."
+
+             The policy is the correct position; the code was wrong. COPPA
+             penalties are per child, per violation, and a regulator reading the
+             published policy beside the live product finds a documented
+             self-admission. A tick-box is not verifiable parental consent.
+
+             MIN_ATHLETE_AGE is the single source of truth so the floor cannot
+             drift from the assertion that guards it. Lower it only when a real
+             verifiable-consent flow ships — not to make the form friendlier. */""}
+        <select name="year" required>${(()=>{const Y=new Date().getFullYear();
+          return Array.from({length:19-MIN_ATHLETE_AGE},(_,i)=>Y-MIN_ATHLETE_AGE-i)
+            .map(y=>`<option value="${y}">${y}</option>`).join("");})()}</select></div>
       <div class="field"><label>Skill level (optional)</label>
         <select name="skill"><option value="">Not sure yet</option>
           ${["beginner","developing","intermediate","advanced"].map(l=>`<option value="${l}">${l[0].toUpperCase()+l.slice(1)}</option>`).join("")}</select></div>

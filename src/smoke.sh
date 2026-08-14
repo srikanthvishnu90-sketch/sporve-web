@@ -1408,6 +1408,27 @@ init=$($B js "
 [ "${init//\"/}" = "OK" ] && pass "topbar survives every signed-in profile shape" \
   || fail "avatar initials break on real profiles: $init"
 
+# ── The Add-a-child form may never offer an under-13 ──────────────────────
+# [CRITICAL-PATH: consent] It offered birth years 2022-2008 — ages 4 to 18 — and
+# wrote date_of_birth behind one unverified checkbox, while Sporve's own
+# published privacy notice states adults must not submit information about a
+# child under 13 during beta. COPPA penalties are per child, per violation.
+# Lower MIN_ATHLETE_AGE only when a real verifiable-consent flow ships.
+kid=$($B js "
+(()=>{S.auth={user:{id:'x',email:'a@b.c'}};S.modal={type:'addchild'};render();
+ const sel=document.querySelector('select[name=year]');
+ if(!sel) return 'NO_BIRTH_FIELD';
+ const ys=[...sel.options].map(o=>+o.value).filter(Boolean);
+ if(!ys.length) return 'NO_OPTIONS';
+ const Y=new Date().getFullYear();
+ const youngest=Y-Math.max(...ys);
+ /* {user:null}, NOT null — topbarHTML reads S.auth.user directly, so a bare
+    null blanks the whole app and the probe reports empty. */
+ S.modal=null;S.auth={user:null};render();
+ return youngest<13 ? 'OFFERS_AGE_'+youngest : 'OK';})()" 2>/dev/null)
+[ "${kid//\"/}" = "OK" ] && pass "add-a-child offers no one under 13" \
+  || fail "the child form collects under-13 data: $kid"
+
 # ── Seeded listings may never claim a rating or a background check ────────
 # [CRITICAL-PATH: trust] Thirty seeded listings shipped with authored ratings,
 # authored review counts and — for twenty of them — a "Background-checked" pill,
