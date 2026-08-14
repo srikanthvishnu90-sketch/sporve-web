@@ -1646,6 +1646,16 @@ ams=$($B js "
  esc();if(S.aiOpen!==false)bad.push('ESC3');
  S.aiOpen=true;S.aiMax=false;S.modal={type:'addchild'};render();
  esc();if(S.modal)bad.push('MODAL_ESC');
+ // state 2 visibility controls: tuck the thread (bar only, conversation
+ // intact), history opens upward from the bar, restore brings the thread back
+ S.chat=[{role:'user',text:'q'},{role:'coach',text:'a'}];S.aiThreadHidden=false;S.aiHistOpen=false;render();
+ if(!document.querySelector('.aidock-histbtn')||!document.querySelector('.aidock-threadbtn'))bad.push('NO_BAR_CTRLS');
+ document.querySelector('[data-aithread]').click();
+ if(document.querySelector('.aidock-scroll')||S.chat.length!==2)bad.push('TUCK');
+ document.querySelector('[data-aihist]').click();
+ if(!document.querySelector('.aimax-hist.up'))bad.push('NO_UP_HIST');
+ S.aiHistOpen=false;document.querySelector('[data-aithread]').click();
+ if(!document.querySelector('.aidock-scroll'))bad.push('RESTORE');
  // the archive caps at 30 sessions, newest kept
  S.chat=[];S.chatSessions=[];S.chatSessionId=null;
  for(let i=0;i<31;i++){S.chat=[{role:'user',text:'t'+i}];S.chatSessionId=null;chatArchive();}
