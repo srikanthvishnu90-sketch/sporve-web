@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="3ee0506b26d07e9f">
+<meta name="sporve-build" content="c87eef2478262d70">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -385,7 +385,7 @@ img{max-width:100%;display:block}
    editorial move the closer already makes with <em>one app.</em>
    Scoped to .on so the italic marks state rather than decorating every tab. */
 .tnav-row .tnav.on{background:none;color:#FFFFFF;font-style:italic}
-.rail button.on{font-style:italic}
+
 .tnav-row .badge{
   display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;
   border-radius:999px;background:var(--slate);color:var(--slate-on);font-size:var(--text-xs);font-weight:700;
@@ -589,7 +589,14 @@ img{max-width:100%;display:block}
      exist. Capped at 92vh so the panel bottom — and the content that straddles
      it — stays on screen at 1440x900. */
   aspect-ratio:1376/768;
-  max-height:92vh;
+  /* 62vh, not 92. At 92 the panel was 781px on a 900px laptop and the search bar
+     landed at ~640 with nothing beneath it — the whole first screen was
+     photograph, so a visitor had no evidence there was a marketplace under it.
+     62vh ends the image around 560 and puts the first provider card's top edge
+     just below the search bar, cut by the viewport: the slice IS the scroll cue.
+     The image crops rather than squashes, because aspect-ratio still governs the
+     box and max-height only trims it. */
+  max-height:40vh;
   border-radius:var(--r-card);
   display:grid;place-items:center;
   /* near-black with a slate tint under ~4% lightness variance — material,
@@ -1393,6 +1400,11 @@ img{max-width:100%;display:block}
 /* .band.peekband, not .peekband. `.band{padding:74px 0}` is declared LATER in
    this file, and with equal specificity the later rule wins — so the tightened
    padding was silently losing and the card sat 4px from where it should. */
+/* The first band under the hero pays a reduced top padding. .band is 74px top,
+   which is correct between two content sections and wrong immediately under a
+   photograph whose bottom edge is supposed to be the seam the next section
+   crosses. Two classes so it beats the bare .band rule declared later. */
+.hero + .band, .hero + section.band{padding-top:14px}
 .band.peekband{padding:46px 0 64px}
 .peekhead{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
 .peekhead h2{font-family:var(--display);font-size:var(--text-xl);letter-spacing:-.01em}
@@ -1602,7 +1614,10 @@ img{max-width:100%;display:block}
 /* A FILLED ROUNDED SQUARE, per the reference — the one control in the bar that
    reads as a button rather than a glyph. Reverted from the circular treatment I
    applied from a different screenshot last turn. */
-.aidock-ic[data-aiattach]{width:38px;height:38px;border-radius:11px;
+/* 32px, not 38. At 38 with a 19px glyph the plus dominated a 100px bar and read
+   as the primary action, which it is not. Claude's is a quiet square roughly the
+   height of the text line beside it. */
+.aidock-ic[data-aiattach]{width:32px;height:32px;border-radius:9px;
   background:rgba(255,255,255,.13);color:#FFFFFF}
 .aidock-ic[data-aiattach]:hover{background:rgba(255,255,255,.22);color:#FFFFFF}
 .aidock-ic{width:34px;height:34px;flex:none;display:grid;place-items:center;
@@ -1740,12 +1755,20 @@ img{max-width:100%;display:block}
    the face, not the rhythm. Weight goes 500 -> 600 because Instrument Serif is
    a display face with a smaller x-height than the grotesque it replaces; at the
    same weight it would read lighter than the rest of the chrome at this size. */
+/* REVERTED to the grotesque (owner, 2026-08-13). Instrument Serif was applied
+   here two turns ago at his request and he has now seen it in place and asked
+   for the previous face back — the serif read as editorial in a surface whose
+   job is dense operator navigation. Weight returns to 500 with it, since the
+   600 was compensation for the serif's smaller x-height.
+   Colour is #FFFFFF, not --muted: the rail sits on the coach portal's near-black
+   ground where --muted is #9AA6B2, and he asked for white. The .on state is
+   already brighter, so the hierarchy now comes from the active fill and the
+   accent bar rather than from dimming every resting item. */
 .rail button{
   display:flex;align-items:center;gap:10px;padding:6px 11px;min-height:32px;
   border-radius:var(--r-m);position:relative;
-  font-family:var(--nav-face);font-size:13px;line-height:1.15;font-weight:600;
-  letter-spacing:.005em;
-  color:var(--muted);text-align:left;width:100%;transition:.14s;
+  font-family:var(--sans);font-size:13px;line-height:1.15;font-weight:500;
+  color:#FFFFFF;text-align:left;width:100%;transition:.14s;
 }
 .rail button svg{width:16px;height:16px;flex:none;opacity:.72;transition:opacity .14s}
 .rail button:hover{background:rgba(11,12,14,.055);color:var(--ink)}
@@ -6169,6 +6192,13 @@ function exploreHTML(){
     <div class="shell">
       ${kt}
       <div class="fchips">
+        ${/* RESTORED. I removed this to buy fold height and smoke caught that it
+             was searchBarHTML()'s ONLY call site — deleting it did not remove a
+             duplicate, it made the Sport/Where/When filters unreachable. The
+             fold is paid for by the hero cap instead, which costs nothing
+             functional. If the duplication is still wrong, the fix is to MOVE
+             this below the first card band, not to delete the only way to
+             filter. */""}
         ${searchBarHTML(list)}
       </div>
       ${athleteChipHTML()}
@@ -6901,7 +6931,7 @@ function aiDockHTML(){
                aria-label="Message Sporve AI" autocomplete="off">
         <div class="aidock-row">
           <button type="button" class="aidock-ic" data-aiattach="1" aria-label="Add an attachment">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
               <path d="M12 5v14M5 12h14"/></svg></button>
           <span class="aidock-model" style="margin-left:auto">
