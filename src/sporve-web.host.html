@@ -11922,12 +11922,18 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     S.qDeciding[id]=true;
     const clear=()=>{ if(S.qDeciding) delete S.qDeciding[id]; };
     window.SporveCoach.decide(id,decision)
-      .then(()=>{clear();return hydrateQueue();})
+      /* Hold the lock THROUGH hydration: clearing before the re-read leaves a
+         window where a stray render() draws a live button for a row the server
+         has already acted on. hydrateQueue() re-renders with the lock still set
+         (the row shows "Working…"), and only then do we clear and render the
+         final state — so a redrafted row (which stays in the queue) gets its
+         buttons back rather than sticking on "Working…". */
+      .then(()=>hydrateQueue())
       /* "Sent", not "Approved" — approve now delivers via lifecycle-approve and
          the row leaves the queue as 'sent'. The catch surfaces the function's
          own error text (e.g. "No verified guardian to deliver to"), so a send
          that cannot happen says so instead of claiming success. */
-      .then(()=>toast(decision==="approve"?"Sent to the family":decision==="reject"?"Skipped":"Sent back to draft"))
+      .then(()=>{clear();render();toast(decision==="approve"?"Sent to the family":decision==="reject"?"Skipped":"Sent back to draft");})
       .catch(e=>{clear();render();toast((e&&e.message)||"Could not update that message");});
   });
   $("[data-railmenu]").forEach(b=>b.onclick=()=>{S.railMenu=!S.railMenu;render();});

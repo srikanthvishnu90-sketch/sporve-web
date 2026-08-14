@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="c94bd5d13df649fb">
+<meta name="sporve-build" content="caa690ed19d792a2">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -11971,12 +11971,18 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     S.qDeciding[id]=true;
     const clear=()=>{ if(S.qDeciding) delete S.qDeciding[id]; };
     window.SporveCoach.decide(id,decision)
-      .then(()=>{clear();return hydrateQueue();})
+      /* Hold the lock THROUGH hydration: clearing before the re-read leaves a
+         window where a stray render() draws a live button for a row the server
+         has already acted on. hydrateQueue() re-renders with the lock still set
+         (the row shows "Working…"), and only then do we clear and render the
+         final state — so a redrafted row (which stays in the queue) gets its
+         buttons back rather than sticking on "Working…". */
+      .then(()=>hydrateQueue())
       /* "Sent", not "Approved" — approve now delivers via lifecycle-approve and
          the row leaves the queue as 'sent'. The catch surfaces the function's
          own error text (e.g. "No verified guardian to deliver to"), so a send
          that cannot happen says so instead of claiming success. */
-      .then(()=>toast(decision==="approve"?"Sent to the family":decision==="reject"?"Skipped":"Sent back to draft"))
+      .then(()=>{clear();render();toast(decision==="approve"?"Sent to the family":decision==="reject"?"Skipped":"Sent back to draft");})
       .catch(e=>{clear();render();toast((e&&e.message)||"Could not update that message");});
   });
   $("[data-railmenu]").forEach(b=>b.onclick=()=>{S.railMenu=!S.railMenu;render();});
