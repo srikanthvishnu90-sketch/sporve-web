@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="a53e37f65a7d22c0">
+<meta name="sporve-build" content="730ed4b33451cd70">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -2895,6 +2895,12 @@ h2.ctr{margin-bottom:10px}
    picker sweep still found it three times on the landing. Literals are exactly
    what a token sweep misses — which is the argument for tokens, and the reason
    the acceptance criterion is a RENDERED sweep rather than a source grep. */
+/* .pendline is --warn, an amber that sits squarely in the orange band, and its
+   shield <svg> inherits it through currentColor — which is why the sweep kept
+   finding an SVG path fill after the token remap. "Verification pending" is a
+   status, not a warning the visitor caused, so slate carries it here without
+   losing the distinction from .verifline (earned) or .demoline (scenery). */
+#app.noorange .pendline{color:var(--slate-ink)}
 #app.noorange .band.dark .lcheck i{background:rgba(148,163,184,.18);color:var(--accent-on-dark)}
 /* The live-catalogue card stays white on the black ground — that inversion is
    the point of the section, and it is what makes the figures read as a panel

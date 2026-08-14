@@ -2862,6 +2862,12 @@ h2.ctr{margin-bottom:10px}
    picker sweep still found it three times on the landing. Literals are exactly
    what a token sweep misses — which is the argument for tokens, and the reason
    the acceptance criterion is a RENDERED sweep rather than a source grep. */
+/* .pendline is --warn, an amber that sits squarely in the orange band, and its
+   shield <svg> inherits it through currentColor — which is why the sweep kept
+   finding an SVG path fill after the token remap. "Verification pending" is a
+   status, not a warning the visitor caused, so slate carries it here without
+   losing the distinction from .verifline (earned) or .demoline (scenery). */
+#app.noorange .pendline{color:var(--slate-ink)}
 #app.noorange .band.dark .lcheck i{background:rgba(148,163,184,.18);color:var(--accent-on-dark)}
 /* The live-catalogue card stays white on the black ground — that inversion is
    the point of the section, and it is what makes the figures read as a panel
