@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="7d72b49d8d597741">
+<meta name="sporve-build" content="be3c1113e4b825c7">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -11580,13 +11580,36 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const d=Object.fromEntries(new FormData(ff));
     const err=document.getElementById("forgotErr");
     const show=m=>{err.textContent=m;err.classList.remove("hide");};
+    /* [CRITICAL-PATH: auth] REAL NOW. This handler used to make no network call
+       at all: it toasted "Reset code sent to your email" (none was), accepted
+       ANY non-empty string as the code, then said "Password reset — please log
+       in" while the old password still failed. A locked-out parent had no
+       recovery path and was told they did. */
+    const A=window.SporveAuth;
+    if(!A||!A.recover) return show("Password reset is unavailable right now.");
     if(!S.forgotSent){
       if(!/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(d.email||"")) return show("Please enter a valid email address.");
-      S.forgotEmail=d.email;S.forgotSent=true;render();toast("Reset code sent to your email");
+      A.recover(d.email).then(()=>{
+        S.forgotEmail=d.email;S.forgotSent=true;render();
+        /* Deliberately says "if that address has an account". recover() resolves
+           identically either way, so this copy must not imply the address was
+           found — otherwise the form becomes an account-enumeration oracle. */
+        toast("If that address has a Sporve account, a reset code is on its way");
+      });
     }else{
       if(!d.token||!d.token.trim()) return show("Please enter the code from your email.");
-      if(!d.password||d.password.length<8) return show("Please enter the token and a password of min. 8 characters.");
-      S.forgotSent=false;S.modal={type:"login"};render();toast("Password reset — please log in");
+      if(!d.password||d.password.length<8) return show("Please choose a password of at least 8 characters.");
+      const btn=ff.querySelector('button[type="submit"]');
+      if(btn){btn.disabled=true;btn.textContent="Setting password…";}
+      A.resetPassword(S.forgotEmail||d.email, d.token, d.password).then(()=>{
+        S.forgotSent=false;S.modal={type:"login"};render();toast("Password reset — please log in");
+      }).catch(err=>{
+        const e2=document.getElementById("forgotErr");
+        if(e2){e2.textContent=(err&&err.message)||"That code was not accepted. Request a new one.";
+               e2.classList.remove("hide");}
+        const b2=ff.querySelector('button[type="submit"]');
+        if(b2){b2.disabled=false;b2.textContent="Reset password";}
+      });
     }
   };
 
@@ -12406,6 +12429,57 @@ document.addEventListener("click",e=>{
 
   var AUTH = {
     /* Sign in. Resolves the session; rejects with a message safe to show. */
+    /* PASSWORD RESET, for real. The host's #forgotForm handler was a pure mock:
+       no network call at all, any non-empty string accepted as the code, and a
+       "Password reset — please log in" toast while the old password still
+       failed. A locked-out parent had no recovery path and was told they did.
+
+       GoTrue's flow is two calls, not one:
+         recover()        POST /auth/v1/recover   -> emails a 6-digit OTP
+         resetPassword()  POST /auth/v1/verify    -> exchanges OTP for a session
+                          PUT  /auth/v1/user      -> sets the new password
+
+       The PUT only works while the recovery session from verify is applied,
+       which is why apply() runs in between rather than at the end. */
+    recover: function (email) {
+      /* Resolves the SAME way whether or not the address exists. GoTrue already
+         behaves this way; surfacing a difference here would turn the form into
+         an account-enumeration oracle — "this email has a Sporve account" is
+         exactly the fact a stranger should not be able to test. */
+      return post("/auth/v1/recover", { email: String(email || "").trim() })
+        .then(function () { return true; })
+        .catch(function () { return true; });
+    },
+
+    resetPassword: function (email, token, password) {
+      return post("/auth/v1/verify", {
+        type: "recovery",
+        email: String(email || "").trim(),
+        token: String(token || "").trim(),
+      }).then(function (r) {
+        var sess = apply(r);            // the recovery session authorises the PUT
+        var tok = sess && sess.access_token;
+        if (!tok) throw new Error("That code was not accepted. Request a new one.");
+        /* Written out rather than routed through post(): this is the only PUT in
+           the module and it is the only call that must carry a bearer token —
+           post() sends the anon key alone, which GoTrue would reject here. */
+        return fetch(API.url + "/auth/v1/user", {
+          method: "PUT",
+          headers: {
+            apikey: API.anonKey,
+            Authorization: "Bearer " + tok,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ password: String(password || "") }),
+        }).then(function (res) {
+          return res.json().then(function (d) {
+            if (!res.ok) throw new Error(d.msg || d.error_description || "Could not set that password.");
+            return d;
+          });
+        });
+      });
+    },
+
     signIn: function (email, password) {
       return post("/auth/v1/token?grant_type=password", {
         email: String(email || "").trim(),

@@ -1408,6 +1408,27 @@ init=$($B js "
 [ "${init//\"/}" = "OK" ] && pass "topbar survives every signed-in profile shape" \
   || fail "avatar initials break on real profiles: $init"
 
+# ── Password reset must actually reach the network ────────────────────────
+# [CRITICAL-PATH: auth] The handler used to make NO network call: it toasted
+# "Reset code sent to your email" (none was), accepted any non-empty string as
+# the code, then claimed success while the old password still failed. A
+# locked-out parent had no recovery path and was told they did.
+rst=$($B js "
+(()=>{const calls=[];const of=window.fetch;
+ window.fetch=function(u,o){calls.push(String(u)+' '+((o&&o.method)||'GET'));return of.apply(this,arguments)};
+ if(!window.SporveAuth||typeof window.SporveAuth.recover!=='function') {window.fetch=of;return 'NO_RECOVER_FN'}
+ if(typeof window.SporveAuth.resetPassword!=='function') {window.fetch=of;return 'NO_RESET_FN'}
+ S.modal={type:'forgot'};S.forgotSent=false;render();
+ const f=document.getElementById('forgotForm');
+ if(!f){window.fetch=of;return 'NO_FORM'}
+ f.email.value='nobody@example.com';
+ f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+ const hit=calls.some(c=>/\/auth\/v1\/recover/.test(c));
+ window.fetch=of;S.modal=null;S.forgotSent=false;render();
+ return hit?'OK':'NO_NETWORK_CALL';})()" 2>/dev/null)
+[ "${rst//\"/}" = "OK" ] && pass "password reset makes a real recover request" \
+  || fail "password reset is a mock again: $rst"
+
 # ── A safety surface may not promise what no code delivers ────────────────
 # [CRITICAL-PATH: child safety] mod-safety.js has ZERO network calls, yet it
 # minted case numbers ("SR-0001") and told parents "Reports reach a person —

@@ -11531,13 +11531,36 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const d=Object.fromEntries(new FormData(ff));
     const err=document.getElementById("forgotErr");
     const show=m=>{err.textContent=m;err.classList.remove("hide");};
+    /* [CRITICAL-PATH: auth] REAL NOW. This handler used to make no network call
+       at all: it toasted "Reset code sent to your email" (none was), accepted
+       ANY non-empty string as the code, then said "Password reset — please log
+       in" while the old password still failed. A locked-out parent had no
+       recovery path and was told they did. */
+    const A=window.SporveAuth;
+    if(!A||!A.recover) return show("Password reset is unavailable right now.");
     if(!S.forgotSent){
       if(!/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(d.email||"")) return show("Please enter a valid email address.");
-      S.forgotEmail=d.email;S.forgotSent=true;render();toast("Reset code sent to your email");
+      A.recover(d.email).then(()=>{
+        S.forgotEmail=d.email;S.forgotSent=true;render();
+        /* Deliberately says "if that address has an account". recover() resolves
+           identically either way, so this copy must not imply the address was
+           found — otherwise the form becomes an account-enumeration oracle. */
+        toast("If that address has a Sporve account, a reset code is on its way");
+      });
     }else{
       if(!d.token||!d.token.trim()) return show("Please enter the code from your email.");
-      if(!d.password||d.password.length<8) return show("Please enter the token and a password of min. 8 characters.");
-      S.forgotSent=false;S.modal={type:"login"};render();toast("Password reset — please log in");
+      if(!d.password||d.password.length<8) return show("Please choose a password of at least 8 characters.");
+      const btn=ff.querySelector('button[type="submit"]');
+      if(btn){btn.disabled=true;btn.textContent="Setting password…";}
+      A.resetPassword(S.forgotEmail||d.email, d.token, d.password).then(()=>{
+        S.forgotSent=false;S.modal={type:"login"};render();toast("Password reset — please log in");
+      }).catch(err=>{
+        const e2=document.getElementById("forgotErr");
+        if(e2){e2.textContent=(err&&err.message)||"That code was not accepted. Request a new one.";
+               e2.classList.remove("hide");}
+        const b2=ff.querySelector('button[type="submit"]');
+        if(b2){b2.disabled=false;b2.textContent="Reset password";}
+      });
     }
   };
 

@@ -155,6 +155,57 @@
 
   var AUTH = {
     /* Sign in. Resolves the session; rejects with a message safe to show. */
+    /* PASSWORD RESET, for real. The host's #forgotForm handler was a pure mock:
+       no network call at all, any non-empty string accepted as the code, and a
+       "Password reset — please log in" toast while the old password still
+       failed. A locked-out parent had no recovery path and was told they did.
+
+       GoTrue's flow is two calls, not one:
+         recover()        POST /auth/v1/recover   -> emails a 6-digit OTP
+         resetPassword()  POST /auth/v1/verify    -> exchanges OTP for a session
+                          PUT  /auth/v1/user      -> sets the new password
+
+       The PUT only works while the recovery session from verify is applied,
+       which is why apply() runs in between rather than at the end. */
+    recover: function (email) {
+      /* Resolves the SAME way whether or not the address exists. GoTrue already
+         behaves this way; surfacing a difference here would turn the form into
+         an account-enumeration oracle — "this email has a Sporve account" is
+         exactly the fact a stranger should not be able to test. */
+      return post("/auth/v1/recover", { email: String(email || "").trim() })
+        .then(function () { return true; })
+        .catch(function () { return true; });
+    },
+
+    resetPassword: function (email, token, password) {
+      return post("/auth/v1/verify", {
+        type: "recovery",
+        email: String(email || "").trim(),
+        token: String(token || "").trim(),
+      }).then(function (r) {
+        var sess = apply(r);            // the recovery session authorises the PUT
+        var tok = sess && sess.access_token;
+        if (!tok) throw new Error("That code was not accepted. Request a new one.");
+        /* Written out rather than routed through post(): this is the only PUT in
+           the module and it is the only call that must carry a bearer token —
+           post() sends the anon key alone, which GoTrue would reject here. */
+        return fetch(API.url + "/auth/v1/user", {
+          method: "PUT",
+          headers: {
+            apikey: API.anonKey,
+            Authorization: "Bearer " + tok,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ password: String(password || "") }),
+        }).then(function (res) {
+          return res.json().then(function (d) {
+            if (!res.ok) throw new Error(d.msg || d.error_description || "Could not set that password.");
+            return d;
+          });
+        });
+      });
+    },
+
     signIn: function (email, password) {
       return post("/auth/v1/token?grant_type=password", {
         email: String(email || "").trim(),
