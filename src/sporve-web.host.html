@@ -1734,7 +1734,7 @@ img{max-width:100%;display:block}
    made visible without streaming. */
 .aidock-toolsline{color:#9AA6B2;font-size:var(--text-sm)}
 /* A failed turn is a different colour of bubble, not a pretend answer.
-   #F0A8A0 on #2A1215 measures 7.9:1. */
+   #F0B5AE on #2A1215 measures 10.0:1. */
 .aidock-panel .bub.bub-err{background:#2A1215;color:#F0B5AE;border:1px solid #57262B}
 
 /* ── composer, from the owner's reference image ───────────────────────────
@@ -7246,7 +7246,9 @@ function propCardHTML(p,i){
     <p class="propcard-title">${esc(meta.label)}</p>
     ${draft?`<textarea class="propcard-draft" id="propEdit${i}" rows="4" aria-label="Edit the draft"${busy?" disabled":""}>${esc(draft)}</textarea>`:""}
     ${!draft&&p.args&&Object.keys(p.args).length?`<p class="propcard-sub">${
-      Object.entries(p.args).slice(0,4).map(([k,v])=>esc(k.replace(/_/g," "))+": "+esc(String(v)).slice(0,60)).join(" · ")}</p>`:""}
+      /* Truncate BEFORE escaping — slicing an escaped string can cut an
+         entity like &amp; in half and leak raw markup. */
+      Object.entries(p.args).slice(0,4).map(([k,v])=>esc(k.replace(/_/g," "))+": "+esc(String(v).slice(0,60))).join(" · ")}</p>`:""}
     <div class="propcard-row">
       ${canSend
         ?`<button class="btn sm" data-approve="${i}"${busy?" disabled":""}>${busy?"Sending…":"Approve & send"}</button>`
@@ -7277,7 +7279,7 @@ function aiDockHTML(){
              ${(m.tools||[]).length?`<div class="aidock-toolsline">Checked ${
                m.tools.map(t=>({get_schedule:"your schedule",get_bookings:"your bookings",
                  get_roster:"your roster",whos_booked:"who's booked",get_earnings:"earnings",
-                 get_waitlist:"the waitlist"}[t]||t)).join(", ")}</div>`:""}
+                 get_waitlist:"the waitlist"}[t]||esc(t))).join(", ")}</div>`:""}
              <div class="bub them${m.err?" bub-err":""}">${esc(m.text)}</div>
              ${m.err&&m.retry?`<button class="btn ghost sm" data-airetry="${i}" style="align-self:flex-start">Try again</button>`:""}
              ${m.proposal?propCardHTML(m.proposal,i):""}
@@ -11524,8 +11526,11 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const i=Number(b.dataset.airetry);
     const m=S.chat[i];
     if(!m||!m.retry) return;
-    /* Drop the failed bubble, then resend the exact original text. */
-    S.chat=S.chat.filter((_,x)=>x!==i);
+    /* Drop the failed bubble AND the user turn that produced it — askCoach()
+       re-appends the question, so leaving the original would show it twice
+       and double it in the history sent to the model. */
+    const prevIsSame=i>0&&S.chat[i-1].role==="user"&&S.chat[i-1].text===m.retry;
+    S.chat=S.chat.filter((_,x)=>x!==i&&!(prevIsSame&&x===i-1));
     askCoach(m.retry);
   });
   /* The dock's own controls. data-ask / data-chatclear / data-open above are
@@ -12411,7 +12416,13 @@ function askCoach(q){
      review card and does NOTHING until the coach taps Approve. The family side
      keeps ai-chat, text-only and grounded in the public catalogue. */
   if(S.portal==="coach"){
-    API.fn("coach-command",{text,history}).then(r=>{
+    /* A turn takes ~10s through the gateway; a HUNG request would leave the
+       thinking dots forever with no path out. 45s is past any legitimate
+       turn, then the race rejects into the same loud-failure path — the
+       request itself isn't aborted (API.fn has no cancellation), but the UI
+       recovers and offers retry. */
+    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),45000));
+    Promise.race([API.fn("coach-command",{text,history}),timeout]).then(r=>{
       const reply=(r&&typeof r.reply_text==="string"?r.reply_text.trim():"");
       if(!reply) throw new Error("empty reply");
       const calls=Array.isArray(r.tool_calls)?r.tool_calls:[];
@@ -12478,12 +12489,23 @@ function proposalAt(i){
 function approveProposal(i){
   const p=proposalAt(i);
   if(!p||p.state!=="open"||p.tool!=="draft_message") return;
-  /* The coach may have edited the draft in the card — the textarea is the
-     truth at the moment of approval, not the model's original. */
+  /* The coach may have edited the draft in the card — if the textarea EXISTS
+     its value is the truth, even when that value is empty. `(ta&&ta.value)||…`
+     would silently resurrect the model's original wording the moment a coach
+     cleared the box, which is the opposite of "your edit wins". An emptied
+     draft rejects downstream with "The message is empty." — honest, not
+     helpful-by-substitution. */
   const ta=document.getElementById("propEdit"+i);
-  const bodyText=(ta&&ta.value)||String(p.args.body||"");
+  const bodyText=ta?ta.value:String(p.args.body||"");
   p.state="sending";render();
-  window.SporveCoach.sendParentMessage(p.args.booking_id,bodyText).then(res=>{
+  /* Promise.resolve() first, so a SYNCHRONOUS throw (module not loaded,
+     unexpected state) lands in the same .catch as a network failure instead
+     of leaving the card stuck on "Sending…". */
+  Promise.resolve().then(()=>{
+    if(!window.SporveCoach||!window.SporveCoach.sendParentMessage)
+      throw new Error("The coach account module didn't load.");
+    return window.SporveCoach.sendParentMessage(p.args.booking_id,bodyText);
+  }).then(res=>{
     p.state="done";
     S.chat=[...S.chat,{role:"coach",
       text:"Sent"+(res&&res.firstName?" to "+res.firstName+"'s parent":"")+". It's in your Messages thread now."}];
@@ -12492,8 +12514,9 @@ function approveProposal(i){
     /* Loud, specific, and honest about state: the send REJECTED, so nothing
        reached the parent. The proposal reopens so the coach can retry. */
     p.state="open";
+    const why=((e&&e.message)||"the request was refused").replace(/\.?\s*$/,".");
     S.chat=[...S.chat,{role:"coach",err:true,
-      text:"That didn't send — "+((e&&e.message)||"the request was refused")+" Nothing reached the parent."}];
+      text:"That didn't send — "+why+" Nothing reached the parent."}];
     render();
   });
 }

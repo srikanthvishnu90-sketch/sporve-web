@@ -1106,7 +1106,9 @@ c=$(grep -oc "picsum" index.html 2>/dev/null); c=${c:-0}
 grep -q '"coach-command"' index.html \
   && pass "coach chatbox wired to coach-command" \
   || fail "coach-command endpoint missing from built index"
-c=$(grep -oc '"coach-assistant"' index.html 2>/dev/null); c=${c:-0}
+# grep -o | wc -l counts OCCURRENCES; -oc would count matching lines and
+# under-report a line carrying two references.
+c=$(grep -o '"coach-assistant"' index.html 2>/dev/null | wc -l | tr -d ' '); c=${c:-0}
 [ "$c" -eq 0 ] && pass "retired coach-assistant absent from build" \
   || fail "coach-assistant still referenced in built index ($c)"
 # Per marketing page: zero emoji codepoints, zero decorative svg inside a band

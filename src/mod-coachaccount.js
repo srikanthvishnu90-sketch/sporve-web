@@ -323,6 +323,13 @@
        sent when it wasn't (the control-that-lied class). */
     sendParentMessage: function (bookingId, bodyText) {
       var no = guard(); if (no) return no;
+      /* guard() proves a session, not a profile. enterCoachPortal() can route
+         here before load() resolves, and provider.id on null would throw
+         SYNCHRONOUSLY — the caller's .catch never runs and its card sticks on
+         "Sending…". A rejection keeps the failure on the promise path. */
+      if (!provider || !provider.id) {
+        return Promise.reject(new Error("Your coach profile hasn't loaded yet — try again in a moment."));
+      }
       var text = String(bodyText || "").trim();
       if (!bookingId) return Promise.reject(new Error("No booking attached to this draft."));
       if (!text) return Promise.reject(new Error("The message is empty."));
@@ -347,6 +354,21 @@
           }).then(function (r) {
             if (!r || !r[0]) throw new Error("Could not open a conversation with that parent.");
             return r[0].id;
+          }).catch(function (err) {
+            /* Two approvals racing can both see "no conversation" and both
+               POST — the table has no unique key on (provider, searcher), so
+               the second insert may succeed as a duplicate or fail on RLS
+               quirks. On ANY create failure, look again: if a conversation
+               now exists (the other writer won), use it; otherwise surface
+               the original error. */
+            return API.from("conversations",
+              "provider_id=eq." + encodeURIComponent(provId) +
+              "&searcher_id=eq." + encodeURIComponent(b.searcher_id) +
+              "&select=id&order=created_at.desc&limit=1"
+            ).then(function (cs2) {
+              if (cs2 && cs2[0]) return cs2[0].id;
+              throw err;
+            });
           });
         }).then(function (cid) {
           return API.from("messages", "", {

@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="983d5caaa309af6a">
+<meta name="sporve-build" content="48f39bb601a824dd">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -1767,7 +1767,7 @@ img{max-width:100%;display:block}
    made visible without streaming. */
 .aidock-toolsline{color:#9AA6B2;font-size:var(--text-sm)}
 /* A failed turn is a different colour of bubble, not a pretend answer.
-   #F0A8A0 on #2A1215 measures 7.9:1. */
+   #F0B5AE on #2A1215 measures 10.0:1. */
 .aidock-panel .bub.bub-err{background:#2A1215;color:#F0B5AE;border:1px solid #57262B}
 
 /* ── composer, from the owner's reference image ───────────────────────────
@@ -7295,7 +7295,9 @@ function propCardHTML(p,i){
     <p class="propcard-title">${esc(meta.label)}</p>
     ${draft?`<textarea class="propcard-draft" id="propEdit${i}" rows="4" aria-label="Edit the draft"${busy?" disabled":""}>${esc(draft)}</textarea>`:""}
     ${!draft&&p.args&&Object.keys(p.args).length?`<p class="propcard-sub">${
-      Object.entries(p.args).slice(0,4).map(([k,v])=>esc(k.replace(/_/g," "))+": "+esc(String(v)).slice(0,60)).join(" · ")}</p>`:""}
+      /* Truncate BEFORE escaping — slicing an escaped string can cut an
+         entity like &amp; in half and leak raw markup. */
+      Object.entries(p.args).slice(0,4).map(([k,v])=>esc(k.replace(/_/g," "))+": "+esc(String(v).slice(0,60))).join(" · ")}</p>`:""}
     <div class="propcard-row">
       ${canSend
         ?`<button class="btn sm" data-approve="${i}"${busy?" disabled":""}>${busy?"Sending…":"Approve & send"}</button>`
@@ -7326,7 +7328,7 @@ function aiDockHTML(){
              ${(m.tools||[]).length?`<div class="aidock-toolsline">Checked ${
                m.tools.map(t=>({get_schedule:"your schedule",get_bookings:"your bookings",
                  get_roster:"your roster",whos_booked:"who's booked",get_earnings:"earnings",
-                 get_waitlist:"the waitlist"}[t]||t)).join(", ")}</div>`:""}
+                 get_waitlist:"the waitlist"}[t]||esc(t))).join(", ")}</div>`:""}
              <div class="bub them${m.err?" bub-err":""}">${esc(m.text)}</div>
              ${m.err&&m.retry?`<button class="btn ghost sm" data-airetry="${i}" style="align-self:flex-start">Try again</button>`:""}
              ${m.proposal?propCardHTML(m.proposal,i):""}
@@ -11573,8 +11575,11 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const i=Number(b.dataset.airetry);
     const m=S.chat[i];
     if(!m||!m.retry) return;
-    /* Drop the failed bubble, then resend the exact original text. */
-    S.chat=S.chat.filter((_,x)=>x!==i);
+    /* Drop the failed bubble AND the user turn that produced it — askCoach()
+       re-appends the question, so leaving the original would show it twice
+       and double it in the history sent to the model. */
+    const prevIsSame=i>0&&S.chat[i-1].role==="user"&&S.chat[i-1].text===m.retry;
+    S.chat=S.chat.filter((_,x)=>x!==i&&!(prevIsSame&&x===i-1));
     askCoach(m.retry);
   });
   /* The dock's own controls. data-ask / data-chatclear / data-open above are
@@ -12460,7 +12465,13 @@ function askCoach(q){
      review card and does NOTHING until the coach taps Approve. The family side
      keeps ai-chat, text-only and grounded in the public catalogue. */
   if(S.portal==="coach"){
-    API.fn("coach-command",{text,history}).then(r=>{
+    /* A turn takes ~10s through the gateway; a HUNG request would leave the
+       thinking dots forever with no path out. 45s is past any legitimate
+       turn, then the race rejects into the same loud-failure path — the
+       request itself isn't aborted (API.fn has no cancellation), but the UI
+       recovers and offers retry. */
+    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),45000));
+    Promise.race([API.fn("coach-command",{text,history}),timeout]).then(r=>{
       const reply=(r&&typeof r.reply_text==="string"?r.reply_text.trim():"");
       if(!reply) throw new Error("empty reply");
       const calls=Array.isArray(r.tool_calls)?r.tool_calls:[];
@@ -12527,12 +12538,23 @@ function proposalAt(i){
 function approveProposal(i){
   const p=proposalAt(i);
   if(!p||p.state!=="open"||p.tool!=="draft_message") return;
-  /* The coach may have edited the draft in the card — the textarea is the
-     truth at the moment of approval, not the model's original. */
+  /* The coach may have edited the draft in the card — if the textarea EXISTS
+     its value is the truth, even when that value is empty. `(ta&&ta.value)||…`
+     would silently resurrect the model's original wording the moment a coach
+     cleared the box, which is the opposite of "your edit wins". An emptied
+     draft rejects downstream with "The message is empty." — honest, not
+     helpful-by-substitution. */
   const ta=document.getElementById("propEdit"+i);
-  const bodyText=(ta&&ta.value)||String(p.args.body||"");
+  const bodyText=ta?ta.value:String(p.args.body||"");
   p.state="sending";render();
-  window.SporveCoach.sendParentMessage(p.args.booking_id,bodyText).then(res=>{
+  /* Promise.resolve() first, so a SYNCHRONOUS throw (module not loaded,
+     unexpected state) lands in the same .catch as a network failure instead
+     of leaving the card stuck on "Sending…". */
+  Promise.resolve().then(()=>{
+    if(!window.SporveCoach||!window.SporveCoach.sendParentMessage)
+      throw new Error("The coach account module didn't load.");
+    return window.SporveCoach.sendParentMessage(p.args.booking_id,bodyText);
+  }).then(res=>{
     p.state="done";
     S.chat=[...S.chat,{role:"coach",
       text:"Sent"+(res&&res.firstName?" to "+res.firstName+"'s parent":"")+". It's in your Messages thread now."}];
@@ -12541,8 +12563,9 @@ function approveProposal(i){
     /* Loud, specific, and honest about state: the send REJECTED, so nothing
        reached the parent. The proposal reopens so the coach can retry. */
     p.state="open";
+    const why=((e&&e.message)||"the request was refused").replace(/\.?\s*$/,".");
     S.chat=[...S.chat,{role:"coach",err:true,
-      text:"That didn't send — "+((e&&e.message)||"the request was refused")+" Nothing reached the parent."}];
+      text:"That didn't send — "+why+" Nothing reached the parent."}];
     render();
   });
 }
@@ -13831,6 +13854,13 @@ document.addEventListener("click",e=>{
        sent when it wasn't (the control-that-lied class). */
     sendParentMessage: function (bookingId, bodyText) {
       var no = guard(); if (no) return no;
+      /* guard() proves a session, not a profile. enterCoachPortal() can route
+         here before load() resolves, and provider.id on null would throw
+         SYNCHRONOUSLY — the caller's .catch never runs and its card sticks on
+         "Sending…". A rejection keeps the failure on the promise path. */
+      if (!provider || !provider.id) {
+        return Promise.reject(new Error("Your coach profile hasn't loaded yet — try again in a moment."));
+      }
       var text = String(bodyText || "").trim();
       if (!bookingId) return Promise.reject(new Error("No booking attached to this draft."));
       if (!text) return Promise.reject(new Error("The message is empty."));
@@ -13855,6 +13885,21 @@ document.addEventListener("click",e=>{
           }).then(function (r) {
             if (!r || !r[0]) throw new Error("Could not open a conversation with that parent.");
             return r[0].id;
+          }).catch(function (err) {
+            /* Two approvals racing can both see "no conversation" and both
+               POST — the table has no unique key on (provider, searcher), so
+               the second insert may succeed as a duplicate or fail on RLS
+               quirks. On ANY create failure, look again: if a conversation
+               now exists (the other writer won), use it; otherwise surface
+               the original error. */
+            return API.from("conversations",
+              "provider_id=eq." + encodeURIComponent(provId) +
+              "&searcher_id=eq." + encodeURIComponent(b.searcher_id) +
+              "&select=id&order=created_at.desc&limit=1"
+            ).then(function (cs2) {
+              if (cs2 && cs2[0]) return cs2[0].id;
+              throw err;
+            });
           });
         }).then(function (cid) {
           return API.from("messages", "", {
