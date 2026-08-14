@@ -1408,6 +1408,30 @@ init=$($B js "
 [ "${init//\"/}" = "OK" ] && pass "topbar survives every signed-in profile shape" \
   || fail "avatar initials break on real profiles: $init"
 
+# ── Sign-out must leave nothing of the previous account behind ────────────
+# [CRITICAL-PATH: privacy] doSignOut() cleared the transport and the auth flag
+# and NOTHING else. Measured: after sign-out the app said "guest" while S still
+# held a child's name and date of birth, their bookings and their message
+# bodies — and S round-trips through sessionStorage, so it survived a reload. On
+# a shared laptop the next person saw the previous family's child.
+so=$($B js "
+(()=>{S.auth={status:'user',user:{id:'a',email:'a@b.c',firstName:'Ann',lastName:'Lee'}};
+ S.athletes=[{id:'x',firstName:'Julian',lastName:'Lee',dob:'2011-04-12'}];
+ S.bookings=[{id:'b1'}];S.conversations=[{id:'c1'}];
+ S.messages={c1:[{id:'m1',text:'is my son ready'}]};
+ render();
+ doSignOut();render();
+ const bad=[];
+ if((S.athletes||[]).length) bad.push('ATHLETES_'+S.athletes.length);
+ if((S.bookings||[]).length) bad.push('BOOKINGS');
+ if((S.conversations||[]).length) bad.push('CONVERSATIONS');
+ if(Object.keys(S.messages||{}).length) bad.push('MESSAGES');
+ const blob=sessionStorage.getItem('sporve:state:v1')||'';
+ if(/Julian/.test(blob)) bad.push('PERSISTED_BLOB_STILL_HAS_CHILD');
+ return bad.length?bad.join(','):'OK';})()" 2>/dev/null)
+[ "${so//\"/}" = "OK" ] && pass "sign-out leaves no trace of the previous account" \
+  || fail "sign-out leaks the previous family's data: $so"
+
 # ── The real legal documents must be published and reachable ──────────────
 # The published privacy notice (11 sections), terms (7) and refund policy (4)
 # existed in sporve-landing all along while this site linked to NONE of them: the

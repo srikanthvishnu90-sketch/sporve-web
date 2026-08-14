@@ -4718,6 +4718,42 @@ function doSignOut(){
   if(window.SporveAuth) window.SporveAuth.signOut();
   S.auth={status:"guest",user:null};
   S.pendingIntent=null; S.authError=null; S.authBusy=false;
+
+  /* ═══ CLEAR EVERY ACCOUNT-SCOPED FIELD ═══════════════════════════════════
+     [CRITICAL-PATH: privacy] Signing out used to clear the TRANSPORT and the
+     auth flag and nothing else. Measured before this change: after doSignOut()
+     the app reported status "guest" while S still held
+
+       athletes      ["Julian Lee 2011-04-12"]      <- a child's name and DOB
+       bookings      1
+       conversations 1
+       messages      ["is my son ready for the meet?"]
+
+     and because S round-trips through sessionStorage, that survived a reload.
+     On a shared laptop — a family computer, a library, a coach's tablet at a
+     club — the next person to open Sporve saw the previous family's child.
+
+     This reads as a state-management nit and is not one: its output is a named
+     minor's date of birth on a stranger's screen.
+
+     An explicit LIST, not a wildcard reset: S also holds route, portal, theme
+     and filter state that a guest should keep, and blanking S wholesale would
+     dump them back to the landing mid-task. Every field here is account-scoped;
+     add to this list whenever a new one is introduced. */
+  const ACCOUNT_SCOPED = {
+    athletes: [], bookings: [], conversations: [], messages: {},
+    favorites: [], chat: [], queue: [], notifications: [],
+    activeConv: null, lastBooking: null, athleteId: null,
+    coachTab: "dashboard", safety: null,
+  };
+  Object.keys(ACCOUNT_SCOPED).forEach(k=>{
+    if(k in S) S[k] = Array.isArray(ACCOUNT_SCOPED[k]) ? [] :
+      (ACCOUNT_SCOPED[k] && typeof ACCOUNT_SCOPED[k]==="object") ? {} : ACCOUNT_SCOPED[k];
+  });
+  /* Drop the persisted snapshot too. Resetting S in memory is not enough: the
+     blob already on disk carries the previous account, and a reload before the
+     next save would restore it. */
+  try{ sessionStorage.removeItem("sporve:state:v1"); }catch(e){}
 }
 /* guest save allowance: 3 free, un-saving always allowed */
 function toggleFav(id){

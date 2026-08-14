@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="a5b0ebaeb0751027">
+<meta name="sporve-build" content="681173a3fd3b803b">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -4767,6 +4767,42 @@ function doSignOut(){
   if(window.SporveAuth) window.SporveAuth.signOut();
   S.auth={status:"guest",user:null};
   S.pendingIntent=null; S.authError=null; S.authBusy=false;
+
+  /* ═══ CLEAR EVERY ACCOUNT-SCOPED FIELD ═══════════════════════════════════
+     [CRITICAL-PATH: privacy] Signing out used to clear the TRANSPORT and the
+     auth flag and nothing else. Measured before this change: after doSignOut()
+     the app reported status "guest" while S still held
+
+       athletes      ["Julian Lee 2011-04-12"]      <- a child's name and DOB
+       bookings      1
+       conversations 1
+       messages      ["is my son ready for the meet?"]
+
+     and because S round-trips through sessionStorage, that survived a reload.
+     On a shared laptop — a family computer, a library, a coach's tablet at a
+     club — the next person to open Sporve saw the previous family's child.
+
+     This reads as a state-management nit and is not one: its output is a named
+     minor's date of birth on a stranger's screen.
+
+     An explicit LIST, not a wildcard reset: S also holds route, portal, theme
+     and filter state that a guest should keep, and blanking S wholesale would
+     dump them back to the landing mid-task. Every field here is account-scoped;
+     add to this list whenever a new one is introduced. */
+  const ACCOUNT_SCOPED = {
+    athletes: [], bookings: [], conversations: [], messages: {},
+    favorites: [], chat: [], queue: [], notifications: [],
+    activeConv: null, lastBooking: null, athleteId: null,
+    coachTab: "dashboard", safety: null,
+  };
+  Object.keys(ACCOUNT_SCOPED).forEach(k=>{
+    if(k in S) S[k] = Array.isArray(ACCOUNT_SCOPED[k]) ? [] :
+      (ACCOUNT_SCOPED[k] && typeof ACCOUNT_SCOPED[k]==="object") ? {} : ACCOUNT_SCOPED[k];
+  });
+  /* Drop the persisted snapshot too. Resetting S in memory is not enough: the
+     blob already on disk carries the previous account, and a reload before the
+     next save would restore it. */
+  try{ sessionStorage.removeItem("sporve:state:v1"); }catch(e){}
 }
 /* guest save allowance: 3 free, un-saving always allowed */
 function toggleFav(id){
