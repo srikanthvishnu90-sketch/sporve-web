@@ -1646,7 +1646,19 @@ ams=$($B js "
  esc();if(S.aiOpen!==false)bad.push('ESC3');
  S.aiOpen=true;S.aiMax=false;S.modal={type:'addchild'};render();
  esc();if(S.modal)bad.push('MODAL_ESC');
+ // the archive caps at 30 sessions, newest kept
+ S.chat=[];S.chatSessions=[];S.chatSessionId=null;
+ for(let i=0;i<31;i++){S.chat=[{role:'user',text:'t'+i}];S.chatSessionId=null;chatArchive();}
+ if(S.chatSessions.length!==30)bad.push('CAP_'+S.chatSessions.length);
+ // a saved string chatSessionId must survive loadState over its null default
+ S.chat=[{role:'user',text:'restore me'}];S.chatSessionId=null;chatArchive();
+ const savedId=S.chatSessionId; saveState();
+ S.chatSessionId=null;S.chatSessions=[];
+ loadState();
+ if(S.chatSessionId!==savedId)bad.push('RESTORE_ID');
+ if(!S.chatSessions.some(s=>s.id===savedId))bad.push('RESTORE_LIST');
  S.chat=[];S.chatSessions=[];S.chatSessionId=null;S.aiMax=false;S.aiHistOpen=false;
+ saveState();
  S.portal='family';S.route={name:'home',arg:null};render();document.body.classList.remove('reg-coach');
  return bad.length?bad.join(','):'OK'})()" 2>/dev/null)
 [ "${ams//\"/}" = "OK" ] && pass "assistant states: rest, talking, maximized; Escape steps one level" \

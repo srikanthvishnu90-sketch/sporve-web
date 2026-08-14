@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="7ab6cb9029cd9b74">
+<meta name="sporve-build" content="13f8173b7642826a">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -11902,7 +11902,10 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   /* Amboras state machine. Maximize is only offered from a live conversation;
      minimize returns to the pill; close resets max so the NEXT open starts at
      the bar — "minimizing would be the initial thing" (owner). */
-  $("[data-aimaximize]").forEach(b=>b.onclick=()=>{S.aiMax=true;S.aiHistOpen=false;render();});
+  $("[data-aimaximize]").forEach(b=>b.onclick=()=>{S.aiMax=true;S.aiHistOpen=false;render();
+    /* Initial focus lands in the composer — the overlay owns the keyboard
+       from the first keystroke, pairing with the Tab trap. */
+    const inp=document.getElementById("aiDockInput"); if(inp) inp.focus();});
   $("[data-aiminimize]").forEach(b=>b.onclick=()=>{S.aiMax=false;S.aiHistOpen=false;render();});
   $("[data-aihist]").forEach(b=>b.onclick=e=>{e.stopPropagation();S.aiHistOpen=!S.aiHistOpen;render();});
   $("[data-ainew]").forEach(b=>b.onclick=()=>chatNew());
@@ -12655,6 +12658,7 @@ function askCoach(q){
      list in the maximized view always shows the conversation in progress.
      Coach-side only: the family finder keeps its single persistent thread. */
   if(S.portal==="coach") chatArchive();
+  const epoch=chatEpoch;
   S.chatThinking=true; render();
 
   const fallback=(note)=>{
@@ -12690,6 +12694,9 @@ function askCoach(q){
        recovers and offers retry. */
     const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),45000));
     Promise.race([API.fn("coach-command",{text,history}),timeout]).then(r=>{
+      /* The coach switched threads while this turn was in flight — its reply
+         belongs to a conversation that is no longer on screen. Drop it. */
+      if(epoch!==chatEpoch) return;
       const reply=(r&&typeof r.reply_text==="string"?r.reply_text.trim():"");
       if(!reply) throw new Error("empty reply");
       const calls=Array.isArray(r.tool_calls)?r.tool_calls:[];
@@ -12702,6 +12709,7 @@ function askCoach(q){
       S.chat=[...S.chat,{role:"coach",text:reply,tools,proposal}];
       render();
     }).catch(()=>{
+      if(epoch!==chatEpoch) return;
       /* LOUD FAILURE — design-doc law. A signed-in coach never gets the
          keyword matcher pretending to be the assistant; they get the truth
          and a retry that resends this exact message. */
@@ -12764,6 +12772,7 @@ function approveProposal(i){
      helpful-by-substitution. */
   const ta=document.getElementById("propEdit"+i);
   const bodyText=ta?ta.value:String(p.args.body||"");
+  const epoch=chatEpoch;
   p.state="sending";render();
   /* Promise.resolve() first, so a SYNCHRONOUS throw (module not loaded,
      unexpected state) lands in the same .catch as a network failure instead
@@ -12773,17 +12782,24 @@ function approveProposal(i){
       throw new Error("The coach account module didn't load.");
     return window.SporveCoach.sendParentMessage(p.args.booking_id,bodyText);
   }).then(res=>{
+    /* The card's own state updates wherever its thread now lives (archived
+       or on screen); the CONFIRMATION bubble only joins the thread the coach
+       is still looking at. */
     p.state="done";
-    S.chat=[...S.chat,{role:"coach",
-      text:"Sent"+(res&&res.firstName?" to "+res.firstName+"'s parent":"")+". It's in your Messages thread now."}];
+    if(epoch===chatEpoch){
+      S.chat=[...S.chat,{role:"coach",
+        text:"Sent"+(res&&res.firstName?" to "+res.firstName+"'s parent":"")+". It's in your Messages thread now."}];
+    }
     render();
   }).catch(e=>{
     /* Loud, specific, and honest about state: the send REJECTED, so nothing
        reached the parent. The proposal reopens so the coach can retry. */
     p.state="open";
-    const why=((e&&e.message)||"the request was refused").replace(/\.?\s*$/,".");
-    S.chat=[...S.chat,{role:"coach",err:true,
-      text:"That didn't send — "+why+" Nothing reached the parent."}];
+    if(epoch===chatEpoch){
+      const why=((e&&e.message)||"the request was refused").replace(/\.?\s*$/,".");
+      S.chat=[...S.chat,{role:"coach",err:true,
+        text:"That didn't send — "+why+" Nothing reached the parent."}];
+    }
     render();
   });
 }
@@ -12795,7 +12811,14 @@ function dismissProposal(i){
 /* ── conversation sessions — the GPT-style history behind the maximize ──
    The live thread is still S.chat (every existing consumer keeps working);
    these three verbs move threads between S.chat and S.chatSessions. Archive
-   is UPSERT-by-id, so switching away and back never forks a conversation. */
+   is UPSERT-by-id, so switching away and back never forks a conversation.
+
+   chatEpoch fences ASYNC completions: an askCoach reply that resolves after
+   the coach opened a new chat (or loaded an old one) must not append itself
+   to the thread it no longer belongs to. Every switch bumps the epoch; every
+   in-flight handler captured the epoch it was born under and bails on a
+   mismatch. */
+let chatEpoch=0;
 function chatArchive(){
   if(!S.chat.length) return;
   const first=S.chat.find(m=>m.role==="user");
@@ -12812,6 +12835,7 @@ function chatArchive(){
 }
 function chatNew(){
   chatArchive();
+  chatEpoch++;
   S.chat=[]; S.chatSessionId=null; S.chatThinking=false; S.aiHistOpen=false;
   render();
 }
@@ -12819,7 +12843,8 @@ function chatLoadSession(id){
   const s=S.chatSessions.find(x=>x.id===id);
   if(!s) return;
   chatArchive();
-  S.chat=(s.msgs||[]).slice(); S.chatSessionId=id; S.aiHistOpen=false;
+  chatEpoch++;
+  S.chat=(s.msgs||[]).slice(); S.chatSessionId=id; S.chatThinking=false; S.aiHistOpen=false;
   render();
 }
 
@@ -25680,10 +25705,17 @@ function loadState(){
        Shape mismatch means the snapshot is not ours — skip that key and keep
        the default rather than trusting it. */
     const kind = v => Array.isArray(v) ? "array" : v === null ? "null" : typeof v;
+    /* Keys whose DEFAULT is null but whose saved value is a string. The kind
+       check reads the default's type, so without this a saved chatSessionId
+       could never restore — the sessions list came back but the pointer into
+       it reset, and the next archive forked the active thread into a
+       duplicate session. */
+    const NULLABLE_STRING = new Set(["chatSessionId"]);
     for(const k of Object.keys(S)){
       if(EPHEMERAL.has(k)) continue;
       if(!Object.prototype.hasOwnProperty.call(saved, k)) continue;
-      if(kind(saved[k]) !== kind(S[k])) continue;
+      if(kind(saved[k]) !== kind(S[k]) &&
+         !(NULLABLE_STRING.has(k) && S[k] === null && typeof saved[k] === "string")) continue;
       S[k] = saved[k];
     }
     return true;
@@ -25909,11 +25941,16 @@ document.addEventListener("keydown",e=>{
   /* The assistant panel carries role="dialog" for the screen reader but is
      NOT a modal — it has its own Escape ladder (history → minimize →
      collapse), and letting this trap click its close button collapsed all
-     three states in one keypress. Excluded here; everything the modal layer
-     actually renders as a modal still matches. */
-  const box=document.querySelector('[role="dialog"]:not(.aidock-panel), .fd, .modal');
+     three states in one keypress. It is excluded from the ESCAPE branch;
+     everything the modal layer actually renders as a modal still matches.
+     Its MAXIMIZED form, though, is a full-viewport overlay, and Tab must
+     not wander into the dimmed page behind it — so it joins the Tab trap
+     (last, so a real modal stacked above it still wins). */
+  const modal=document.querySelector('[role="dialog"]:not(.aidock-panel), .fd, .modal');
+  const box=modal||document.querySelector('.aidock-panel.aimax');
   if(!box) return;
   if(e.key==="Escape"){
+    if(!modal) return; /* the assistant's own Escape ladder handles it */
     /* Same exits the existing close buttons use, so Escape cannot leave a
        modal half-dismissed with its state still set. */
     const x=box.querySelector("[data-close],[data-fdclose],[data-aiclose],.x");
