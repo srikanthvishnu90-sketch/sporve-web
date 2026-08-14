@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="be3c1113e4b825c7">
+<meta name="sporve-build" content="a5b0ebaeb0751027">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -8293,7 +8293,7 @@ function modalHTML(){
       <div class="field"><label>Password</label><input name="password" type="password" placeholder="Min. 8 characters" required></div>
       <label style="display:flex;gap:11px;align-items:flex-start;cursor:pointer;margin:6px 0 4px">
         <input type="checkbox" name="privacy" required style="width:17px;height:17px;margin-top:2px;flex:0 0 auto;accent-color:var(--slate-ink)">
-        <span style="font-size:var(--text-sm);color:var(--muted)">I have read Sporve's <b style="color:var(--slate-ink)">Privacy Policy</b>.</span></label>
+        <span style="font-size:var(--text-sm);color:var(--muted)">I have read Sporve's <button type="button" class="lnk" data-foot="info:privacy" style="font-size:inherit;font-weight:700">Privacy Policy</button> and <button type="button" class="lnk" data-foot="info:terms" style="font-size:inherit;font-weight:700">Terms of Service</button>.</span></label>
       <div id="signupErr" class="err hide" style="margin:8px 0"></div>
       <button class="btn wide" type="submit" style="margin-top:12px">Continue →</button>
     </form>`);
@@ -8709,7 +8709,7 @@ function modalHTML(){
         <div class="field"><label>Password</label><input name="password" type="password" placeholder="Min. 8 characters" required></div>
         <label style="display:flex;gap:11px;align-items:flex-start;cursor:pointer;margin:6px 0 4px">
           <input type="checkbox" name="privacy" required style="width:17px;height:17px;margin-top:2px;flex:0 0 auto;accent-color:var(--slate-ink)">
-          <span style="font-size:var(--text-sm);color:var(--muted)">I have read Sporve's <b style="color:var(--slate-ink)">Privacy Policy</b>.</span></label>
+          <span style="font-size:var(--text-sm);color:var(--muted)">I have read Sporve's <button type="button" class="lnk" data-foot="info:privacy" style="font-size:inherit;font-weight:700">Privacy Policy</button> and <button type="button" class="lnk" data-foot="info:terms" style="font-size:inherit;font-weight:700">Terms of Service</button>.</span></label>
         <div id="signupErr" class="err hide" style="margin:8px 0"></div>
         <button class="btn wide" type="submit" style="margin-top:12px">Create account →</button>
         <button class="btn ghost wide" type="button" data-onbback="1" style="margin-top:9px">Back</button>
@@ -8865,12 +8865,63 @@ function bootModules(){
 }
 
 /* ── info pages — copy transcribed verbatim from the demo's profile_screen.dart ── */
+/* ═══ THE REAL LEGAL DOCUMENTS ═══════════════════════════════════════════
+   The published privacy notice (11 sections), terms of service (7) and
+   cancellation/refund policy (4) are ported in from sporve-landing, verbatim.
+
+   They EXISTED all along and this site linked to none of them: the entire Legal
+   page was three sentences, and the signup checkbox forced visitors to confirm
+   "I have read Sporve's Privacy Policy" where that phrase was a <b> with no
+   destination. A consent tick-box pointing at nothing is not consent, and a
+   marketplace handling children's data with no published terms is not a legal
+   position anyone can defend.
+
+   Ported IN rather than linked ACROSS to sporve-landing on purpose: an external
+   link is a second deploy that can rot, redirect or 404 independently of this
+   one, and these are the documents a regulator would ask to see beside the
+   product. Self-contained also keeps the single-file/CSP guarantee intact.
+
+   THE TEXT IS THE OWNER'S, UNEDITED. I did not write, summarise or soften any of
+   it — including the beta limitations it states about under-13 data, which the
+   code was changed to match rather than the other way round. */
 const INFO={
   privacy:{title:"Privacy & Security",sections:[
-    {h:"Your data",b:"Sporve uses account, athlete, booking, and communication data to provide the features shown. Production launch requires a published privacy notice covering retention, sharing, and deletion."},
-    {h:"Child safety",b:"Coaches are gated by verified background checks. A provider that is not verified never appears in your results or the assistant."},
-    {h:"Password",b:"You can reset your password from the sign-in screen. We recommend a unique passphrase."},
+    {h:"1. What we collect",b:"The information we collect depends on how you use the Services: • Waitlist information: name, email address, ZIP code, athlete/parent/coach role, sports interests, consent status, and submission source. • Account information: name, email address, password credentials handled by our authentication provider, account role, and optional phone number. • Profile and marketplace information: adult profile details, uploaded media, provider business information, sports, qualifications, service area, listings, pricing, availability, and verification status. • Activity information: searches, saved programs, bookings, messages, session notes, support requests, notification preferences, and feature interactions. • Payment records: if payments are activated, our payment processor handles card or bank details. Sporve may receive transaction identifiers, payment status, payout status, and limited billing details, but not full card numbers. • Technical information: IP address, browser or device type, approximate location derived from IP, diagnostic logs, and local browser storage used to keep a session or selected account role working. If youth-profile features are activated after an appropriate consent process is introduced, a parent or guardian may choose to provide a child’s name, date of birth, sports interests, profile image, relevant medical notes, and emergency contact details. Do not pr"},
+    {h:"2. How we use information",b:"We use information to provide and secure the Services; create and authenticate accounts; operate the waitlist; match families with providers; support listings, bookings, messages, notifications, payments, and customer support; verify providers and investigate safety concerns; improve performance and usability; prevent fraud and abuse; and comply with legal obligations. We also use information to provide the optional AI features described below. AI output can be inaccurate and should be checked against the provider listing, booking record, or other source before anyone relies on it."},
+    {h:"3. AI features and automated processing",b:"Sporve currently uses Anthropic’s API for language tasks such as interpreting a coach search, generating constrained explanations for authorized listing results, answering supported marketplace questions, and drafting provider messages or session summaries. Sporve uses OpenAI’s API to create numerical embeddings that help compare search text with provider listings. The separate provider-match ranking described below does not call a language model. Depending on the feature you choose, the information sent for processing may include a search query; sport, age, budget, approximate location, and marketplace preferences; provider profile and listing facts; booking-policy text; recent message excerpts and a provider’s writing samples; or a child’s first name and the session notes a provider asks Sporve to summarize. Do not enter medical details, government identifiers, emergency information, or other sensitive information into an AI prompt. Do not use Sporve AI for medical advice, emergency help, or as a substitute for a qualified coach. Sporve applies marketplace-eligibility rules before match ranking, restricts returned listings to the eligible set, and orders matches with a deterministic comparison of current rating evidence, distance, price fit, and availability. Names, biographies, credentials, and profile-writing style do not affect that score. Sporve requires a person to revie"},
+    {h:"4. How we share information",b:"We may share information only as needed for the Services: • Service providers that support hosting, authentication and database services (including Supabase), email delivery, security, analytics, push notifications, payment processing, or optional AI features (including Anthropic and OpenAI). • Other marketplace users when a booking or conversation requires a family and provider to see relevant profile, scheduling, or message information. • Professional advisers or authorities when reasonably necessary to protect safety, enforce our terms, comply with law, or respond to a valid legal request. • A successor organization as part of a merger, financing, acquisition, or sale, subject to appropriate confidentiality protections. We do not sell personal information or share it for cross-context behavioral advertising. We do not use information about children for targeted advertising."},
+    {h:"5. Children&rsquo;s privacy",b:"Sporve is designed for adults arranging youth-sports services; it is not intended for children to create accounts or submit information directly. Children under 13 may not use the Services on their own. During the current beta, adults must not submit personal information about a child under 13. Before enabling collection of personal information from a child under 13, Sporve will provide a parent or legal guardian with direct notice and use a method designed to obtain verifiable parental consent. A parent may request access to, correction of, or deletion of a child’s information, or refuse further collection, by emailing hello@sporve.com . We will verify the requester’s identity and relationship to the child before acting. If we learn that we collected personal information from a child under 13 without the required consent, we will disable access to that information and delete it as required. Please contact us immediately if you believe this has occurred."},
+    {h:"6. Retention",b:"We keep information only for as long as reasonably necessary for the purpose collected, including providing an account, completing transactions, meeting safety and recordkeeping needs, resolving disputes, and complying with law. Waitlist information is kept until launch communications are complete or you ask us to remove it. When information is no longer needed, we delete or de-identify it using reasonable measures. Any future child information will be retained only for the specific service purpose and not indefinitely."},
+    {h:"7. Your choices and privacy rights",b:"You may ask to access, correct, or delete your personal information, receive a portable copy where applicable, withdraw consent, or opt out of marketing messages. You can also unsubscribe using a link in a marketing email. Account-related and safety messages may still be sent when necessary to provide the Services. To make a request, email hello@sporve.com . We may need to verify your identity before responding. Depending on where you live, you may have additional rights and may appeal a decision by replying to our response. We will not discriminate against you for exercising a privacy right."},
+    {h:"8. Security",b:"We use administrative, technical, and organizational safeguards designed to protect information, including access controls and encrypted network connections. No system can guarantee absolute security. Use a unique password and contact us if you believe your account or information has been compromised."},
+    {h:"9. Data locations and external services",b:"Sporve and its service providers may process information in the United States and other locations where they operate. External sites and services have their own privacy practices; this policy does not govern information you provide directly to them."},
+    {h:"10. Changes to this policy",b:"We may update this policy as the Services change. We will post the revised version here and update the date above. If a change materially affects how we use information already collected, we will provide additional notice and request consent when required."},
+    {h:"11. Contact",b:"Sporve is the operator responsible for this privacy notice. For privacy questions, parental requests, or complaints, email hello@sporve.com . You can also use the Contact page ."}
   ]},
+  terms:{title:"Terms of Service",sections:[
+    {h:"1. Acceptance",b:"This section must state that using Sporve constitutes acceptance of these Terms, who may accept (age/authority), and how updates to the Terms take effect. [PLACEHOLDER — attorney to complete]"},
+    {h:"2. Accounts",b:"This section must cover account eligibility, accurate information, credentials and security, parent/guardian accounts booking on behalf of minors, and provider verification requirements. [PLACEHOLDER — attorney to complete]"},
+    {h:"3. Assumption of risk &amp; liability (sports)",b:"Youth athletics carry inherent physical risk. This section must address assumption of risk, waiver/release to the extent enforceable, limitation of liability, and Sporve’s role as a marketplace rather than the provider of coaching. Must be drafted for the applicable jurisdictions and for minors. [PLACEHOLDER — attorney]"},
+    {h:"4. Coaches are independent contractors",b:"This section must clarify that coaches/providers are independent contractors, not employees or agents of Sporve, and that Sporve does not control the manner of coaching. Must be drafted to withstand worker-classification scrutiny. [PLACEHOLDER — attorney]"},
+    {h:"5. Payments &amp; platform fee",b:"This section must describe how payments work and the platform fee. Key mechanics to reflect (subject to final confirmation against live Stripe behavior): • A sliding platform fee in the range of 8–12% . • Funds held in escrow and released to the provider when the session is complete. • Refund conditions (cross-reference the Refund & Cancellation Policy ). • Provider-set pricing (rates are chosen by the provider, not fixed by the platform). [PLACEHOLDER — attorney to complete]"},
+    {h:"6. Taxes",b:"This section must state that coaches/providers are responsible for their own taxes on earnings, and describe any tax reporting Sporve provides (e.g. Stripe-issued forms). [PLACEHOLDER — attorney to complete]"},
+    {h:"7. Termination",b:"This section must cover how either party ends the relationship, grounds for suspension or removal (including safety and vetting failures), and what happens to pending bookings and held funds on termination. [PLACEHOLDER — attorney to complete]"}
+  ]},
+  refund:{title:"Cancellations & Refunds",sections:[
+    {h:"1. Cancellation window",b:"This section must define the free-cancellation window (the marketing site references cancelling free up to 24 hours before a session), what happens to cancellations inside the window, and whether providers may set their own windows. [PLACEHOLDER — attorney to complete · must match actual Stripe behavior once payments are live]"},
+    {h:"2. Refund mechanics",b:"This section must explain how refunds are issued from escrow, timing to the original payment method, treatment of the platform fee on refunds, and partial-refund scenarios. [PLACEHOLDER — attorney to complete · must match actual Stripe behavior once payments are live]"},
+    {h:"3. No-show protection",b:"This section must state what happens if the coach does not show (full refund, since funds are held until the session ends) and how a searcher reports a no-show, plus any protection for providers against searcher no-shows. [PLACEHOLDER — attorney to complete · must match actual Stripe behavior once payments are live]"},
+    {h:"4. Disputes",b:"This section must describe how a booking dispute is raised and resolved, the review timeline, escalation, and the interaction with Stripe chargebacks. [PLACEHOLDER — attorney to complete · must match actual Stripe behavior once payments are live]"}
+  ]},
+
+  /* The three-sentence placeholder that lived here is REMOVED. It was a
+     duplicate `privacy` key declared AFTER the real one, and in a JS object
+     literal the later key wins — so porting the published notice in had no
+     effect until this was deleted. It also asserted two things that were false:
+     that a published privacy notice was still pending (it exists, and is now
+     above), and that "a provider that is not verified never appears in your
+     results" — 20 providers were appearing on an unevidenced flag until the
+     gate was fixed today. */
   help:{title:"Help & Support",sections:[
     {h:"How do I book?",b:"Open a listing, pick a session slot and your athlete, then confirm. Your sessions show on Home and the Schedule tab."},
     {h:"Refunds & cancellations",b:"Cancelling records the cancellation. Refund eligibility follows the policy copied onto your booking and is confirmed separately by the payment processor."},
@@ -9024,7 +9075,9 @@ const FOOT_COLS=[
     ["Become a coach","nav:coachinfo"],
     ["Pricing","nav:pricing"],
     ["Privacy & security","info:privacy"],
-    ["Terms","info:legal"],
+    ["Terms of Service","info:terms"],
+    ["Cancellations & refunds","info:refund"],
+    ["Legal","info:legal"],
   ]],
 ];
 function closeZoneHTML(){

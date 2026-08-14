@@ -1408,6 +1408,33 @@ init=$($B js "
 [ "${init//\"/}" = "OK" ] && pass "topbar survives every signed-in profile shape" \
   || fail "avatar initials break on real profiles: $init"
 
+# ── The real legal documents must be published and reachable ──────────────
+# The published privacy notice (11 sections), terms (7) and refund policy (4)
+# existed in sporve-landing all along while this site linked to NONE of them: the
+# Legal page was three sentences, and signup forced "I have read Sporve's
+# Privacy Policy" where that phrase was a <b> with no destination. A consent
+# tick-box pointing at nothing is not consent.
+lgl=$($B js "
+(()=>{const bad=[];
+ ['privacy','terms','refund'].forEach(k=>{
+   if(!INFO[k]) { bad.push('MISSING_'+k); return; }
+   if(INFO[k].sections.length<4) bad.push('STUB_'+k+'_'+INFO[k].sections.length);
+   S.route={name:'info',arg:k};render();
+   const t=document.getElementById('app').innerText;
+   if(/Page not found/i.test(t)||t.length<900) bad.push('UNRENDERED_'+k);
+ });
+ S.portal='family';S.route={name:'explore',arg:null};render();
+ const foot=[...document.querySelectorAll('.foot-link')].map(b=>b.dataset.foot);
+ ['info:privacy','info:terms','info:refund'].forEach(d=>{
+   if(!foot.includes(d)) bad.push('NOT_IN_FOOTER_'+d); });
+ S.modal={type:'signup'};render();
+ const consent=[...document.querySelectorAll('[data-foot=\"info:privacy\"]')].length;
+ S.modal=null;render();
+ if(!consent) bad.push('CONSENT_TICKBOX_LINKS_NOWHERE');
+ return bad.length?bad.join(','):'OK';})()" 2>/dev/null)
+[ "${lgl//\"/}" = "OK" ] && pass "privacy, terms and refund are published and linked" \
+  || fail "legal documents missing or unreachable: $lgl"
+
 # ── Password reset must actually reach the network ────────────────────────
 # [CRITICAL-PATH: auth] The handler used to make NO network call: it toasted
 # "Reset code sent to your email" (none was), accepted any non-empty string as
