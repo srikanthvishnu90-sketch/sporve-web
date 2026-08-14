@@ -905,6 +905,38 @@ img{max-width:100%;display:block}
 .cg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 @media(max-width:900px){.coachgate{grid-template-columns:1fr}.cg-right{display:none}}
 .promo-link:hover{text-decoration:underline}
+/* ── the browse toolbar: ONE row ─────────────────────────────────────── */
+/* nowrap: the spec says ONE row and smoke enforces it. The right group shrinks
+   and its overflow scrolls rather than dropping to a second line, because a
+   toolbar that wraps stops reading as a toolbar. Mobile gets an explicit
+   two-line layout below instead of wrapping by accident. */
+.tb{display:flex;align-items:center;gap:16px;flex-wrap:nowrap;
+  min-height:52px;padding:0 0 12px;margin-bottom:24px;
+  border-bottom:1px solid var(--rule)}
+/* The segmented control: one container, one hairline, dividers between. */
+.tb-seg{display:inline-flex;align-items:center;height:40px;flex:0 0 auto;
+  border:1px solid var(--rule);border-radius:var(--r-ctl);overflow:hidden;background:var(--paper)}
+.tb-segbtn{height:100%;padding:0 16px;border:0;background:none;cursor:pointer;
+  font-family:var(--sans);font-size:14px;font-weight:600;color:var(--ink);
+  white-space:nowrap;transition:background .14s,color .14s}
+.tb-segbtn + .tb-segbtn{border-left:1px solid var(--rule)}
+.tb-segbtn:hover:not(.on){background:var(--raise2)}
+/* Active = slate fill with --slate-on type. §3 freezes black for chrome and the
+   spec bans black fills here, so the active state is the brand slate. */
+.tb-segbtn.on{background:var(--slate);color:var(--slate-on)}
+.tb-right{display:flex;align-items:center;gap:16px;margin-left:auto;flex-wrap:nowrap;
+  min-width:0;overflow-x:auto;scrollbar-width:none}
+.tb-right::-webkit-scrollbar{display:none}
+.tb-seg{flex:0 0 auto}
+.tb-count{font-family:var(--sans);font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tb-sort select{font-family:var(--sans);font-size:14px;color:var(--ink);
+  background:none;border:0;padding:2px 0;cursor:pointer}
+.tb-lnk{font-size:14px}
+@media(max-width:560px){
+  .tb{gap:10px;min-height:0;padding-bottom:10px;margin-bottom:18px;flex-wrap:wrap}
+  .tb-seg{height:36px}.tb-segbtn{padding:0 12px;font-size:13px}
+  .tb-right{margin-left:0;gap:12px}
+}
 .kindtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
 .kindtab{display:inline-flex;align-items:center;height:var(--h-compact);padding:0 16px;
   border-radius:var(--r-pill);background:var(--paper);border:1px solid var(--rule-strong);
@@ -5035,6 +5067,48 @@ function athleteChipHTML(){
 }
 
 /* One line above the grid: count left, sort and save right. */
+/* ═══ THE BROWSE TOOLBAR ═══════════════════════════════════════════════
+   One flex row: segmented control left, count / sort / save right, all on a
+   shared baseline, a hairline under it, and 24px to the first card.
+
+   The segments are ONE container with a hairline border rather than four
+   free-floating pills — a segmented control says "these are alternatives, one
+   is on"; four pills say "these are four buttons" and let their widths drift.
+   Active is a slate FILL with --slate-on type (§3: never black), inactive is
+   transparent with ink. */
+function toolbarHTML(list, kinds){
+  const seg = kinds.length ? `
+    <div class="tb-seg" role="tablist" aria-label="Coaching type">
+      ${kinds.map(([sec,l],i)=>`<button class="tb-segbtn ${i===0?"on":""}" role="tab"
+         aria-selected="${i===0}" data-kindtab="${sec}" data-kindjump="${sec}">${esc(l)}</button>`).join("")}
+    </div>` : "";
+  /* THE COUNT RENDERS ONLY FROM REAL RESULTS. The spec is explicit — "never a
+     fake count" — and this page has shipped fabricated numbers before. An empty
+     list renders no count at all and the empty state carries the message. */
+  const count = list.length
+    ? `<span class="tb-count num">${list.length} ${list.length===1?"result":"results"}</span>` : "";
+  return `<div class="tb">
+    ${seg}
+    <div class="tb-right">
+      ${count}
+      <label class="tb-sort"><span class="vis-hide">Sort</span>
+        <select id="resSort" aria-label="Sort results">
+          <option value="rec">Recommended</option>
+          <option value="price">Price, low to high</option>
+          <option value="rating">Rating</option>
+        </select></label>
+      ${/* Filters appears only when there is enough to filter. Below 25 results
+           narrowing further just produces empty states, and the only way back is
+           the zero-results screen — smoke asserts this threshold because that
+           dead end shipped once. Also shown whenever a filter is already on, so
+           there is always a route to clear it. */""}
+      ${(list.length>=25||(typeof anyFilterActive==="function"&&anyFilterActive()))
+        ? `<button class="lnk tb-lnk" data-openfilters="1">Filters</button>` : ""}
+      <button class="lnk tb-lnk" data-savesearch="1">Save search</button>
+    </div>
+  </div>`;
+}
+
 function resultsHeaderHTML(list){
   return `<div class="res-head">
     <span class="res-n num">${list.length} ${list.length===1?"result":"results"}</span>
@@ -6128,9 +6202,6 @@ function exploreHTML(){
   const kinds=shownKinds.length>1
     ? [["browse","All coaches"]].concat(shownKinds.map(k=>[k.id,k.tab]))
     : [];
-  const kt=kinds.length?`<div class="kindtabs" role="tablist" aria-label="Coaching type">
-    ${kinds.map(([sec,l],i)=>`<button class="kindtab ${i===0?"on":""}" role="tab"
-       aria-selected="${i===0}" data-kindtab="${sec}" data-kindjump="${sec}">${esc(l)}</button>`).join("")}</div>`:"";
 
   return `
   ${/* Founding-cohort promo strip removed per owner (2026-08-09). */""}
@@ -6141,19 +6212,25 @@ function exploreHTML(){
        grid — the rails (lateral scroll) remain removed. */""}
   <section class="band slate browse" id="browse">
     <div class="shell">
-      ${kt}
-      <div class="fchips">
-        ${/* RESTORED. I removed this to buy fold height and smoke caught that it
-             was searchBarHTML()'s ONLY call site — deleting it did not remove a
-             duplicate, it made the Sport/Where/When filters unreachable. The
-             fold is paid for by the hero cap instead, which costs nothing
-             functional. If the duplication is still wrong, the fix is to MOVE
-             this below the first card band, not to delete the only way to
-             filter. */""}
-        ${searchBarHTML(list)}
-      </div>
-      ${athleteChipHTML()}
-      ${resultsHeaderHTML(list)}
+      ${/* ONE TOOLBAR (owner spec, 2026-08-13). Three separate rows collapse
+           into this: the kind-tab pill row, the Sport/Where/When capsule, and
+           the athlete chip.
+
+           The capsule is DELETED, not moved. The hero carries a full-width
+           search directly above; a second search surface asked the visitor
+           which one to use. When I removed it before, smoke correctly blocked
+           me because it was searchBarHTML()'s only call site — this time the
+           Filters button below is the route to the same drawer, so the
+           filtering is reachable and only the duplicate SEARCH is gone.
+
+           The athlete chip is gone from browse entirely: an athlete is required
+           to BOOK, not to look, and asking for one while browsing is the
+           product asking for a commitment it has not earned yet. It still
+           appears in the booking flow, which is where it is actually needed. */""}
+      ${toolbarHTML(list, kinds)}
+      ${/* resultsHeaderHTML() folded into toolbarHTML() — the count, sort and
+           save link now share the toolbar's right side instead of occupying a
+           second row of their own. */""}
 
       ${/* kindShowcaseHTML() was called here and is REMOVED (owner, 2026-08-13):
            "the portion above private trainings that says see listings for
@@ -10168,7 +10245,12 @@ function render(){
      A flag that a template reads must be assigned before the template runs.
      The classList toggle stays where it was: it acts on the live element, so
      its position genuinely does not matter. */
-  NO_ORANGE_ACTIVE = (r.name==="home");
+  /* home AND explore. The ban was keyed to `home` when that was the landing —
+     but a genuine first visit boots on `explore` (measured), so the page the
+     owner means by "the landing page" is explore, and it was still painting
+     orange sport dots. Both routes now, since both are marketing surfaces a
+     first-time visitor can land on. */
+  NO_ORANGE_ACTIVE = (r.name==="home" || r.name==="explore");
   let body;
   /* The Family/Coach toggle swaps the ENTIRE page below the nav (spec Part 2,
      slot 4). On the landing route that means two different marketing scrolls;

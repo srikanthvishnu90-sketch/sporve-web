@@ -788,20 +788,31 @@ if curl -sI "http://127.0.0.1:$CSPPORT/index.html" | grep -qi "^content-security
     var n=PROGRAMS.length;
     if(n<25&&entries) return 'FILTERSHOWN';
     if(n>=25&&entries!==1) return 'ENTRIES:'+entries;
-    if(document.querySelectorAll('.sb-seg').length!==3) return 'SEGMENTS';
-    document.querySelector('[data-seg=\"sport\"]').click();
-    var rows=document.querySelectorAll('.sb-row');
-    if(!rows.length) return 'EMPTYPANEL';
-    if(!document.querySelector('.sb-rt em').textContent.trim()) return 'NODESCRIPTOR';
-    return 'OK:'+rows.length;
+    /* The Sport/Where/When capsule is DELETED (owner spec 2026-08-13): the hero
+       search is the only search on the page. What replaced it is one toolbar
+       row, so this now asserts the toolbar rather than the capsule. */
+    if(document.querySelector('.sb')) return 'CAPSULE_BACK';
+    var tb=document.querySelector('.tb');
+    if(!tb) return 'NO_TOOLBAR';
+    if(!tb.querySelector('.tb-seg')) return 'NO_SEGMENTS';
+    if(document.querySelector('.res-head')) return 'SECOND_ROW';
+    /* Height, not top-coordinates. Comparing child .top flagged a false wrap:
+       the 40px segmented control and the shorter right group legitimately sit
+       on one row with different tops. One row is a property of the CONTAINER. */
+    if(tb.getBoundingClientRect().height>72) return 'TOOLBAR_WRAPPED';
+    return 'OK:'+tb.querySelectorAll('.tb-segbtn').length;
   })()" 2>/dev/null | tr -d '\r')
   case "$(printf '%s' "$sb" | tr -d '[:space:]')" in
-    OK:*)         pass "search: one bar, 3 segments, no background-check filter, panel has $(printf '%s' "$sb" | cut -d: -f2) rows with real descriptors" ;;
+    OK:*)         pass "browse: ONE toolbar row, $(printf '%s' "$sb" | cut -d: -f2) segments, no second search capsule" ;;
     BGFILTER)     fail "search: a 'Background-checked only' filter is back — it advertises that unvetted coaches exist" ;;
     AGEINBAR)     fail "search: an age select is in the search bar — the athlete is a profile, not a query parameter" ;;
     FILTERSHOWN)  fail "search: the Filters button shows under 25 results — filtering a short list only produces empty states" ;;
     ENTRIES:*)    fail "search: there are $(printf '%s' "$sb" | cut -d: -f2) filter entry points; there must be exactly one" ;;
-    SEGMENTS)     fail "search: the bar does not have three segments" ;;
+    CAPSULE_BACK) fail "browse: the duplicate Sport/Where/When capsule is back" ;;
+    NO_TOOLBAR)   fail "browse: the toolbar is missing" ;;
+    NO_SEGMENTS)  fail "browse: the segmented control is missing" ;;
+    SECOND_ROW)   fail "browse: a second results row is back — the toolbar must be ONE row" ;;
+    TOOLBAR_WRAPPED) fail "browse: the toolbar wrapped onto more than one row" ;;
     EMPTYPANEL)   fail "search: a segment panel rendered empty — an empty dropdown is a dead end" ;;
     NODESCRIPTOR) fail "search: panel rows have no supporting line — it is required to carry supply signal" ;;
     *)            fail "search: probe returned nothing ($sb)" ;;
