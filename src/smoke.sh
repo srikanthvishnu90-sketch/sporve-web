@@ -1737,6 +1737,42 @@ appr=$($B js "
 [ "${appr//\"/}" = "OK" ] && pass "approvals: approve sends via lifecycle-approve; Approve only on drafted" \
   || fail "approve regressed: $appr"
 
+# ── Assistant review-card DISPATCH RAILS (the tool port) ──────────────────
+# A proposed write is approved into a REAL change only for tools in
+# PROP_DISPATCH; each run() dispatches through an existing repo method. Assert
+# the two live rails (draft_message → sendParentMessage, draft_bio → save) call
+# the right method with the edited text, that a rail-less tool (create_service)
+# shows NO Approve button (deep-link only), and canSend gating holds. run()
+# invokes its rail synchronously, so no async wait is needed.
+disp=$($B js "
+(()=>{const bad=[];const saved=[],sent=[];
+ const rs=window.SporveCoach&&window.SporveCoach.save, rsend=window.SporveCoach&&window.SporveCoach.sendParentMessage;
+ window.SporveCoach=window.SporveCoach||{};
+ window.SporveCoach.save=(p)=>{saved.push(p);return Promise.resolve({});};
+ window.SporveCoach.sendParentMessage=(id,t)=>{sent.push({id,t});return Promise.resolve({firstName:'Ana'});};
+ // dispatch table wires the two live rails to the right method + text
+ PROP_DISPATCH.draft_bio.run({args:{}}, 'My new bio');
+ if(!saved.length||saved[0].bio!=='My new bio')bad.push('BIO_RUN');
+ PROP_DISPATCH.draft_message.run({args:{booking_id:'b1'}}, 'Hello');
+ if(!sent.length||sent[0].id!=='b1'||sent[0].t!=='Hello')bad.push('MSG_RUN');
+ // canSend gating
+ if(PROP_DISPATCH.draft_message.canSend({args:{}}))bad.push('MSG_CANSEND_EMPTY');
+ if(!PROP_DISPATCH.draft_message.canSend({args:{booking_id:'b'}}))bad.push('MSG_CANSEND');
+ if(!PROP_DISPATCH.draft_bio.canSend({args:{}}))bad.push('BIO_CANSEND');
+ // card gating: live rail shows Approve; rail-less shows deep-link, no Approve
+ S.portal='coach';S.auth={status:'coach'};S.coachTab='dashboard';S.route={name:'dashboard',arg:null};
+ S.aiOpen=true;S.aiMax=false;S.aiCollapsed=false;
+ S.chat=[{role:'coach',text:'b',proposal:{tool:'draft_bio',args:{draft:'x'},state:'open'}}];render();
+ if(!document.querySelector('#layer [data-approve]'))bad.push('BIO_NO_BTN');
+ S.chat=[{role:'coach',text:'s',proposal:{tool:'create_service',args:{title:'C'},state:'open'}}];render();
+ if(document.querySelector('#layer [data-approve]'))bad.push('SVC_HAS_APPROVE');
+ if(!document.querySelector('#layer [data-coachtab=\"listings\"]'))bad.push('SVC_NO_DEEPLINK');
+ if(rs)window.SporveCoach.save=rs; if(rsend)window.SporveCoach.sendParentMessage=rsend;
+ S.chat=[];S.portal='family';S.route={name:'home',arg:null};render();document.body.classList.remove('reg-coach');
+ return bad.length?bad.join(','):'OK'})()" 2>/dev/null)
+[ "${disp//\"/}" = "OK" ] && pass "assistant dispatch: draft_bio + draft_message rails fire; rail-less tools deep-link only" \
+  || fail "dispatch rails regressed: $disp"
+
 # ── The coach profile renders its blocks, and invents nothing ─────────────
 # Built to the owner's Athletes Untapped reference: pricing ladder, collapsible
 # sections, weekly availability, location. The reference also shows earned
