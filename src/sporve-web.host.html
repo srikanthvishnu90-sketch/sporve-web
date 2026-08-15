@@ -12843,7 +12843,11 @@ const PROP_DISPATCH={
     /* The coach editing their OWN bio through the existing allowlisted
        providers PATCH (bio is in EDITABLE). No parent, no money, no consent —
        the safest possible second rail. */
-    canSend:()=>!!(window.SporveCoach&&window.SporveCoach.save), verb:"Approve & save", busy:"Saving…",
+    /* Gate on a draft to approve, like draft_message gates on a booking_id —
+       no editable text means nothing to save, so show the deep-link, not an
+       Approve button over an empty card. Clearing the textarea then approving
+       still rejects loudly (run() re-checks). */
+    canSend:p=>!!(window.SporveCoach&&window.SporveCoach.save&&propDraft(p).trim()), verb:"Approve & save", busy:"Saving…",
     run:(p,text)=>{
       if(!window.SporveCoach||!window.SporveCoach.save)
         throw new Error("The coach account module didn't load.");

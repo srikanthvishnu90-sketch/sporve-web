@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="36be48dfee000c00">
+<meta name="sporve-build" content="6d5524d8963dbb33">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -12892,7 +12892,11 @@ const PROP_DISPATCH={
     /* The coach editing their OWN bio through the existing allowlisted
        providers PATCH (bio is in EDITABLE). No parent, no money, no consent —
        the safest possible second rail. */
-    canSend:()=>!!(window.SporveCoach&&window.SporveCoach.save), verb:"Approve & save", busy:"Saving…",
+    /* Gate on a draft to approve, like draft_message gates on a booking_id —
+       no editable text means nothing to save, so show the deep-link, not an
+       Approve button over an empty card. Clearing the textarea then approving
+       still rejects loudly (run() re-checks). */
+    canSend:p=>!!(window.SporveCoach&&window.SporveCoach.save&&propDraft(p).trim()), verb:"Approve & save", busy:"Saving…",
     run:(p,text)=>{
       if(!window.SporveCoach||!window.SporveCoach.save)
         throw new Error("The coach account module didn't load.");
