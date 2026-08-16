@@ -39,11 +39,17 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# Refuse anything that is not the owner's own code / infra.
+# CODE-ONLY by design. Strix does dynamic testing with live proof-of-concept
+# exploits — pointing it at a live URL actively attacks that host. This runner
+# therefore accepts only local owner-owned SOURCE trees, never a production URL.
+# A live-infra scan is a deliberate RED action the owner stages by hand, not a
+# door this tool leaves open (an unattended agent must never be able to hammer
+# production). Any http(s) target — including our own Supabase/Vercel — is
+# refused here.
 case "$TARGET" in
   "${HOME}/SportsMan-main"*|"${HOME}/the-sporve-web"*|./*|.) : ;;
-  http*://*supabase.co*|http*://the-sporve-web.vercel.app*) : ;;
-  *) echo "REFUSED: $TARGET is not an owner-owned target. Third-party pentesting is out of bounds." >&2; exit 3 ;;
+  http*://*) echo "REFUSED: $TARGET is a live URL. This runner scans SOURCE only; a live-infra pentest is a hand-staged RED action, not an automated one." >&2; exit 3 ;;
+  *) echo "REFUSED: $TARGET is not an owner-owned source tree. Third-party pentesting is out of bounds." >&2; exit 3 ;;
 esac
 
 note() { printf '  %s\n' "$*"; }
@@ -60,7 +66,7 @@ if ! command -v strix >/dev/null 2>&1; then
   note "  FIX: pipx install strix-agent   (or: pip3 install --user strix-agent)"
   missing=1
 fi
-if [ -z "${LLM_API_KEY:-}" ] && [ -z "${STRIX_LLM_API_KEY:-}" ]; then
+if [ -z "${LLM_API_KEY:-}" ]; then
   note "✗ No LLM key. Strix needs its OWN key (separate from the service-role"
   note "  ai-gateway key, which is never handed to a client-side tool)."
   note "  FIX: export STRIX_LLM='anthropic/claude-opus-4-8'"
