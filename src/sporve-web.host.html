@@ -1192,7 +1192,13 @@ img{max-width:100%;display:block}
    .sporttag/.demochip keep their absolute positioning where they stand alone
    (the featured card uses .demochip solo). Layout only — no colour/type/copy. */
 .cardchips{position:absolute;top:10px;left:10px;right:46px;z-index:2;
-  display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+  display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;
+  /* The wrapper sits ABOVE the card's full-cover open button, and neither chip
+     carries a handler — so it must be click-transparent, or the ~26px band it
+     spans swallows taps that used to open the card (the verifier measured
+     exactly that regression). pointer-events:none restores full click-through;
+     the heart lives outside this wrapper and keeps its own events. */
+  pointer-events:none}
 .cardchips .sporttag,.cardchips .demochip{position:static;top:auto;left:auto}
 .card .heart svg{width:14px;height:14px}
 .card .row1{display:flex;justify-content:space-between;gap:10px;align-items:baseline}

@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="c18ea010be2bb549">
+<meta name="sporve-build" content="b50d4b21a3b23cb7">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -1225,7 +1225,13 @@ img{max-width:100%;display:block}
    .sporttag/.demochip keep their absolute positioning where they stand alone
    (the featured card uses .demochip solo). Layout only — no colour/type/copy. */
 .cardchips{position:absolute;top:10px;left:10px;right:46px;z-index:2;
-  display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+  display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;
+  /* The wrapper sits ABOVE the card's full-cover open button, and neither chip
+     carries a handler — so it must be click-transparent, or the ~26px band it
+     spans swallows taps that used to open the card (the verifier measured
+     exactly that regression). pointer-events:none restores full click-through;
+     the heart lives outside this wrapper and keeps its own events. */
+  pointer-events:none}
 .cardchips .sporttag,.cardchips .demochip{position:static;top:auto;left:auto}
 .card .heart svg{width:14px;height:14px}
 .card .row1{display:flex;justify-content:space-between;gap:10px;align-items:baseline}

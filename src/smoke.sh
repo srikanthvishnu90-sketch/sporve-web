@@ -1203,6 +1203,27 @@ case "$ovlc" in
   *)      fail "overlap-audit: $ovl";;
 esac
 fi
+
+# ── the chip row must be click-transparent (verifier regression, fixed) ───
+# .cardchips sits above the card's full-cover open button; with pointer-events
+# auto it swallowed a ~26px band of taps that used to open the card. Assert the
+# wrapper is pointer-events:none and a tap beside the Demo chip reaches the
+# open button, while the heart (outside the wrapper) still takes its click.
+chp=$($B js "
+(()=>{const bad=[];
+ S.portal='family';S.auth={status:'guest'};S.route={name:'explore',arg:null};render();
+ const shot=document.querySelector('.card .shot'); if(!shot)return 'NO_CARD';
+ if(getComputedStyle(shot.querySelector('.cardchips')).pointerEvents!=='none')bad.push('CHIPS_INTERACTIVE');
+ const d=shot.querySelector('.demochip').getBoundingClientRect();
+ const el=document.elementFromPoint(d.right+12,d.top+d.height/2);
+ if(!el||!el.closest('[data-open]'))bad.push('DEADZONE');
+ const h=shot.querySelector('.heart').getBoundingClientRect();
+ const he=document.elementFromPoint(h.left+h.width/2,h.top+h.height/2);
+ if(!he||!he.closest('.heart'))bad.push('HEART_BLOCKED');
+ S.route={name:'home',arg:null};render();
+ return bad.length?bad.join(','):'OK'})()" 2>/dev/null)
+[ "${chp//\"/}" = "OK" ] && pass "card chips are click-transparent; open + heart both reachable" \
+  || fail "chip click-through regressed: $chp"
 # Home + explore: zero emoji. Rails are now ALLOWED here: the owner overrode the
 # no-rails §6.4 rule via the six-task spec 2026-08-08; the explore kind bands
 # (.kindrow, T4) are intentional horizontal rows, so a rail no longer fails this
