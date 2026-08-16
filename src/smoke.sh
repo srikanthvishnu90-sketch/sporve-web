@@ -1214,12 +1214,17 @@ chp=$($B js "
  S.portal='family';S.auth={status:'guest'};S.route={name:'explore',arg:null};render();
  const shot=document.querySelector('.card .shot'); if(!shot)return 'NO_CARD';
  if(getComputedStyle(shot.querySelector('.cardchips')).pointerEvents!=='none')bad.push('CHIPS_INTERACTIVE');
+ // elementFromPoint only sees the VIEWPORT — scroll the card into view first,
+ // then measure. (At 1440 the first card can sit below the fold; probing
+ // offscreen coordinates returns whatever chrome is at that point instead.)
+ shot.scrollIntoView({block:'center'});
  const d=shot.querySelector('.demochip').getBoundingClientRect();
- const el=document.elementFromPoint(d.right+12,d.top+d.height/2);
- if(!el||!el.closest('[data-open]'))bad.push('DEADZONE');
+ const el=document.elementFromPoint(Math.min(d.right+12,window.innerWidth-2),d.top+d.height/2);
+ if(!el||!el.closest('[data-open]'))bad.push('DEADZONE:'+(el?(el.className||el.tagName):'null'));
  const h=shot.querySelector('.heart').getBoundingClientRect();
  const he=document.elementFromPoint(h.left+h.width/2,h.top+h.height/2);
  if(!he||!he.closest('.heart'))bad.push('HEART_BLOCKED');
+ window.scrollTo(0,0);
  S.route={name:'home',arg:null};render();
  return bad.length?bad.join(','):'OK'})()" 2>/dev/null)
 [ "${chp//\"/}" = "OK" ] && pass "card chips are click-transparent; open + heart both reachable" \
