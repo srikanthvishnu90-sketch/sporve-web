@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="8d0a2b64111e6519">
+<meta name="sporve-build" content="ede817e9543eb8bf">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -3601,7 +3601,7 @@ body.reg-coach .navlink{font-size:var(--text-md)}
 /* On the obsidian band the italic accent must brighten — --ps-ink resolves
    dark and would vanish on #09090B (colour law). Use the AA-on-dark ramp. */
 .pgband.dark .pg-serif em{color:var(--ps-bright)}
-.pgband.dark .pg-eyebrow,.pgband.dark .pgband.dark .pg-sub{color:#94A3B8}
+.pgband.dark .pg-eyebrow,.pgband.dark .pg-sub{color:#94A3B8}
 /* The dark section carries a real product demo, rendered dark, behind a
    Demo-data pill — not recoloured prose. */
 .pg-demo{margin-top:28px;max-width:540px;background:#111318;border:1px solid #1C222B;
@@ -3647,8 +3647,9 @@ body.reg-coach .navlink{font-size:var(--text-md)}
 .pg-hero.split .pg-heroL{min-width:0}
 .pg-hero.split .pg-sub{max-width:66ch}
 .pg-hero .shell{padding-top:clamp(28px,5vh,52px);padding-bottom:clamp(28px,5vh,52px)}
-.pg-hero{max-height:45vh;overflow:visible}
-@media(max-width:767px){.pg-hero{max-height:none}}
+/* No max-height clamp: content must never be clipped or paint over the next
+   section (the overlap class). The ≤45vh hero law is enforced by MEASUREMENT
+   — the rebuild census warns when a hero exceeds it at 1440x900. */
 /* The demoted figure: centered, sane width, quiet frame. */
 .pg-figure .shell{display:flex;justify-content:center}
 .pg-figure .shell>*{max-width:560px;width:100%;margin:0}

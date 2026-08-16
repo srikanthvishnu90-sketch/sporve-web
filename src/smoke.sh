@@ -1158,7 +1158,7 @@ AUD=$(cat scripts/slop-audit.js 2>/dev/null)
 if [ -z "$AUD" ]; then fail "scripts/slop-audit.js missing"; else
 slop=$($B js "$AUD;
 (()=>{const routes='$PAGES'.split(' ').map(id=>['page',id]).concat([['trust',null],['pricing',null],['coachinfo',null]]);
- const fails=[];let wcopy=0,wdot=0;const thin=[],dups=[],acc=[],fps={};
+ const fails=[];let wcopy=0,wdot=0;const thin=[],dups=[],acc=[],tall=[],fps={};
  routes.forEach(([name,arg])=>{S.route={name,arg};render();
   const r=window.SLOP_AUDIT();
   const f=r.fail.icons.length+r.fail.grids.length+r.fail.emoji.length+(r.fail.shapes||[]).length+(r.fail.pills||[]).length;
@@ -1169,12 +1169,14 @@ slop=$($B js "$AUD;
   wcopy+=r.warn.copy.length;wdot+=r.warn.psdot.length;
   if((r.warn.pageWords||0)<300)thin.push((arg||name)+':'+r.warn.pageWords);
   if(r.warn.fingerprint){if(fps[r.warn.fingerprint])dups.push((arg||name)+'='+fps[r.warn.fingerprint]);fps[r.warn.fingerprint]=(arg||name);}
-  if((r.warn.accent||[]).length>2)acc.push((arg||name)+':'+r.warn.accent.length);});
+  if((r.warn.accent||[]).length>2)acc.push((arg||name)+':'+r.warn.accent.length);
+  const hh=document.querySelector('.pg-hero');
+  if(hh&&hh.getBoundingClientRect().height>0.45*window.innerHeight+20)tall.push(arg||name);});
  // the merged 'saved' route must land on Search, never 404
  S.route={name:'page',arg:'saved'};render();
  if(document.querySelector('#app').innerText.indexOf('Search by sport')<0)fails.push('saved[NO_REDIRECT]');
  S.route={name:'explore',arg:null};render();
- return JSON.stringify({fails,wcopy,wdot,thin:thin.length,dups:dups.length,acc:acc.length,thinL:thin.slice(0,4),dupsL:dups.slice(0,3),accL:acc.slice(0,4)})})()" 2>/dev/null)
+ return JSON.stringify({fails,wcopy,wdot,thin:thin.length,dups:dups.length,acc:acc.length,tallHeroes:tall.length,thinL:thin.slice(0,4),dupsL:dups.slice(0,3),accL:acc.slice(0,4)})})()" 2>/dev/null)
 slopc=${slop//\"/}
 case "$slopc" in
   *"fails:[]"*)
@@ -1185,7 +1187,8 @@ case "$slopc" in
       t=$(printf '%s' "$slopc" | grep -o 'thin:[0-9]*' | grep -o '[0-9]*')
     du=$(printf '%s' "$slopc" | grep -o 'dups:[0-9]*' | grep -o '[0-9]*')
     ac=$(printf '%s' "$slopc" | grep -o 'acc:[0-9]*' | grep -o '[0-9]*')
-    printf "  \033[33mWARN\033[0m  %s\n" "rebuild census: thin-pages(<300w)=$t dup-fingerprints=$du accent>2=$ac copy-thin-blocks=$w (WARN until prose slices land)";;
+    th=$(printf '%s' "$slopc" | grep -o 'tallHeroes:[0-9]*' | grep -o '[0-9]*')
+    printf "  \033[33mWARN\033[0m  %s\n" "rebuild census: thin-pages(<300w)=${t:-0} dup-fingerprints=${du:-0} accent>2=${ac:-0} tall-heroes(>45vh)=${th:-0} thin-blocks=${w:-0} (WARN until prose slices land)";;
   "")
     fail "slop-audit did not return";;
   *)
