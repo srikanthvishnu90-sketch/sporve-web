@@ -1,0 +1,669 @@
+# Sporve launch backlog
+
+Every item is a checkbox. No dates, no week numbers — phases gate each other,
+and a phase is done when its boxes are ticked.
+
+Grounded against **production project `tseszaprvtvqrkfpditu`** on 2026-08-11 by
+direct query, not inference. Findings that came from a static read of the repo
+are marked `[static]`; findings confirmed against the live database are marked
+`[prod]`.
+
+Legend: `[RED]` = owner applies by hand, agent drafts only (RLS, Stripe, auth,
+migrations, capacity, consent, secrets). `[Y]` = implement + PR, human merges.
+`[G]` = agent ships it.
+
+---
+
+## What production actually is
+
+| fact | value | source |
+|---|---|---|
+| tables in `public` | **36** | `[prod]` |
+| RLS policies | **97** | `[prod]` |
+| tables with RLS enabled | **36 of 36** | `[prod]` |
+| migration ledger entries | **17**, last `20260725033343` | `[prod]` |
+| migrations in `SportsMan-main` | **73** | `[static]` |
+| migrations in `sporve-landing` | **8** | `[static]` |
+| fee columns on `bookings` | **0** | `[prod]` |
+
+**The central defect.** Production's migration ledger contains 17 entries, and
+none of them are from `SportsMan-main`. Yet objects those migrations define —
+`rls_auto_enable`, `is_org_admin`, `claim_provider_role`, `submit_safety_report`
+— *do* exist in production. Both things are true because most of the schema was
+applied **outside the migration system**, by hand in the SQL editor.
+
+The consequence is not academic. `supabase db push` from `SportsMan-main` would
+attempt to apply all 73 migrations, because the ledger says none have run. Many
+create objects that already exist. The lineage is not "behind" — it is
+**unrecorded**, which is a different and worse problem, because no tool can tell
+you the delta.
+
+Production also has **36 tables where the Flutter migration set describes ~65**.
+Production is the older programs-model schema. The newer outcome-model work is
+partly applied and partly not, and which is which is currently unknown.
+
+---
+
+## Phase 0 — stop the bleeding
+
+Nothing else is safe until these are done. No feature work in parallel.
+
+### 0.1 Deploy-target safety
+- [x] `[G]` Unlink `sporve-landing` from prod (`supabase/.temp` → `.temp.unlinked-2026-08-11`)
+- [x] `[G]` Add `supabase/.temp/` to `.gitignore` in both repos — **and fixed a subtle bug in the existing entries.** Both read `supabase/.temp/` with a trailing slash, which matches only a directory of that exact name; the unlink rename `supabase/.temp.unlinked-2026-08-11/` was therefore **not** ignored. Changed to `supabase/.temp*`. Verified: `git check-ignore -v` now matches both spellings in both repos.
+- [x] `[G]` **Closed the MEDIUM `.gitignore` env gap in `SportsMan-main`.** It ignored only the two literal paths `env.json` and `supabase/functions/.env`, so a root `.env`, a `.env.local`, or a `.env` inside any *new* edge-function directory would have been committed by `git add -A`. Added `**/.env`, `**/.env.*`, with `!**/.env.example` preserved. Verified: `git check-ignore -v .env` → `.gitignore:62:**/.env`.
+- [x] `[G]` Write `SUPABASE-OWNERSHIP.md`, byte-identical in all four working trees (md5 `3bac131f…`), naming **APP** as owner of both surfaces with the production evidence and the recorded correction
+- [x] `[G]` Resolve §4 of that doc — migration ownership decided as Option A (APP), with the *Against* column kept as a live risk register
+- [x] `[G]` Write `pre-push` hooks + `scripts/supabase-guard.sh` in both backend repos — **with their real limits documented rather than hidden.** A `pre-push` hook cannot intercept `supabase db push` or `supabase functions deploy`, because git is never invoked and no hook fires. What the hook genuinely does: hard-fail a push whose commits add or modify anything under `supabase/.temp`. The guard script shadows the `supabase` binary as a shell function and refuses `db push` everywhere and `functions deploy` from non-owners; its header lists the four ways to bypass it. It is a seatbelt against muscle memory, not a lock.
+- [ ] `[Y]` **The control that would actually be protective:** move `db push` behind a GitHub Action in APP with the token as a repo secret, so the only path to production is a merged PR, and no laptop holds a credential that can write to prod
+- [x] `[owner+prod]` **OWNERSHIP RESOLVED: `SportsMan-main` owns both migrations and functions.**
+
+  Owner's decision (2026-08-11): the owning repo is the Sporve demo app or the
+  waitlist landing page — *not* `the-sporve-web`, which is the demo in web form
+  to be pasted on the web. **The waitlist page is being taken down.** A repo
+  scheduled for decommissioning cannot own production, so that leaves
+  `SportsMan-main`.
+
+  Production evidence agrees, and it overturns an earlier conclusion of mine:
+  - Prod runs **33 edge functions**. Four are Stripe (`stripe-webhook`,
+    `stripe-create-checkout`, `stripe-connect-onboarding`,
+    `stripe-provider-payouts`) and exist **only** in `SportsMan-main`.
+  - A **bulk deploy stamped `1785208914592` (~2026-07-26)** covers 20 functions
+    at once — matching `SportsMan-main` commit `808a793` (2026-07-27), which
+    carries a deploy receipt naming all 12 shared functions.
+  - Later single deploys (`draft-recap`, `draft-reply`, `setup-interview`,
+    `camp-recap`, `camp-broadcast`, `waitlist-offer-draft`,
+    `stripe-provider-payouts`) are all `SportsMan-main`-side.
+  - `sporve-landing` deployed only `join-waitlist` (~2026-07-02) and
+    `ai-feedback` (~2026-07-08), both earlier and both narrow.
+
+  **I previously concluded `sporve-landing` owned the functions, from line
+  counts. That was wrong.** Line count measures generation, not recency:
+  `SportsMan-main`'s copies were last touched 2026-08-01, `sporve-landing`'s
+  2026-07-15. The two trees are a **fork**, not a stale copy — they call
+  different rate-limit RPCs (`consume_edge_rate_limit` vs
+  `reserve_ai_capacity`), and **both RPCs exist in production**, so that test
+  does not discriminate either.
+
+- [ ] `[Y]` **Do not delete `sporve-landing`'s functions before extracting three things** it has that `SportsMan-main` lacks:
+  - `ai-match` is a **rewrite**: `matchguard.ts:4-10` says production matching no longer calls a model, using a deterministic `ranking-policy.ts`. Deleting it re-introduces LLM-decided coach matching. `[CRITICAL-PATH]`
+  - `ai-chat` enforces child-safety with a `HEALTH_REQUEST`/`TRAINING_REQUEST` regex preflight that returns a canned "contact a healthcare professional" reply **before** the model runs. `SportsMan-main`'s equivalent is system-prompt text — a suggestion, not a control. `[CRITICAL-PATH]`
+  - `search-parse:181` returns `(e as Error).message` to the client — internal error leakage. `SportsMan-main` has a generic 500 body and a `405` method allowlist. Take the better half of each.
+- [ ] `[Y]` **NEW — two orphan dashboard-created functions shadow the real ones.** `AI-Chat` (v17) and `Join-Waitlist` (v12) have entrypoint `source/index.ts` with no `supabase/functions/` prefix, meaning they were written in the Supabase dashboard editor, not deployed from any repo. They exist in no repo and nothing can reproduce them. Recover their source, then delete them.
+- [ ] `[Y]` Write `SUPABASE-OWNERSHIP.md` recording `SportsMan-main` as owner of both trees
+- [ ] `[Y]` **Deployment is 100% manual from a laptop with no record** — neither repo deploys functions from CI. All 9 workflows checked; `SportsMan-main/.github/workflows/ci.yml:18-26` only runs a *local* `supabase start`/`db reset`/`db lint`. This is the real hygiene defect behind the whole split-brain problem.
+- [ ] `[Y]` Add a CI job that deploys functions from `SportsMan-main` on merge, so deploys leave a record
+- [ ] `[Y]` Write `SUPABASE-OWNERSHIP.md` in both repos naming the owner and the rule
+- [ ] `[Y]` Add a pre-push git hook in the non-owning repo that rejects `supabase db push`
+- [ ] `[Y]` Add a pre-push hook rejecting `supabase functions deploy` in the non-owning repo
+- [x] ~~`[RED]` Rotate the Supabase service-role key (it is in `.env` files in two repos)~~ — **this item was wrong.** No service-role key exists on disk in any of the three repos. Every one of the ~90 files matching `service_role` uses it as a Vault secret *name* or a `Deno.env.get()` lookup, e.g. `SportsMan-main/supabase/migrations/20260701_000000_lifecycle_process_cron.sql:39` reads it out of `vault.decrypted_secrets`. Verified independently with a regex requiring real three-segment JWT structure: **zero hits.** Nothing to rotate.
+- [x] `[G]` Grep all three repos for committed secrets, and `git log -S` for any ever committed → `docs/launch/0-1-secrets-sweep.md`. **Zero credentials were ever committed to any repo.** Every pickaxe hit resolved to a placeholder (`sk-ant-xxxx…`), a scanner's own detection regex, prose in a doc, or — memorably — the Skia symbol `sk_test_bit` in `app/canvaskit/*.symbols`, which greps like a Stripe test key and is not one. `the-sporve-web` history is clean on every pattern.
+- [x] `[G]` Confirm the `eyJ…` runs in `the-sporve-web/index.html:36` are base64 font bytes, not JWTs — they contain `+` and `/` and have no three-part structure. Recorded so the next sweep does not re-flag them.
+- [ ] `[G]` **MEDIUM — the one real finding.** `SportsMan-main/.gitignore` ignores only two literal paths: `env.json` and `supabase/functions/.env`. Verified with `git check-ignore`: a root-level `.env`, `.env.local`, `.env.production`, or a `.env` inside any *new* edge-function directory would be swept up by `git add -A` silently. Nothing has leaked — this is a trap that has not sprung. Two-line fix, deferred only to avoid disturbing a running auditor.
+- [ ] `[RED]` Rotate the Anthropic API key — pasted in plaintext in a chat session. **Still the only genuine credential exposure found.**
+- [ ] `[RED]` Set a $25/mo spend cap on a **separate** Anthropic workspace (org-wide would kill `ai-gateway`)
+
+### 0.2 Recover what exists only in production
+- [x] `[G]` `pg_get_functiondef` → `claim_provider_role()` — **recovered**, saved to `docs/launch/prod-recovered-functions.sql`
+- [x] `[G]` `pg_get_functiondef` → `claim_organization_role()` — **recovered**, same file
+- [x] `[G]` Also recovered `prevent_profile_role_change` and `handle_new_user` (needed to judge the first two)
+- [x] `[G]` **Verified the escalation is safe.** `claim_provider_role` sets a transaction-local flag `sporve.role_claim`, and `prevent_profile_role_change` honours it *only* for `searcher → provider` on `id = auth.uid()`. A client cannot set that flag — `set_config` lives in `pg_catalog`, which PostgREST does not expose as `/rpc/`. Both functions set `search_path TO ''`, closing the classic SECURITY DEFINER shadowing attack. The Dart comment claiming self-promotion-only was **correct**.
+- [ ] `[Y]` **NEW D1** — `handle_new_user` swallows every exception and returns `new`. A failed profile insert still creates the `auth.users` row, leaving a user who can authenticate but has no `profiles` row, fails every RLS policy keyed on it, and cannot self-repair. Query prod for orphans: `select count(*) from auth.users u left join public.profiles p on p.id=u.id where p.id is null;`
+- [ ] `[Y]` **NEW D1b** — add a reconciliation job that repairs orphaned auth users
+- [ ] `[Y]` **NEW D1c** — make the signup trigger fail loudly instead of silently
+- [ ] `[G]` **NEW D2** — document that `prevent_profile_role_change` returns `new` (allows) when `auth.uid()` is null, so any of the 14 service-role-holding edge functions can silently rewrite any user's role. Intentional, but the name overstates the protection.
+- [ ] `[Y]` **NEW D3** — `claim_organization_role` has no gate at all: any provider self-declares as an organization. Combined with `find_affiliatable_account` being org-admin gated, that is the account-existence oracle in 2.3. Fix the oracle, not this function.
+- [x] `[G]` Dump all 97 live policies → `docs/launch/0-2-prod-inventory.md` §1–2. **No policy anywhere uses `USING (true)`.** All 83 authenticated policies resolve to one of five ownership shapes.
+- [x] `[G]` Dump all 19 live triggers → same file §3
+- [x] `[G]` **Verify the two policies that RLS alone would not make safe** → §4
+  - `bookings_update_searcher` would let a parent set `payment_status='paid'`; `enforce_booking_provider_update` freezes 15 financial/identity columns and runs `status` through an explicit state machine. **Sound.**
+  - `organization_members_update_self` would let a trainer mark themselves background-checked — the worst possible bug in this product; `enforce_org_member` forces `background_check_status := 'none'` on insert and raises on any end-user change. **Sound.**
+- [x] `[G]` Record the systemic caveat → §5. Every guard short-circuits on `auth.uid() is null`, which is required for the background-check webhook but means **none of these triggers defend against a compromised edge function**. 14 functions hold the service-role key.
+- [ ] `[G]` Query the `storage` schema for bucket policies — not covered by §1–5, `provider-media` still open
+- [ ] `[RED]` Full `supabase db dump --schema public` → `00000000000000_prod_baseline.sql`
+- [ ] `[RED]` Full `supabase db dump --data-only` of reference tables (sports, categories)
+- [ ] `[G]` Commit all dumps to the owning repo — this is the first time prod is reproducible
+- [ ] `[G]` Diff the recovered `claim_provider_role` against `prevent_profile_role_change` and document how it legally bypasses it
+- [ ] `[G]` Record every prod object that appears in **no** migration file
+
+### 0.3 Version-control hygiene
+- [ ] `[G]` Commit `20260806000000_waitlist_role_allow_athlete.sql` — currently **untracked**, one `git clean` destroys it
+- [ ] `[G]` Audit both repos for other untracked `.sql`
+- [ ] `[G]` Resolve the byte-identical duplicate `20260726_000000_booking_member_org_guard.sql` across repos
+- [ ] `[G]` Resolve the byte-identical duplicate `20260710_000000_session_trainer.sql` across repos
+- [ ] `[G]` Resolve `enforce_booking_member_org()` being defined a **third** time in `20260729_000610_org_services.sql`
+- [x] `[G]` Diff all 12 shared edge functions — **10 differ, and `sporve-landing` is larger in every one**
+
+  | function | SportsMan-main | sporve-landing |
+  |---|---|---|
+  | `ai-gateway` | 344 | **1102** |
+  | `chat-answer` | 128 | **467** |
+  | `generate-embedding` | 117 | **430** |
+  | `provider-onboard-draft` | 195 | **398** |
+  | `session-note-summarize` | 157 | **355** |
+  | `ai-match` | 190 | **311** |
+  | `ai-chat` | 123 | **301** |
+  | `chat-parse-query` | 134 | **205** |
+  | `search-parse` | 175 | **183** |
+  | `search-execute` | 137 | **165** |
+  | `generate-proposals` | 298 | 298 |
+  | `goal-formulate` | 147 | 147 |
+
+  **This settles the ownership question for functions.** `sporve-landing` owns
+  the AI/search edge functions — newer in all ten, and prod's migration ledger
+  contains exactly its AI-observability tables (`ai_feedback`,
+  `ai_observability_events`, `ai_alert_thresholds`). The `SportsMan-main`
+  copies are stale stubs.
+
+  *Correction: an earlier reading of this had the direction backwards
+  (1102 in the app repo). Measured directly, it is the reverse.*
+
+- [ ] `[Y]` Delete the 10 stale copies from `SportsMan-main/supabase/functions`
+- [ ] `[Y]` Record in `SUPABASE-OWNERSHIP.md`: **landing owns edge functions**, app owns app schema
+- [ ] `[G]` Confirm `generate-proposals` and `goal-formulate` are byte-identical, not merely same-length
+- [ ] `[G]` For each function, record the deployed version vs the repo version
+
+### 0.4 Environment
+- [ ] `[owner]` Install Docker Desktop — blocks `db reset`, `db diff`, `db pull`
+- [ ] `[owner]` Install Vercel CLI (`npm i -g vercel`) — unblocks `vercel env pull`, `vercel logs`
+- [x] `[G]` Record the toolchain → `docs/launch/0-4-environment.md`
+- [ ] `[G]` Document the exact CLI versions that produced the baseline dump (once the dump exists)
+
+### 0.5 Production row counts — the blast radius, now measured
+Owner unblocked these 2026-08-11.
+
+- [x] `[G]` **23 of 27 providers are `approved`, and 20 of those have coordinates.** That is the live exposure of the `providers_select_public` column leak — 20 sets of coordinates, plus `owner_id` and `stripe_account_id`, readable by any anonymous caller. Not theoretical.
+- [x] `[G]` 2 providers have a `stripe_account_id` set
+- [x] `[G]` 9 bookings, 2 athletes, 40 auth users
+- [x] `[G]` **0 orphaned auth users** — defect D1 has not fired in production. The `handle_new_user` exception-swallowing bug is real but has produced no bad rows yet. Fix the trigger; **no repair job is needed.** Downgrade D1b.
+
+---
+
+## Phase 1 — the money is wrong `[CRITICAL-PATH]`
+
+Six representations of the platform fee exist. **None is 12%.** The one on the
+live charge path is **10%**.
+
+### 1.1 Establish one source of truth
+- [ ] `[owner]` Confirm in writing: flat 12%, coach-side deducted, no sliding scale, no separate SaaS fee
+- [ ] `[RED]` Set `PLATFORM_FEE_BPS=1200` in Supabase Edge Function Secrets
+- [ ] `[Y]` Remove the `?? 1000` default from `stripe-create-checkout/index.ts:49` — fail closed, never silently charge 10%
+- [ ] `[Y]` Make the function refuse to start if `PLATFORM_FEE_BPS` is unset
+- [ ] `[Y]` Narrow the sanity bound at `:161-163` from `0..3000` to `1200..1200` until a real sliding scale ships
+- [ ] `[Y]` Delete `20260728_000101_platform_fees.sql`'s 18%/4% schedule
+- [ ] `[Y]` Delete `resolve_platform_fee_bps` — 20 references, **0 callers**
+- [ ] `[Y]` Remove all 20 stale references to it
+- [ ] `[Y]` Rewrite `lib/core/utils/platform_fee.dart` to a single constant sourced from the server
+- [ ] `[Y]` Delete the 2.5% "SaaS fee" from `20260729_000300_coach_invoices.sql:46`
+- [ ] `[Y]` Delete the `?? 250` default in `coach-invoice-create/index.ts:147`
+- [ ] `[Y]` Verify `commission.dart` still consumes rather than re-derives (its header says it does)
+
+### 1.2 Record the fee on the booking
+`bookings` has **zero** fee columns `[prod]`. Sporve's revenue exists only inside
+Stripe. You cannot reconcile, audit, or answer a coach who disputes a payout.
+
+- [ ] `[RED]` Migration: add `platform_fee_bps int`, `platform_fee_cents int`, `gross_cents int`, `net_to_provider_cents int` to `bookings`
+- [ ] `[RED]` Backfill existing rows from Stripe's `application_fee` records
+- [ ] `[Y]` Write all four on the webhook's paid branch, inside the existing idempotent RPC
+- [ ] `[Y]` Add a check constraint: `platform_fee_cents = round(gross_cents * platform_fee_bps / 10000)`
+- [ ] `[Y]` Add a check constraint: `gross_cents = platform_fee_cents + net_to_provider_cents`
+- [ ] `[Y]` Freeze all four columns against `authenticated` in the update guard
+- [ ] `[Y]` Build a daily reconciliation job: sum of `platform_fee_cents` vs Stripe's application-fee total
+- [ ] `[Y]` Alert when they diverge by more than one cent
+
+### 1.3 Fix what users are told
+- [ ] `[Y]` `sporve-landing/terms.html:88` — "sliding 8–12%" → flat 12%. **This is live legal copy.**
+- [ ] `[Y]` `provider_payouts_payments_screen.dart:18-20` — remove 18% and 4%
+- [ ] `[Y]` `provider_finances_screen.dart:962` — remove "~2.5% SaaS fee"
+- [ ] `[Y]` `provider_finances_screen.dart:1189` — same
+- [ ] `[Y]` Remove the `provider_controller.dart:1010` comment admitting the code lies
+- [ ] `[Y]` Audit every coach-facing screen for a hardcoded percentage
+- [ ] `[Y]` Audit every parent-facing screen for a fee disclosure
+- [ ] `[Y]` Confirm the coach's *net* is shown at booking time, not just gross
+- [ ] `[Y]` Add a fee line to the parent's receipt
+- [ ] `[Y]` Add a fee line to the coach's payout statement
+- [ ] `[Y]` Add a smoke assertion: no literal `18`, `4`, `2.5`, `10` used as a fee percent anywhere
+
+---
+
+## Phase 2 — RLS and data exposure `[CRITICAL-PATH]`
+
+### 2.1 The providers column leak `[prod-confirmed live]`
+
+```sql
+providers_select_public  USING (status = 'approved')  TO anon, authenticated
+```
+
+Row-scoped, **not column-scoped**. PostgREST lets the caller choose `select=`,
+and the anon key is public by design. So any anonymous caller can request
+`latitude`, `longitude`, `stripe_account_id`, and `owner_id` for every approved
+coach. On an independent-coach marketplace, exact coordinates are frequently a
+home address.
+
+- [ ] `[RED]` Create `providers_public` view exposing only safe columns
+- [ ] `[RED]` Set `security_invoker=true` on that view
+- [ ] `[RED]` Revoke `select` on `public.providers` from `anon`
+- [ ] `[RED]` Grant `select` on `providers_public` to `anon`
+- [ ] `[Y]` Round `latitude`/`longitude` to ~1km in the public view, keep exact for the owner
+- [ ] `[Y]` Add `search_radius_km` so coaches choose their own precision
+- [ ] `[Y]` Repoint all nine `supabase_repository.dart` call sites to the view
+- [ ] `[Y]` Repoint `search-execute` to the view
+- [ ] `[Y]` Repoint `chat-answer`'s provider lookups
+- [ ] `[Y]` Regression test: anon `select=stripe_account_id` returns 403, not data
+- [ ] `[Y]` Regression test: anon `select=latitude` returns rounded, not exact
+- [ ] `[Y]` Regression test: owner still reads their own exact coordinates
+- [x] `[G]` Sweep every table with an `anon` policy for the same column-scope bug — **done against prod, and `providers` is the only one**
+
+  All 14 live anon-facing policies, queried from `pg_policies`:
+
+  | table | policy | `USING` | verdict |
+  |---|---|---|---|
+  | `providers` | `providers_select_public` | `status = 'approved'` | ⚠️ **the leak** — no column scope |
+  | `programs` | `programs_select_public` | `status = 'published'` | ✅ intended, all columns public-safe |
+  | `sessions` | `sessions_select_public` | parent program published | ✅ |
+  | `reviews` | `reviews_select_published` | parent program published | ✅ |
+  | `organization_members` | `organization_members_select_public` | verified bg-check **and** active **and** org approved **and** has a published program | ✅ careful work |
+  | `ai_alert_thresholds` | `..._no_client_access` | `false` | ✅ locked |
+  | `ai_audit_log` | `..._no_client_access` | `false` | ✅ locked |
+  | `ai_observability_events` | `..._no_client_access` | `false` | ✅ locked |
+  | `edge_rate_limits` | `..._no_client_access` | `false` | ✅ locked |
+  | `market_overrides` | `..._no_client_access` | `false` | ✅ locked |
+  | `market_readiness_config` | `..._no_client_access` | `false` | ✅ locked |
+  | `payment_event_ledger` | `..._no_client_access` | `false` | ✅ locked |
+  | `search_parse_cache` | `..._no_client_access` | `false` | ✅ locked |
+  | `waitlist_rate_limit` | `..._no_client_access` | `false` | ✅ locked |
+
+  Eight tables are explicitly `USING (false)` — deliberately locked, including
+  `payment_event_ledger`. Four are gated on a published/approved parent.
+  `organization_members` additionally requires `background_check_status =
+  'verified'`, which is the safety property this product is sold on, enforced
+  in the database rather than the client. **This is good work.** The exposure
+  is one policy, not a pattern.
+
+- [x] `[G]` Re-check `availability` — **`availability_select_public ... USING (true)` is NOT live in production.** It appears in the migration files but is absent from `pg_policies`, i.e. that migration was never applied. Struck from 2.3 below; keep it from ever being applied as written.
+
+### 2.2 Storage — **not live, deferred**
+- [x] `[G]` Audit every storage bucket policy — **`storage.buckets` is EMPTY in production. Zero buckets exist.**
+- [x] `[G]` Confirm no bucket allows anon write — vacuously true; there are no buckets
+- [x] ~~`[RED]` `provider-media` unconditional `anon` read~~ — **authored, not applied.** Not a live exposure. Media upload is not a working feature in prod.
+- [ ] `[Y]` Before that migration is ever applied, fix the policy: signed URLs with a TTL, or unguessable path prefixes instead of `{uid}/...`
+- [ ] `[Y]` Do not use `owner_id` as a storage path component — it is the same value 2.1 leaks
+
+### 2.3 Policy correctness
+- [x] ~~`[RED]` `availability_select_public ... USING (true)`~~ — **not live**; the migration defining it was never applied. Do not apply it as written.
+- [ ] `[Y]` Rewrite that policy in the migration file before it ever ships
+- [ ] `[RED]` `ai_feedback` has RLS enabled and **zero policies** `[prod advisor]`
+- [ ] `[RED]` `waitlist` has RLS enabled and **zero policies** `[prod advisor]`
+- [ ] `[RED]` `is_org_admin(uuid)` is `SECURITY DEFINER` and executable by **anon** `[prod advisor]`
+- [ ] `[RED]` `rls_auto_enable()` is `SECURITY DEFINER` and executable by **anon** `[prod advisor]`
+- [ ] `[RED]` Revoke `execute` from `anon` on both
+- [x] ~~`[RED]` `find_affiliatable_account` is an account-existence oracle~~ — **not live.** The function does not exist in production; `20260729_000510_trainer_affiliation` was never applied. Fix the SQL before that migration ships; there is nothing to fix in prod today.
+- [ ] `[Y]` Never use `is_org_member()` for `athletes`, `session_notes`, `parent_updates`, `messages`, `conversations` — key on the specific assignment, or a 50-trainer org becomes 50 readers of one child's notes
+- [ ] `[G]` Enumerate all 97 live policies and classify each: correct / too broad / unknown
+- [ ] `[G]` For each of 36 tables, write down who should read and who should write
+- [ ] `[G]` Diff that intent against the live policy set
+- [ ] `[Y]` Write an automated RLS test suite: one anon probe and one wrong-user probe per table
+- [ ] `[Y]` Run it in CI against a local `db reset`
+
+### 2.4 Edge function auth
+- [ ] `[Y]` `session-note-summarize:214` authenticates the caller and checks **nothing else** — any account gets a polished parent-facing update about a named minor
+- [ ] `[Y]` Add an assignment check: is this caller the coach for this athlete?
+- [ ] `[Y]` `goal-formulate:106-107` — auth is `if (!authHeader)`; no `getUser()` in the file
+- [ ] `[Y]` `generate-proposals:142,145` — two service-role reads before the ownership check at `:157`; reorder
+- [ ] `[Y]` Add `verify_jwt=true` for `generate-proposals`, `goal-formulate`
+- [ ] `[G]` Confirm all 14 functions call `auth.getUser()` and not merely check for a header
+- [ ] `[G]` Document that `verify_jwt` proves nothing — the anon key **is** a valid project JWT
+- [ ] `[Y]` Copy `search-execute`'s pattern (forward the user's JWT so RLS still governs) wherever a function reads user data
+
+### 2.5 Waitlist abuse `[live on the marketing site today]`
+- [ ] `[Y]` `join-waitlist:66-72` — captcha is **skipped entirely** when `HCAPTCHA_SECRET` is unset
+- [ ] `[RED]` Set `HCAPTCHA_SECRET` in Supabase secrets
+- [ ] `[Y]` Fail closed when it is missing, do not `return true`
+- [ ] `[Y]` `join-waitlist:113-116` — rate limiter returns `true` on DB error. **Fails open.**
+- [ ] `[Y]` Fail closed on rate-limit error
+- [ ] `[Y]` `:155` — IP is read from client-supplied `x-forwarded-for`; trust only the platform's own header
+- [ ] `[Y]` The function is an outbound-Gmail amplifier; add a global hourly ceiling
+- [ ] `[Y]` Add alerting on waitlist signup volume
+
+### 2.6 Auth config
+- [ ] `[owner]` Enable leaked-password protection (HaveIBeenPwned) `[prod advisor]`
+- [ ] `[owner]` Set minimum password length
+- [ ] `[owner]` Review session/JWT expiry
+- [ ] `[owner]` Confirm email confirmation is required
+- [ ] `[RED]` Move `pg_net` out of the `public` schema `[prod advisor]`
+- [ ] `[RED]` Move `vector` out of the `public` schema `[prod advisor]`
+- [ ] `[RED]` Set an explicit `search_path` on `metro_key` `[prod advisor]`
+
+---
+
+## Phase 3 — booking integrity `[CRITICAL-PATH]`
+
+### 3.1 Capacity
+`20260802_000103:38-92` takes an advisory `hashtext` lock and counts before
+rejecting — correct as far as it goes. But the seat is held at **booking
+insert, before payment**, so two families can both hold the last seat.
+
+- [ ] `[G]` Read the `v_taken` predicate at `:69-78` and confirm whether `expired` is excluded — **currently unverified**
+- [ ] `[RED]` Add a `hold_expires_at` to unpaid bookings
+- [ ] `[RED]` Exclude expired holds from the capacity count
+- [ ] `[Y]` Background job to expire stale holds
+- [ ] `[Y]` Release the hold on Stripe checkout expiry
+- [ ] `[Y]` Release the hold on explicit cancellation
+- [ ] `[Y]` Concurrency test: 20 simultaneous bookings for 1 seat → exactly 1 paid
+- [ ] `[Y]` Concurrency test: expired hold frees the seat
+- [ ] `[Y]` Test the advisory-lock path under a connection-pool restart
+
+### 3.2 Stripe correctness
+- [ ] `[G]` Confirm the webhook reads the raw body before HMAC — `stripe-webhook:86,99-109` says it does
+- [ ] `[G]` Confirm `apply_stripe_booking_event` claims `stripe_event_id` before any money write — `20260723_000006:156-166`
+- [ ] `[G]` Confirm the paid branch cross-checks amount and currency — `:175-177`
+- [ ] `[Y]` Add a smoke test that replays a webhook twice and asserts one ledger row
+- [ ] `[Y]` Add a test for an out-of-order webhook (paid before created)
+- [ ] `[Y]` Add a test for a webhook with a tampered signature
+- [ ] `[Y]` Handle `charge.refunded`
+- [ ] `[Y]` Handle `charge.dispute.created`
+- [ ] `[Y]` Handle `account.updated` (coach loses payout eligibility)
+- [ ] `[Y]` Handle `payment_intent.payment_failed`
+- [ ] `[RED]` Confirm Stripe Connect **Express** onboarding works end-to-end with a real coach
+- [ ] `[RED]` Confirm payouts actually land in a connected account
+- [ ] `[Y]` Block booking a coach whose `stripe_charges_enabled` is false
+- [ ] `[Y]` Decide and implement the refund policy
+- [ ] `[Y]` Decide who eats Stripe's fee on a refund
+- [ ] `[Y]` Test the full flow in Stripe test mode, then once live with a $1 booking
+
+---
+
+## Phase 4 — schema convergence
+
+Only possible after Docker is installed and the Phase 0 dumps exist.
+
+- [ ] `[G]` `supabase db reset` locally from the owning repo's migrations
+- [ ] `[G]` `supabase db diff` local vs the prod baseline dump
+- [ ] `[G]` Enumerate every difference
+- [ ] `[G]` For each: is prod right, or is the migration right?
+- [ ] `[RED]` Write reconciling migrations for the differences where the migration is right
+- [ ] `[RED]` Amend migrations where prod is right
+- [ ] `[RED]` Repair the ledger so prod records what it actually has
+- [ ] `[G]` Confirm a clean `db reset` now equals prod byte-for-byte on schema
+- [ ] `[Y]` Add that equality check to CI
+- [ ] `[G]` Determine which of the 36 prod tables the Flutter client queries but which the migrations do not create
+- [ ] `[G]` Determine which tables the migrations create that prod lacks — the client will 404 on these
+- [ ] `[Y]` Fix or remove every client query against a non-existent table
+- [ ] `[Y]` Set up a staging Supabase project
+- [ ] `[Y]` Prove a migration applies cleanly to staging before prod
+- [ ] `[Y]` Write the rollback procedure and test it once
+
+---
+
+## Phase 5 — COPPA and consent `[CRITICAL-PATH]`
+
+- [x] `[G]` **CONFIRMED AGAINST PRODUCTION: the COPPA consent gate is NOT enforced.** `20260728_000203_coppa_gate.sql` creates two functions and two triggers. Production has **none** of them:
+
+  | object | in prod |
+  |---|---|
+  | `enforce_athlete_consent()` | **0** |
+  | `enforce_booking_athlete_consent()` | **0** |
+  | `trg_enforce_athlete_consent` | **0** |
+  | `trg_enforce_booking_athlete_consent` | **0** |
+  | `athletes.parent_consent`, `.consent_at`, `.consent_version` | **3 of 3 present** |
+
+  **The columns exist and nothing checks them.** The consent model is in the
+  schema — it was applied by hand, or came in with an earlier migration — but the
+  enforcement never was. `athletes` carries **zero triggers** in production. So a
+  minor's record can be created with `parent_consent` null, and a booking can be
+  made against that athlete, and the database will accept both silently.
+
+  This is the single highest-severity finding of the launch audit. It is not a
+  bug in the code — the code is written and correct and sitting in a file. It is
+  a **deployment gap**, which is exactly the failure mode the split-brain
+  migration lineage produces: work that looks done in the repo and does not exist
+  in production.
+
+- [ ] `[RED]` Apply `20260728_000203_coppa_gate.sql` to production — **highest priority item in this document**
+- [ ] `[G]` Before applying: check whether existing `athletes` rows would violate the new gate (2 athletes exist; if either has a null `parent_consent`, the trigger will reject future updates to that row)
+- [ ] `[Y]` Add a smoke assertion that both consent triggers exist, so this cannot silently regress
+- [ ] `[Y]` Verifiable parental consent before any athlete under 13 has a record
+- [ ] `[Y]` Consent is recorded with timestamp, method, and the consenting adult
+- [ ] `[Y]` No under-13 data collected before consent
+- [ ] `[Y]` Parent can view everything held about their child
+- [ ] `[Y]` Parent can delete everything held about their child
+- [ ] `[Y]` Deletion actually cascades — test it
+- [ ] `[Y]` Coach messaging to a minor routes through or copies the guardian
+- [ ] `[Y]` No minor's exact location is ever exposed
+- [ ] `[Y]` Photos/video of minors require separate explicit consent
+- [ ] `[Y]` Confirm the universal background-check gate is applied and enforced
+- [ ] `[Y]` A coach without a current check cannot be booked
+- [ ] `[Y]` An org cannot mark its own trainers checked (`20260708_000000:99-115` says it can't — verify in prod)
+- [ ] `[owner]` Legal review of the consent flow
+- [ ] `[owner]` Privacy policy matches what the code does
+- [ ] `[owner]` Terms match what the code does — see 1.3
+
+---
+
+## Phase 6 — operational readiness
+
+- [ ] `[Y]` Error tracking on the Flutter client
+- [ ] `[Y]` Error tracking on every edge function
+- [ ] `[Y]` Alert on webhook failures
+- [ ] `[Y]` Alert on payment failures
+- [ ] `[Y]` Alert on RLS-denied spikes (a sign of a client bug or a probe)
+- [ ] `[Y]` Structured logging with a request ID through the stack
+- [ ] `[Y]` Confirm PITR is enabled on prod
+- [ ] `[Y]` Test a restore into a scratch project
+- [ ] `[Y]` Document the restore procedure
+- [ ] `[Y]` Load-test search
+- [ ] `[Y]` Load-test booking
+- [ ] `[Y]` Review the performance advisors and add missing indexes
+- [ ] `[Y]` Rate-limit every public edge function, failing closed
+- [ ] `[Y]` A runbook for: payment stuck, double booking, coach can't onboard, data deletion request
+- [ ] `[owner]` Decide the support channel and who answers it
+
+---
+
+## Standing rules for this backlog
+
+1. A `[RED]` box is never ticked by an agent. Agent drafts the exact SQL or
+   config change; owner applies it; agent verifies afterwards.
+2. Every `[Y]` and `[G]` change goes through a branch and a PR (repo rule 11).
+3. Nothing ships without the live verification the release contract requires.
+4. When a box turns out to be wrong, strike it and say why — do not silently
+   delete it. The wrong boxes are the record of what was learned.
+
+---
+
+## Phase 0.2 TRIAGE RESULT — 41 of 42 migrations are NOT APPLIED
+
+Each migration was probed for its **witness object** — the table, column,
+function, trigger or index whose presence discriminates "this ran" from "it did
+not". 36 settled by direct existence query against production; 6 by source-text
+or policy-shape inspection.
+
+| verdict | count |
+|---|---|
+| **APPLIED** | **1** — `20260726_000000_booking_member_org_guard` |
+| **NOT APPLIED** | **41** |
+
+This is not "production is behind by a few." **The entire body of schema work
+from 2026-07-26 onward exists only in files.** Absent from prod: `services`,
+`locations`, `recurring_bookings`, `camps`, `camp_roster`, `coach_invoices`,
+`credit_packs`, `commission_rates`, `disputes`, `review_windows`,
+`coach_invites`, `referral_credits`, `program_waitlist`, `waitlist_offers`,
+`split_pay_links`, `platform_fees`, `coach_agent_turns`,
+`service_assignable_members`, every scale index, and all five 2026-08-02
+corrective fixes.
+
+**Correction.** An earlier note here recorded `20260729_000500_commission_rates`
+as partially applied because `organization_members` carries `commission_type`
+and `commission_value`. The `commission_rates` **table does not exist**; those
+columns came from elsewhere. That migration is NOT APPLIED like the rest.
+
+- [ ] `[G]` Trace where `organization_members.commission_type` / `.commission_value` came from
+
+### Three mismatches to resolve BEFORE applying anything
+
+- [ ] `[RED]` **`20260728_000101_platform_fees` seeds 18% / 4%** (`first_booking` 1800 bps, `recurring` 400 bps, lines 20-36). The owner's decision is **flat 12%, final**. Applying as written installs the wrong take rate into the exact table the checkout function reads. Rewrite to a single 1200 bps first.
+- [ ] `[Y]` **`20260729_000100_services_availability_locations` does not create `services` or `availability`** despite the filename — both pre-date it; it only adds columns. It *does* rewrite `availability_select_public`. Read that rewrite before applying.
+- [ ] `[Y]` **`20260729_000620_shared_inbox` redefines `messages_select_participant`** — the policy `20260728_000700` created to hide AI drafts from parents. File order means `000620` wins. Confirm the draft-hiding predicate survives or applying in order re-exposes unsent AI drafts to families.
+
+### Apply order
+
+- [ ] `[RED]` 1. `20260728_000203_coppa_gate` — **drafted: `APPLY-coppa-consent-gate.sql`**
+- [ ] `[RED]` 2. `20260728_000000_universal_bgcheck_gate` — applying it immediately hides every provider whose `background_check_status <> 'verified'`. The data step verifying legitimate demo providers is **deliberately not in the file**, so applying blind empties search results.
+- [ ] `[RED]` 3. `20260802_000102_fix_booking_update_freeze_service_id` — only meaningful after the service model lands; `bookings` has no `service_id` today
+- [ ] `[Y]` 4. Defer all four `20260801_0003*` scale files — pure indexes and RLS initplan tuning, zero safety content
+- [ ] `[G]` **Never re-apply `20260726_000000` after `20260729_000610`.** `000610`'s `enforce_booking_member_org` is a strict superset — it adds a `service_id -> services.provider_id` resolution branch and adds `service_id` to the watched column list. Re-applying the earlier version rejects service-only bookings outright via the `v_org is null` fail-closed branch, AND stops an UPDATE touching only `service_id` from firing the guard at all — restoring the forged cross-org attribution the file was written to stop.
+
+---
+
+## Applied to production 2026-08-11 (evening)
+
+- [x] `[RED→APPLIED]` **COPPA consent gate** — 8/8 verify PASS. Live-fire: consent-less athlete rejected, blank `consent_version` rejected, booking on a ghost athlete rejected. Ledger row `20260728000203`.
+- [x] `[RED→APPLIED]` **Universal background-check gate** — 9/9 verify PASS. 20 of 23 approved providers visible; 3 hidden because genuinely unverified. Live-fire: booking against an unverified provider rejected, booking with no resolvable provider rejected, booking against a verified provider **accepted** (negative control, no false positive). Ledger row `20260728000000`.
+- [x] `[RED→APPLIED]` **Closed a live self-verification hole.** Prod's `enforce_provider_trust` did not guard `background_check_status`, so a coach could `update providers set background_check_status='verified'` on their own row. Now server-controlled along with `account_status` and the Stripe fields.
+- [x] `[RED→APPLIED]` **providers column leak, anon half.** `revoke select ... from anon` + column-scoped `grant`. `anon` can no longer read `latitude`, `longitude`, `stripe_account_id`, `stripe_charges_enabled`, `owner_id`, `account_status`. Broke nothing — every direct `providers` read in the client is the owner's own row, and anon browse goes through `search_candidates` (SECURITY DEFINER, returns computed `dist`, never coordinates).
+- [ ] `[RED]` **providers column leak, authenticated half — NOT DONE, needs a paired client change.** `providers_select_public` grants to `anon, authenticated`, signup is free, so any signed-in user still reads all 20 coaches' coordinates and Stripe IDs. Column privileges are per-role, not per-policy, so the owner's own full-row read must move to a definer function first. `supabase_repository.dart:3339` calls `.select()` (SELECT *) on the owner's row — revoking without changing that line returns `permission denied for column latitude` and breaks every coach dashboard. Both halves drafted in `docs/launch/sql/6-providers-column-leak-part2.md`. **Ship the client change first.**
+- [ ] `[Y]` **Durable fix for the coordinate class of bug:** store `public_latitude`/`public_longitude` rounded to ~1km for map pins, keep exact coordinates owner-and-service-role only for server-side distance. Removes the class rather than the instance.
+- [x] `[Y→PR]` **`platform_fees` rewritten from 18%/4% to a flat 1200 bps** — sporve-app PR #20. Also fixed `resolve_platform_fee_bps`, whose "fail safe" fallback returned 1800: safe for the platform, six points out of the coach's pocket. Upsert changed from `DO NOTHING` to `DO UPDATE` so a re-run corrects a wrong row instead of silently leaving it.
+
+---
+
+## Apply plan — key findings (2026-08-11 late)
+
+- [x] `[G]` **The cutoff assumption was wrong.** 19 of the 39 depend on `20260626_000000_services_availability.sql`, which is dated BEFORE the ledger's last entry and is **also unapplied**. Prod's ledger has 19 entries against ~31 pre-cutoff files, so "everything before `20260725033343` is applied" is false. `services`, `availability` and `set_updated_at()` exist in no other file.
+- [x] `[G]` **No migration in the 39 reverts either gate applied tonight.** All ten redefinitions checked. `20260801_000302` rewrites every policy in `public` but never authors a predicate — it reads `pg_get_expr` from the catalog and substitutes only `auth.uid()` → `(select auth.uid())`. `provider_safety_cleared`, `providers_select_public`, `programs_select_public`, `search_candidates`, `enforce_provider_trust` and the consent gate are untouched.
+- [x] `[G]` **Two static findings reversed:** `20260729_000100` *fixes* `availability_select_public` rather than reintroducing `USING (true)`, and `20260729_000620` keeps the parent's `visible_to_parent = true` branch verbatim.
+- [x] `[APPLIED]` **Fixed two coach screens that were failing at runtime.** `supabase_repository.dart:2119` and `:3458` query seven `providers` columns that did not exist in production. Applied `20260728_000600_coach_policies` (5 columns + a `faq` array CHECK, purely additive) and the two `providers` columns from `20260729_000100` surgically, without the rest of that migration, which depends on tables prod lacks. All seven now exist.
+
+### Do not apply as written
+- [ ] `[RED]` **`20260729_000300_coach_invoices`** — `:40,:46` widen the fee-kind CHECK and insert `('offplatform', 250)`, reintroducing the 2.5% off-platform rate the owner killed. `:150` also fails safe to 250 bps. Same defect as `platform_fees` had. **Rewrite before applying.**
+- [ ] `[Y]` **`20260728_000200_reviews`** — `:312` adds `published_at is not null` to a live policy with no backfill for a column the same file adds. Every existing public review goes dark.
+- [ ] `[RED]` **`20260802_000105_fix_p2_hardening`** — `:146` drops the baseline `conversations_insert_participant` with no replacement; `:119` adds a service-role exemption to `prevent_profile_role_change` that prod's version does not have.
+- [ ] `[RED]` **`20260802_000102` and `20260802_000103` are the worst files in the set.** They apply *cleanly* against prod today and then break every booking write: PL/pgSQL resolves `new.service_id` at execution, not at `CREATE FUNCTION`, and both bind to `bookings` with no `UPDATE OF` list to validate against. `000102` drops the working prod trigger first, so there is no fallback. **A clean apply is not evidence of safety for these two.**
+- [x] ~~`20260728_000101_platform_fees` fallback still 1800~~ — stale finding; the agent read the file before the rewrite. Line 100 reads `1200`. Verified.
+
+### Remaining safe wave (not yet applied)
+- [ ] `[Y]` `20260728_000001_north_star_metrics`
+- [ ] `[Y]` `20260728_000201_availability_truthfulness`
+- [ ] `[Y]` `20260728_000202_resolution_center`
+- [ ] `[Y]` `20260728_000300_waitlist`
+- [ ] `[Y]` `20260728_000400_coach_invites`
+- [ ] `[Y]` `20260801_000100_coach_agent_turns`
+
+Deliberately excluded from the safe wave: `20260728_000100_recurring_bookings` and `20260729_000500_commission_rates` (both install triggers on the live `bookings` write path), `20260728_000700_ai_drafts` (replaces three live `messages` policies), `20260728_000401_referrals` (seeds an unapproved $25 credit). None would fail; all four change live behaviour.
+
+---
+
+## Safe wave — progress
+
+**Applied and regression-tested:**
+
+- [x] `20260728_000600_coach_policies` + the two `providers` columns lifted surgically from `20260729_000100` — fixes two coach screens that were failing at runtime
+- [x] `20260728_000001_north_star_metrics` — 3 timestamp columns, 2 stamp triggers, 2 reporting views (`security_invoker`, service-role only)
+
+**A finding the apply plan missed.** It excluded four migrations for "installing triggers on the live `bookings` write path", but **two files inside its own safe wave do exactly that**: `north_star_metrics` adds `trg_stamp_provider_first_booking` and `availability_truthfulness` adds `trg_stamp_booking_provider_response`, both on `public.bookings`. The wave was still correct — but for a reason it did not state.
+
+Why `north_star` is genuinely safe, verified rather than assumed:
+- its bookings trigger is **AFTER**, so it cannot reject a write
+- it cascades an `update public.providers`, which fires `enforce_provider_trust` — and that recomputes `status` from `onboarding_completed`. **This was the real risk.** A provider with `status='approved'` but `onboarding_completed=false` would have been silently demoted to `pending` and vanished from search on the next unrelated write. Checked first: all 23 approved rows have `onboarding_completed=true` and all 4 pending have `false`. Consistent, so no demotion. **On a database where that did not hold, this migration would quietly empty the marketplace.**
+- regression-tested live: a legitimate booking still inserts, and a `providers` UPDATE leaves all 23 approved. Both rolled back.
+
+**Remaining safe wave (4, not yet applied):**
+- [ ] `[Y]` `20260728_000201_availability_truthfulness` — **read the `enforce_provider_availability_signals` BEFORE trigger against `trg_sync_public_coords` and `trg_enforce_provider_trust` first**; three BEFORE triggers on `providers` fire in name order
+- [ ] `[Y]` `20260728_000202_resolution_center` — new `disputes` table, isolated
+- [ ] `[Y]` `20260728_000300_waitlist` — new `program_waitlist` table, isolated
+- [ ] `[Y]` `20260728_000400_coach_invites` — new `coach_invites` table, isolated
+- [ ] `[Y]` `20260801_000100_coach_agent_turns` — new table, isolated
+
+### Production state at checkpoint
+| | |
+|---|---|
+| ledger entries | **21** (was 17 this morning) |
+| tables | 36 |
+| policies | 97 |
+| triggers | **25** |
+| approved / visible providers | 23 / **20** |
+| bookings / athletes | 9 / 2 |
+
+---
+
+## Safe wave — second checkpoint
+
+- [x] `20260728_000201_availability_truthfulness` — 2 provider columns + backfill + index, `bookings.provider_responded_at`, 2 triggers, 5 ranking helpers, `admin_set_instant_book`, `stale_providers` view.
+
+  Before applying, verified the **BEFORE-trigger ordering on `providers`**. There are now four, firing in name order:
+  `trg_enforce_provider_availability_signals` → `trg_enforce_provider_trust` → `trg_stamp_provider_activation` → `trg_sync_public_coords`.
+  They touch **disjoint columns** — earned-privilege signals / trust+status / activation stamps / derived coords — so order does not affect the result. Order would matter if two wrote the same field.
+
+### Live guard tests — and two false alarms I raised myself
+
+Impersonating a real coach via `set_config('request.jwt.claims', …)`, since `auth.uid()` reads `sub` from that GUC:
+
+| attempt | result |
+|---|---|
+| self-grant `instant_book_enabled` | **BLOCKED** — "instant_book_enabled is earned and server-controlled" |
+| self-set `background_check_status = 'verified'` | **BLOCKED** |
+| self-change `account_status` | **BLOCKED** |
+| set `last_active_at` 10 days in the future | **BLOCKED** |
+| legitimate booking insert | **PASS** |
+| `providers` UPDATE, 23 still approved | **PASS** |
+
+**Two of these first reported FAIL-ALLOWED, and both times the test was wrong, not the guard.**
+
+1. Connected as `service_role`, `auth.uid()` is null, and every guard short-circuits there by design. A test that cannot produce an end-user identity cannot test an end-user guard. Fixed by impersonating via the JWT-claims GUC.
+2. The first real attempt targeted a provider **already** at `background_check_status='verified'`. The guard raises on `is distinct from` — a no-op write is not a change, so nothing fired. Fixed by targeting a provider at `'none'`.
+
+Worth writing down: **"the guard did not fire" and "the guard is broken" are different claims**, and the gap between them is entirely in how the test is set up. Both times the honest read was that my probe was wrong.
+
+### Remaining (4, isolated new tables, no safety content)
+- [ ] `[Y]` `20260728_000202_resolution_center` — `disputes`
+- [ ] `[Y]` `20260728_000300_waitlist` — `program_waitlist`
+- [ ] `[Y]` `20260728_000400_coach_invites` — `coach_invites`
+- [ ] `[Y]` `20260801_000100_coach_agent_turns` — `coach_agent_turns`
+
+Each creates a table nothing currently references, with its own RLS and write-guard trigger. They cannot alter existing behaviour; the value is enabling features, not closing risk.
+
+---
+
+## Safe wave COMPLETE — all 6 applied
+
+- [x] `20260728_000001_north_star_metrics`
+- [x] `20260728_000201_availability_truthfulness`
+- [x] `20260728_000202_resolution_center`
+- [x] `20260728_000300_waitlist`
+- [x] `20260728_000400_coach_invites`
+- [x] `20260801_000100_coach_agent_turns`
+- [x] `20260728_000600_coach_policies` (+ 2 columns lifted from `20260729_000100`)
+
+### A dependency the apply plan missed — caught before it bit
+
+`20260728_000202_resolution_center` was classified "isolated, new table only". It is not.
+`enforce_dispute_insert` calls **`public.is_booking_provider_owner()`**, which is defined
+in **`20260728_000200_reviews.sql`** — a file on the **do-not-apply** list, because it adds
+`published_at is not null` to a live policy with no backfill and would blank every existing
+public review.
+
+PL/pgSQL resolves function references at **execution**, not at `CREATE FUNCTION`. So
+`resolution_center` would have applied cleanly, reported success, and then thrown
+`function public.is_booking_provider_owner(uuid) does not exist` the first time a **coach**
+opened a dispute — while a family opening one worked fine, because that branch never calls it.
+A latent failure on one code path only.
+
+Fixed by lifting `is_booking_provider_owner` out of the reviews migration surgically and
+applying it alone, leaving the destructive policy change behind. Same technique as
+`buffer_minutes` / `vacation_until`.
+
+**This is the third time tonight that "applies cleanly" was not evidence of "is correct".**
+The other two are `20260802_000102` and `_000103`, still unapplied for the same reason.
+
+### Final verification — all PASS
+| check | result |
+|---|---|
+| `disputes`, `program_waitlist`, `coach_invites`, `coach_agent_turns` exist | PASS |
+| `is_booking_provider_owner` present | PASS |
+| all 4 new tables have RLS enabled | PASS |
+| **no new table is readable by `anon`** | PASS |
+| COPPA gate intact | PASS |
+| background-check gate intact | PASS |
+| visible providers | **20** |
+| `anon` blocked on `providers.latitude` | PASS |
+| ledger entries | **26** (was 17 this morning) |
