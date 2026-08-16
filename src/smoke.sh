@@ -1171,7 +1171,7 @@ slop=$($B js "$AUD;
   if(r.warn.fingerprint){if(fps[r.warn.fingerprint])dups.push((arg||name)+'='+fps[r.warn.fingerprint]);fps[r.warn.fingerprint]=(arg||name);}
   if((r.warn.accent||[]).length>2)acc.push((arg||name)+':'+r.warn.accent.length);
   const hh=document.querySelector('.pg-hero');
-  if(hh&&hh.getBoundingClientRect().height>0.45*window.innerHeight+20)tall.push(arg||name);});
+  if(hh&&hh.getBoundingClientRect().height>0.45*window.innerHeight+1)tall.push(arg||name);});
  // the merged 'saved' route must land on Search, never 404
  S.route={name:'page',arg:'saved'};render();
  if(document.querySelector('#app').innerText.indexOf('Search by sport')<0)fails.push('saved[NO_REDIRECT]');
