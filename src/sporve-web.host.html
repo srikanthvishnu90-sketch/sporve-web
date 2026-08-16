@@ -12884,9 +12884,13 @@ const PROP_DISPATCH={
    'cancellation' returns its name so canSend can refuse it (money-frozen). */
 function policyField(p){
   const t=String((p.args&&(p.args.policy_type||p.args.policy||p.args.field||p.args.kind||p.args.name))||"").toLowerCase();
+  /* Money-frozen names are matched FIRST so a mixed string ("cancellation and
+     what to bring", "service cancellation") can never route refund-flavoured
+     text into a logistics field — anything mentioning cancel/refund is refused
+     outright, not redirected. */
+  if(/cancel|refund/.test(t)) return "cancellation";
   if(/bring/.test(t)) return "what_to_bring";
   if(/radius|travel|area|distance|service/.test(t)) return "travel_radius";
-  if(/cancel|refund/.test(t)) return "cancellation";
   return null;
 }
 /* The editable draft the card shows and the handler dispatches. The model may
