@@ -12220,16 +12220,25 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
        The old handler pushed a fabricated verified:true row into the in-memory
        PROGRAMS only — a listing that lived in one tab and lied about its check.
        Now it is a real programs row under the coach's JWT; the badge is
-       computed from the provider's real check evidence by the catalogue, not
-       asserted here. */
+       computed from the provider's real check evidence by the catalogue.
+       Two separate inserts can't be one transaction over PostgREST, so the
+       partial case is handled HONESTLY: once the program exists we close the
+       modal (so a retry can't create a duplicate) and, if only the SESSION
+       failed, say exactly that rather than "nothing was saved". A createListing
+       failure means nothing was written, so that keeps the modal open to retry. */
+    const finish=()=>{
+      const done=()=>{ S.modal=null;S.coachTab="listings";render(); };
+      return (window.SporveCatalog&&window.SporveCatalog.reload)
+        ? window.SporveCatalog.reload().then(done,done) : (done(),Promise.resolve());
+    };
     window.SporveCoach.createListing({title:d.title,sport:d.sport,desc:d.desc,
       price:d.price,model:d.model,minAge:d.minAge,maxAge:d.maxAge,cap:d.cap})
-      .then(prog=> d.sessionDate
-        ? window.SporveCoach.addSession(prog.id,{date:d.sessionDate,startTime:d.sessionTime,capacity:d.cap}).then(()=>prog)
-        : prog)
-      .then(prog=> (window.SporveCatalog&&window.SporveCatalog.reload)
-        ? window.SporveCatalog.reload().then(()=>prog) : prog)
-      .then(prog=>{ S.modal=null;S.coachTab="listings";render();toast("Listing published"); })
+      .then(prog=>{
+        if(!d.sessionDate) return finish().then(()=>toast("Listing published — add a session so families can book it."));
+        return window.SporveCoach.addSession(prog.id,{date:d.sessionDate,startTime:d.sessionTime,capacity:d.cap})
+          .then(()=> finish().then(()=>toast("Listing published")))
+          .catch(()=> finish().then(()=>toast("Listing created — but its first session didn't save. Add one from Schedule.")));
+      })
       .catch(err=>fail((err&&err.message)||"Could not publish the listing. Nothing was saved."));
   };
 

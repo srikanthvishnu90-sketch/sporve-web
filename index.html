@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="703a474f8a66b7be">
+<meta name="sporve-build" content="54070f4f975569c7">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -12269,16 +12269,25 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
        The old handler pushed a fabricated verified:true row into the in-memory
        PROGRAMS only — a listing that lived in one tab and lied about its check.
        Now it is a real programs row under the coach's JWT; the badge is
-       computed from the provider's real check evidence by the catalogue, not
-       asserted here. */
+       computed from the provider's real check evidence by the catalogue.
+       Two separate inserts can't be one transaction over PostgREST, so the
+       partial case is handled HONESTLY: once the program exists we close the
+       modal (so a retry can't create a duplicate) and, if only the SESSION
+       failed, say exactly that rather than "nothing was saved". A createListing
+       failure means nothing was written, so that keeps the modal open to retry. */
+    const finish=()=>{
+      const done=()=>{ S.modal=null;S.coachTab="listings";render(); };
+      return (window.SporveCatalog&&window.SporveCatalog.reload)
+        ? window.SporveCatalog.reload().then(done,done) : (done(),Promise.resolve());
+    };
     window.SporveCoach.createListing({title:d.title,sport:d.sport,desc:d.desc,
       price:d.price,model:d.model,minAge:d.minAge,maxAge:d.maxAge,cap:d.cap})
-      .then(prog=> d.sessionDate
-        ? window.SporveCoach.addSession(prog.id,{date:d.sessionDate,startTime:d.sessionTime,capacity:d.cap}).then(()=>prog)
-        : prog)
-      .then(prog=> (window.SporveCatalog&&window.SporveCatalog.reload)
-        ? window.SporveCatalog.reload().then(()=>prog) : prog)
-      .then(prog=>{ S.modal=null;S.coachTab="listings";render();toast("Listing published"); })
+      .then(prog=>{
+        if(!d.sessionDate) return finish().then(()=>toast("Listing published — add a session so families can book it."));
+        return window.SporveCoach.addSession(prog.id,{date:d.sessionDate,startTime:d.sessionTime,capacity:d.cap})
+          .then(()=> finish().then(()=>toast("Listing published")))
+          .catch(()=> finish().then(()=>toast("Listing created — but its first session didn't save. Add one from Schedule.")));
+      })
       .catch(err=>fail((err&&err.message)||"Could not publish the listing. Nothing was saved."));
   };
 
