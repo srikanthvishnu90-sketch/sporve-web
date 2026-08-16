@@ -63,6 +63,11 @@ window.SLOP_AUDIT = function (root) {
   /* C — grids with an unfillable first row. */
   scope.querySelectorAll("*").forEach((el) => {
     if (!visible(el)) return;
+    // Site chrome (header/nav/topbar) is functional, not page content — its
+    // grids are not stranded-slot slop. Excluding it also closes a latent CI
+    // flake: SLOP_AUDIT falls back to #app when "#app main" is absent, pulling
+    // the topbar's 3-col shell (2 children) into scope as a false grid FAIL.
+    if (el.closest("header,nav,.topbar")) return;
     const cs = getComputedStyle(el);
     if (cs.display !== "grid") return;
     const cols = cs.gridTemplateColumns.split(" ").filter((c) => c && c !== "0px").length;
@@ -106,9 +111,16 @@ window.SLOP_AUDIT = function (root) {
     out.warn.pageWords = words(clone.innerText);
   }
   out.warn.fingerprint = [...scope.querySelectorAll("section.pgband")].map((sec) => {
-    const ground = sec.className.replace("pgband", "").replace("pg-hero", "H").trim().split(" ")[0] || "w";
-    const inner = [...sec.querySelectorAll(".pg-rows,.pg-demo,.pg-proof,.pg-stats,.pg-founder,.pg-figure,.db-in,.pg-kx,.cmp,.deflist")]
-      .map((e) => e.className.split(" ")[0]).join("+");
+    // ground: "H" for the hero band, else the ground colour. (The old
+    // .replace("pg-hero","H") then .split(" ")[0] silently dropped the H,
+    // because the colour token precedes pg-hero in the class list.)
+    const cls = sec.className;
+    const ground = /\bpg-hero\b/.test(cls) ? "H" : (cls.replace("pgband", "").trim().split(" ")[0] || "w");
+    // self-marker: .pg-figure IS the section, so querySelectorAll (descendants
+    // only) could never see it — read it off the section's own class instead.
+    const selfMark = /\bpg-figure\b/.test(cls) ? "pg-figure" : "";
+    const inner = [selfMark, ...[...sec.querySelectorAll(".pg-rows,.pg-demo,.pg-proof,.pg-stats,.pg-founder,.db-in,.pg-kx,.cmp,.deflist")]
+      .map((e) => e.className.split(" ")[0])].filter(Boolean).join("+");
     return ground + (inner ? ":" + inner : "");
   }).join("|");
   {

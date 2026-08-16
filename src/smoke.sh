@@ -1183,8 +1183,7 @@ case "$slopc" in
     pass "slop-audit: 18 pages clean on icons, grids, emoji, shapes, pills"
     w=$(printf '%s' "$slopc" | grep -o 'wcopy:[0-9]*' | grep -o '[0-9]*')
     d=$(printf '%s' "$slopc" | grep -o 'wdot:[0-9]*' | grep -o '[0-9]*')
-    [ "${w:-0}" -gt 0 ] || [ "${d:-0}" -gt 0 ] && \
-      t=$(printf '%s' "$slopc" | grep -o 'thin:[0-9]*' | grep -o '[0-9]*')
+    t=$(printf '%s' "$slopc" | grep -o 'thin:[0-9]*' | grep -o '[0-9]*')
     du=$(printf '%s' "$slopc" | grep -o 'dups:[0-9]*' | grep -o '[0-9]*')
     ac=$(printf '%s' "$slopc" | grep -o 'acc:[0-9]*' | grep -o '[0-9]*')
     th=$(printf '%s' "$slopc" | grep -o 'tallHeroes:[0-9]*' | grep -o '[0-9]*')

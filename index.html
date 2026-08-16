@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="ede817e9543eb8bf">
+<meta name="sporve-build" content="5acbffc2daffbcea">
 </head>
 <body>
 <noscript><h1>Sporve — Every sport. One app.</h1><p>Sporve connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -3682,16 +3682,9 @@ body.reg-coach .navlink{font-size:var(--text-md)}
   .pg-row{grid-template-columns:1fr;gap:9px;padding:24px 0}
   .pg-rnum{padding-top:0}
 }
-/* S2 ticker — one full-width marquee of sport names, dot-separated (no glyph),
-   ~34s loop, pause on hover, static under reduced-motion. The row emits the
-   sequence twice so translateX(-50%) loops seamlessly. */
-.pg-tickrow{display:inline-flex;align-items:center;white-space:nowrap;will-change:transform;
-  animation:pgtick 34s linear infinite}
-.pg-tickrow .tk{font-weight:700;font-size:var(--text-lg);letter-spacing:-.01em;color:var(--ink-2);padding:0 3px}
-.pg-tickrow .tksep{color:var(--faint);margin:0 20px;flex:0 0 auto}
-@keyframes pgtick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-@media(max-width:640px){.pg-tickrow{animation-duration:22s}.pg-tickrow .tk{font-size:var(--text-base)}}
-@media(prefers-reduced-motion:reduce){.pg-tickrow{animation:none}}
+/* The S2 sport-name marquee (.pg-tickrow / @keyframes pgtick) was removed with
+   its markup in the text-first rebuild — no page renders it. CSS deleted so it
+   does not dead-ship. */
 /* S6 founder note */
 .pg-founder .pg-fnote{font-size:var(--text-lg);line-height:1.55;color:var(--ink-2);max-width:60ch}
 .pg-founder .pg-fpull{font-size:clamp(24px,3vw,34px);line-height:1.2;margin-top:20px;color:var(--ink)}
@@ -10502,65 +10495,10 @@ if(id==="messaging"){
     ${pageKX(id)}
     </div>`;
   }
-  if(id==="saved"){
-    /* Recipe γ, Boxing. Two-column hero (headline left, floating listing card
-       right) → full-bleed obsidian demo (headline + wide dark saved-shortlist,
-       side by side) → numbered claim/proof rows → stats → close. Keep a
-       shortlist; guests get three saves before signing in. Accents wear Boxing. */
-    return `<div class="${cls}">
-    <section class="pgband slate pg-hero split"><div class="shell" data-rev>
-      <div class="pg-heroL">
-        ${pageEyebrow(meta)}
-        <h1 class="pg-serif pg-h1">Keep your shortlist, <em>even as a guest.</em></h1>
-        <p class="pg-sub">Save a boxing coach you like and Sporve holds it for you. Guests get three saves before signing in — enough to line up a shortlist, compare gyms, and message the one you pick.</p>
-        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Find a coach to save →</button>`}</div>
-      </div>
-      </div></section>
-
-    <section class="pgband white pg-figure"><div class="shell" data-rev>${sigHTML(id)}</div></section>
-
-    <section class="pgband dark bleed"><div class="shell" data-rev><div class="db-in">
-      <div>
-        <h2 class="pg-serif" style="font-size:clamp(28px,3.4vw,42px);max-width:13ch">Your corner, <em>saved for later.</em></h2>
-        <p class="pg-sub" style="margin-top:14px">Every boxing coach you tap the heart on lands here. A guest shortlist holds three; sign in and it keeps as many as you save, ready to book or message.</p>
-      </div>
-      <div class="pg-demo wide" aria-hidden="true">
-        <span class="demonote">The listings below are sample data that show how Sporve works. Real verified coaches are onboarding now.</span>
-        <div class="drow"><div><div class="dname">Southside Boxing — Youth Fundamentals</div>
-            <div class="dmeta"><span class="dchk">Background-checked</span> · Beginner · ages 10–14</div></div>
-          <span class="dprice">$35</span></div>
-        <div class="drow"><div><div class="dname">Windy City BC — Footwork & Conditioning</div>
-            <div class="dmeta"><span class="dchk">Background-checked</span> · All levels · ages 9–14</div></div>
-          <span class="dprice">$28</span></div>
-        <div class="drow"><div><div class="dname">Halsted Boxing Gym — Ring Basics</div>
-            <div class="dmeta"><span class="dchk">3 of 3 saves used</span> · sign in to keep more</div></div>
-          <span class="dprice">$40</span></div>
-      </div>
-    </div></div></section>
-
-    <section class="pgband white"><div class="shell" data-rev>
-      <div class="pg-rows">
-        ${[["01","Three saves, no account","A guest can save three coaches before signing in — enough to build a shortlist and weigh two gyms side by side, no sign-up gate first."],
-           ["02","Sign in to keep more","Hit the third save and Sporve asks you to sign in. From there the shortlist has <span class=\"hl\">no cap</span> and rides with your account across every sport."],
-           ["03","Saved means still open","A saved coach is still a bookable coach. Open the shortlist to <span class=\"hl\">message or book</span> a real slot — the save is a bookmark, not a hold."]]
-          .map(([n,b,p])=>`<div class="pg-row"><div class="pg-rnum">${esc(n)}</div><div class="pg-rclaim"><b>${esc(b)}</b></div><div class="pg-rproof">${p}</div></div>`).join("")}
-      </div>
-    </div></section>
-
-    <section class="pgband slate"><div class="shell" data-rev>
-      <div class="pg-stats">
-        ${[["3","saves before you sign in"],["$0","to save and message a coach"],["100%","of bookable coaches, background-checked"]]
-          .map(([n,l])=>`<div class="pg-stat"><div class="n" data-count="${esc(n)}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}
-      </div>
-    </div></section>
-
-    <section class="pgband white"><div class="shell" data-rev>
-      <h2 class="pg-serif" style="font-size:clamp(30px,4.4vw,48px);max-width:15ch">Line up your <em>next round.</em></h2>
-      <div class="pg-ctarow">${pageCTA(meta)}</div>
-    </div></section>
-    ${pageKX(id)}
-    </div>`;
-  }
+  /* The "saved" page recipe was removed here: saved coaches merged into Search
+     (redirect at the top of pageHTML), so this branch was unreachable. Deep
+     links to page:saved resolve to Search; PAGE_META.saved survives only as the
+     generic fallback if the redirect is ever lifted. */
   if(id==="athlete-progress"){
     /* Recipe γ, Track & Field. Two-column hero (headline left, floating listing
        card right) → full-bleed obsidian demo (headline + wide dark progress
@@ -10572,7 +10510,7 @@ if(id==="messaging"){
         ${pageEyebrow(meta)}
         <h1 class="pg-serif pg-h1">The plan follows <em>the athlete.</em></h1>
         <p class="pg-sub">Notes, goals, and a training plan live with the young athlete — not with one coach's clipboard. Switch track clubs mid-season and every session and personal best comes along.</p>
-        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:saved">Save a coach first →</button>`}</div>
+        <div class="pg-ctarow">${pageCTA(meta)}${open||`<button class="pg-textlink" data-nav="page:search">Find a coach →</button>`}</div>
       </div>
       </div></section>
 
