@@ -64,6 +64,13 @@ async function serve() {
         const { op, arg } = JSON.parse(raw || "{}");
         if (op === "goto") {
           await page.goto(arg, { waitUntil: "load" });
+          /* The built page embeds its fonts as data: URIs, and `load` does not
+             wait for the CSS Font Loading pipeline. Measuring line counts and
+             hero heights against the fallback serif wraps headlines one line
+             wider than reality — smoke's §1 checks failed in CI on exactly
+             that (6–7 measured lines vs ≤5 real ones) while passing locally.
+             Block until every declared face is usable before returning. */
+          await page.evaluate(() => document.fonts.ready);
           out = "ok";
         } else if (op === "viewport") {
           const [w, h] = String(arg).split("x").map(Number);
