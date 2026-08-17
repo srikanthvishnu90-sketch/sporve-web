@@ -60,7 +60,7 @@ jobs:
           node src/ci-browse.mjs viewport 1440x900
           node src/ci-browse.mjs goto "file://$PWD/index.html"
           node src/ci-browse.mjs js "(async()=>{const out=[];for(const f of document.fonts){try{await f.load();out.push(f.family+'='+f.status)}catch(e){out.push(f.family+'=ERR:'+String(e).slice(0,80))}}return out.join(' | ')})()"
-          node src/ci-browse.mjs js "S.portal='family';S.auth={status:'guest'};S.route={name:'page',arg:'insights'};render();(()=>{const h=document.querySelector('.pg-h1');const cs=getComputedStyle(h);return 'fam='+cs.fontFamily.slice(0,60)+' size='+cs.fontSize+' lh='+cs.lineHeight+' w='+Math.round(h.getBoundingClientRect().width)+' hh='+Math.round(h.getBoundingClientRect().height)+' check='+document.fonts.check('16px Archivo')+' vw='+window.innerWidth})()"
+          node src/ci-browse.mjs js "S.portal='family';S.auth={status:'guest'};S.route={name:'page',arg:'insights'};render();(()=>{const h=document.querySelector('.pg-h1');const cs=getComputedStyle(h);const c=document.createElement('canvas').getContext('2d');const m=(f)=>{c.font=f;return Math.round(c.measureText('Know which sessions are working').width)};return 'wt='+cs.fontWeight+' stretch='+cs.fontStretch+' ls='+cs.letterSpacing+' txt='+JSON.stringify(h.textContent.slice(0,40))+' adv700='+m('700 40px Archivo')+' adv400='+m('400 40px Archivo')+' advSerif='+m('40px serif')+' advInter='+m('700 40px Inter')})()"
           node src/ci-browse.mjs stop || true
 
       - name: Smoke (all checks, browser included)
