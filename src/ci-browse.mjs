@@ -64,13 +64,19 @@ async function serve() {
         const { op, arg } = JSON.parse(raw || "{}");
         if (op === "goto") {
           await page.goto(arg, { waitUntil: "load" });
-          /* The built page embeds its fonts as data: URIs, and `load` does not
-             wait for the CSS Font Loading pipeline. Measuring line counts and
-             hero heights against the fallback serif wraps headlines one line
-             wider than reality — smoke's §1 checks failed in CI on exactly
-             that (6–7 measured lines vs ≤5 real ones) while passing locally.
-             Block until every declared face is usable before returning. */
-          await page.evaluate(() => document.fonts.ready);
+          /* The built page embeds its fonts as data: URIs and loads each face
+             LAZILY on first use. The per-page accent faces (Archivo, Syne,
+             Hanken Grotesk) are first used only after smoke's js snippets call
+             render() for a product page — and those snippets measure line
+             counts and hero heights synchronously, so in CI they measured the
+             fallback serif and headlines wrapped 6–7 lines where the real
+             faces wrap ≤5 (deterministic FAIL; local daemons pass on platform
+             timing). Force EVERY declared face to decode now, so later
+             render()+measure cycles see final metrics. */
+          await page.evaluate(async () => {
+            await Promise.all([...document.fonts].map((f) => f.load()));
+            await document.fonts.ready;
+          });
           out = "ok";
         } else if (op === "viewport") {
           const [w, h] = String(arg).split("x").map(Number);
