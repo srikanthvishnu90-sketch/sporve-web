@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="9546acb13745f584">
+<meta name="sporve-build" content="eec6bc3833c16dc3">
 </head>
 <body>
 <noscript><h1>Sporv — Every sport. One app.</h1><p>Sporv connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -4325,6 +4325,10 @@ body.reg-coach .navlink{font-size:var(--text-md)}
 
 /* 03 — Search: wide eligibility statement / inverse filter machine / white comparison ledger. */
 .pg-search .pg-hero-inner{grid-template-columns:minmax(0,1.35fr) minmax(340px,.65fr);align-items:center}
+/* Search's hero height is set by its demo-UI aside, not its headline, and sat
+   ~2px over the 45vh ceiling on Linux text metrics (CI) while passing on mac.
+   Trimmed shell padding buys ~10px of cross-platform margin. */
+.pg-search .pg-hero .shell{padding-top:14px;padding-bottom:14px}
 .pg-search .pg-h1{font-size:clamp(36px,4.1vw,52px);max-width:14ch}
 .pg-search-match-grid{display:grid;grid-template-columns:minmax(0,1.03fr) minmax(380px,.97fr);
   gap:clamp(52px,9vw,132px);align-items:start}

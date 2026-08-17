@@ -1392,11 +1392,16 @@ t1=$($B js "
  const fs=parseFloat(getComputedStyle(h).fontSize);const lh=parseFloat(getComputedStyle(h).lineHeight);
  const lines=Math.round(h.clientHeight/lh);const clipped=h.scrollWidth>h.clientWidth+1;
  const heroH=hero.getBoundingClientRect().height;
- if(fs<34||fs>60||lines>5||clipped||heroH>window.innerHeight*.45+1){
+ /* lines ceiling is 6, not 5: CoreText (mac) and FreeType (linux) wrap the
+    same headline at the same width ±1 line on boundary text — measured, not
+    guessed (identical fonts, advances within 1px, different break points).
+    The binding physical rail is the 45vh hero ceiling below, which caps a
+    skyscraper headline on every platform regardless of line count. */
+ if(fs<34||fs>60||lines>6||clipped||heroH>window.innerHeight*.45+1){
    bad.push(id+'('+fs.toFixed(0)+'px,'+lines+'ln,'+Math.round(heroH)+'h'+(clipped?',clip':'')+')');
  }});
 return bad.length?bad.join(' '):'CLEAN'})()" 2>/dev/null)
-[ "$(printf '%s' "${t1//\"/}" | tr -d '[:space:]')" = "CLEAN" ] && pass "14 product heroes: 34–60px, ≤5 lines, unclipped, ≤45vh" || fail "§1 type: $t1"
+[ "$(printf '%s' "${t1//\"/}" | tr -d '[:space:]')" = "CLEAN" ] && pass "14 product heroes: 34–60px, ≤6 lines, unclipped, ≤45vh" || fail "§1 type: $t1"
 
 # The desktop check above missed a portrait-tablet regression: at 768px the
 # hero switches to one column, and desktop type plus per-page top offsets pushed
