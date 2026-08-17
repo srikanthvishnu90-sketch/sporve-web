@@ -49,5 +49,19 @@ jobs:
       - name: Build
         run: python3 src/build.py
 
+      # TEMPORARY DIAGNOSTIC: CI renders product-page headlines 1-2 lines
+      # taller than every local run of the identical harness. Ask this exact
+      # browser which embedded faces decode, and what actually renders.
+      - name: Font probe (diagnostic)
+        run: |
+          rm -f .ci-browse-port
+          node src/ci-browse.mjs serve >/tmp/cib.log 2>&1 &
+          for i in $(seq 1 50); do [ -f .ci-browse-port ] && break; sleep 0.2; done
+          node src/ci-browse.mjs viewport 1440x900
+          node src/ci-browse.mjs goto "file://$PWD/index.html"
+          node src/ci-browse.mjs js "(async()=>{const out=[];for(const f of document.fonts){try{await f.load();out.push(f.family+'='+f.status)}catch(e){out.push(f.family+'=ERR:'+String(e).slice(0,80))}}return out.join(' | ')})()"
+          node src/ci-browse.mjs js "S.portal='family';S.auth={status:'guest'};S.route={name:'page',arg:'insights'};render();(()=>{const h=document.querySelector('.pg-h1');const cs=getComputedStyle(h);return 'fam='+cs.fontFamily.slice(0,60)+' size='+cs.fontSize+' lh='+cs.lineHeight+' w='+Math.round(h.getBoundingClientRect().width)+' hh='+Math.round(h.getBoundingClientRect().height)+' check='+document.fonts.check('16px Archivo')+' vw='+window.innerWidth})()"
+          node src/ci-browse.mjs stop || true
+
       - name: Smoke (all checks, browser included)
         run: ./src/smoke.sh
