@@ -39,7 +39,14 @@ async function serve() {
      loads the built page over file:// and the page reads its own inlined
      resources. */
   const browser = await chromium.launch({
-    args: ["--allow-file-access-from-files"],
+    /* --font-render-hinting=none: on Linux, FreeType hinting rounds glyph
+       advances up to integers, inflating rendered text ~2-4% versus the
+       fractional metrics macOS uses. That was enough to wrap several product
+       h1s one line wider in CI than anywhere else, failing the ≤5-line and
+       45vh hero laws for layouts that are correct on every real platform the
+       design targets. Disabling hinting gives fractional advances and brings
+       CI's text layout in line with the metrics the design was tuned against. */
+    args: ["--allow-file-access-from-files", "--font-render-hinting=none"],
   });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
