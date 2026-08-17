@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="39955cc3479bed4b">
+<meta name="sporve-build" content="0338115c384adb7d">
 </head>
 <body>
 <noscript><h1>Sporv — Every sport. One app.</h1><p>Sporv connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -3583,7 +3583,13 @@ body.reg-coach .navlink{font-size:var(--text-md)}
 .pg-ai-coach{--ps:#7172FA;--ps-ink:#5859C3;--ps-bright:#7172FA}
 .pg-serif{font-family:var(--pg-display,"Instrument Serif",Georgia,"Times New Roman",serif);font-weight:var(--pg-weight,400);
   letter-spacing:-.01em;line-height:1.02;font-style:normal}
-.pg-serif em{font-style:italic;color:var(--page-accent)}
+/* The accent phrase renders in the REAL Instrument italic face on every page,
+   including Archivo/Syne/Hanken accent pages. Not only a voice decision: those
+   families ship no italic file, and synthetic-oblique layout inside a heading
+   run diverges between CoreText (mac) and FreeType (linux) — measured 5 vs 7
+   wrapped lines for the same h1 at the same width, which broke the 45vh hero
+   law only on Linux. A declared italic face has one set of metrics everywhere. */
+.pg-serif em{font-style:italic;font-family:"Instrument Serif",serif;color:var(--page-accent)}
 /* Per-page display face — one embedded, CSP-safe family per product page, matched
    to subject/mood (analysis 2026-08-09). No rule here = Instrument Serif via the
    var() fallback above (byte-identical to before). Archivo/Syne carry a heavier

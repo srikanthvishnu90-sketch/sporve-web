@@ -3534,7 +3534,13 @@ body.reg-coach .navlink{font-size:var(--text-md)}
 /*__SPORTVARS__*/
 .pg-serif{font-family:var(--pg-display,"Instrument Serif",Georgia,"Times New Roman",serif);font-weight:var(--pg-weight,400);
   letter-spacing:-.01em;line-height:1.02;font-style:normal}
-.pg-serif em{font-style:italic;color:var(--page-accent)}
+/* The accent phrase renders in the REAL Instrument italic face on every page,
+   including Archivo/Syne/Hanken accent pages. Not only a voice decision: those
+   families ship no italic file, and synthetic-oblique layout inside a heading
+   run diverges between CoreText (mac) and FreeType (linux) — measured 5 vs 7
+   wrapped lines for the same h1 at the same width, which broke the 45vh hero
+   law only on Linux. A declared italic face has one set of metrics everywhere. */
+.pg-serif em{font-style:italic;font-family:"Instrument Serif",serif;color:var(--page-accent)}
 /* Per-page display face — one embedded, CSP-safe family per product page, matched
    to subject/mood (analysis 2026-08-09). No rule here = Instrument Serif via the
    var() fallback above (byte-identical to before). Archivo/Syne carry a heavier
