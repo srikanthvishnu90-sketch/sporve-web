@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="c8e7ce460a467bf0">
+<meta name="sporve-build" content="e032ae4c6ead3dfe">
 </head>
 <body>
 <noscript><h1>Sporv — Every sport. One app.</h1><p>Sporv connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -1755,24 +1755,28 @@ img{max-width:100%;display:block}
    painted on #app, and padding inside it keeps that ground behind the pill. */
 :root{--aipill-h:0px}
 #app{padding-bottom:var(--aipill-h)}
-/* The button was --ink, which is #000 — invisible against the coach portal's
-   #0A0C0F ground and flat against the topbar elsewhere. Accent is the only
-   non-frozen colour in the system, and a filled shape clears the 3:1 non-text
-   contrast bar on both grounds. §3 bans #C2410C on black for TEXT, so the dark
-   portal swaps to --accent-on-dark (#F08A62, 8.52:1) rather than reusing it. */
-.aidock-fab{width:58px;height:58px;border-radius:999px;background:var(--accent);color:#FFFFFF;
-  display:grid;place-items:center;border:0;cursor:pointer;
-  box-shadow:0 6px 8px rgba(10,12,15,.14),0 18px 48px rgba(194,65,12,.30);
+/* SLATE FAB (owner, 2026-08-19 — supersedes the accent/baby-blue button).
+   Slate is the one chromatic chrome colour and carries buttons by the colour
+   law, so the assistant launcher wears --slate with --slate-on text (#14202C on
+   #7692AE = 5.10:1) — the same pairing the primary .btn uses. A filled circle
+   still clears the 3:1 non-text bar on both the light chrome and the coach
+   portal's #0A0C0F ground. position:relative anchors the unread badge. */
+.aidock-fab{width:58px;height:58px;border-radius:999px;background:var(--slate);color:var(--slate-on);
+  position:relative;display:grid;place-items:center;border:0;cursor:pointer;
+  box-shadow:0 6px 8px rgba(10,12,15,.14),0 18px 48px rgba(10,12,15,.34);
   transition:transform .18s,box-shadow .18s,background .18s}
-.aidock-fab:hover{transform:translateY(-2px);background:var(--accent-ink);
-  box-shadow:0 8px 12px rgba(10,12,15,.18),0 22px 56px rgba(194,65,12,.38)}
-/* Coach portal: the S is BABY BLUE, not the salmon accent (owner, 2026-08-12).
-   The mark stays near-black rather than white — white on #89CFF0 is 1.5:1 and
-   would be unreadable, which is the same mistake §3 records for accent-on-black
-   in the other direction. */
-#app.coachdark + #layer .aidock-fab{background:var(--baby);color:var(--baby-ink);
-  box-shadow:0 6px 8px rgba(0,0,0,.34),0 18px 48px rgba(137,207,240,.26)}
-#app.coachdark + #layer .aidock-fab:hover{background:var(--baby-deep)}
+.aidock-fab:hover{transform:translateY(-2px);background:var(--slate-deep);
+  box-shadow:0 8px 12px rgba(10,12,15,.18),0 22px 56px rgba(10,12,15,.42)}
+/* Coach portal (the only place the dock shows today): same slate, a deeper
+   glow so the circle reads against #0A0C0F. */
+#app.coachdark + #layer .aidock-fab{background:var(--slate);color:var(--slate-on);
+  box-shadow:0 6px 8px rgba(0,0,0,.34),0 18px 48px rgba(10,12,15,.55)}
+#app.coachdark + #layer .aidock-fab:hover{background:var(--slate-deep)}
+/* Unread badge: replies that landed while the dock was closed. White-on-slate-on
+   dark ring — frozen chrome literals, no new accent (owner kept the colour law). */
+.aidock-fab-badge{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;padding:0 5px;
+  border-radius:999px;background:#E9EEF4;color:#14202C;font:800 11px/19px var(--sans);
+  text-align:center;box-shadow:0 0 0 2px #0A0C0F}
 .aidock-fab-mark{font-family:var(--display);font-weight:700;font-size:var(--text-xl);line-height:1;letter-spacing:-.04em}
 /* THE CHAT DOCK IS BLACK. Owner spec 2026-08-12: black ground, white text, a
    grey-slate glow around it, sitting at the bottom of the screen — the shape
@@ -5289,6 +5293,9 @@ const S={
   aiThreadHidden:false,            // state 2 with the thread tucked away — back to "just the bar"
   chatSessions:[],                 // previous assistant conversations [{id,title,ts,msgs}]
   chatSessionId:null,              // which session S.chat mirrors; null = a fresh thread
+  aiDraft:"",                      // unsent composer text — preserved across every dock transition
+  aiUnread:0,                      // replies that landed while the dock was closed → FAB badge
+  aiCollapsed:false,               // slim-strip variant (was read at L8012 before it existed here)
   cmdAction:"",
   cmdDraft:"",
   cmdSending:false,
@@ -8118,7 +8125,7 @@ function aiDockHTML(){
       </div>
       <form class="aidock-compose aimax-compose" id="aiDockForm">
         <input id="aiDockInput" class="aidock-input" placeholder="Write a message…"
-               aria-label="Message Sporv AI" autocomplete="off">
+               value="${esc(S.aiDraft||"")}" aria-label="Message Sporv AI" autocomplete="off">
         <div class="aidock-row">
           <button type="button" class="aidock-ic" data-aiattach="1" aria-label="Add an attachment">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -8181,7 +8188,7 @@ function aiDockHTML(){
              last turn from a different screenshot and it was wrong — the field
              has to be able to hold a sentence without sharing its line. */""}
         <input id="aiDockInput" class="aidock-input" placeholder="Write a message…"
-               aria-label="Message Sporv AI" autocomplete="off">
+               value="${esc(S.aiDraft||"")}" aria-label="Message Sporv AI" autocomplete="off">
         <div class="aidock-row">
           <button type="button" class="aidock-ic" data-aiattach="1" aria-label="Add an attachment">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -8246,11 +8253,15 @@ function aiDockHTML(){
    at the moment you go looking for it. Position, size, colour and shadow are
    untouched — this changes the glyph and the label, nothing else. */
 function fabHTML(open){
+  /* Unread badge only when the dock is CLOSED and a reply has landed since —
+     the count clears the moment it is opened. */
+  const n=S.aiUnread||0;
+  const badge=(!open&&n>0)?`<span class="aidock-fab-badge" aria-hidden="true">${n>9?"9+":n}</span>`:"";
   return `<div class="aidock">
     <button class="aidock-fab" data-aitoggle="1" aria-expanded="${open}"
-            aria-label="${open?"Collapse":"Open"} Sporv AI helper"
+            aria-label="${open?"Collapse":"Open"} Sporv AI helper${(!open&&n>0)?` — ${n} new`:""}"
             title="${open?"Collapse":"Open"} Sporv AI">
-      <span class="aidock-fab-mark">S</span>
+      <span class="aidock-fab-mark">S</span>${badge}
     </button>
   </div>`;
 }
@@ -11642,6 +11653,12 @@ function render(){
      innerHTML is replaced wholesale on each render, #layer is rebuilt alongside
      it, and neither the coach dark ground nor a page's own layout can affect a
      fixed-position child here. */
+  /* DRAFT PRESERVATION (owner, 2026-08-19). The composer lives inside #layer,
+     which is rebuilt wholesale on the next line, so anything typed-but-unsent
+     would be destroyed on every transition. Capture it into S.aiDraft first;
+     aiDockHTML re-emits it as the input's value, so the draft survives collapse,
+     maximize, minimize and a full close+reopen. Send clears S.aiDraft. */
+  (function(){const di=document.getElementById("aiDockInput"); if(di) S.aiDraft=di.value;})();
   document.getElementById("layer").innerHTML=
     modalHTML()+aiDockHTML()+(S.toast?`<div class="toast">${esc(S.toast)}</div>`:"");
 
@@ -12543,7 +12560,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     const i=document.getElementById("aiDockInput");
     if(i){ i.value=b.dataset.aichip; i.focus(); }
   });
-  $("[data-aitoggle]").forEach(b=>b.onclick=()=>{S.aiOpen=!S.aiOpen;render();});
+  $("[data-aitoggle]").forEach(b=>b.onclick=()=>{S.aiOpen=!S.aiOpen; if(S.aiOpen)S.aiUnread=0; render();});
   /* Amboras state machine. Maximize is only offered from a live conversation;
      minimize returns to the pill; close resets max so the NEXT open starts at
      the bar — "minimizing would be the initial thing" (owner). */
@@ -12942,7 +12959,7 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
     adf.onsubmit=e=>{
       e.preventDefault();
       const i=document.getElementById("aiDockInput");
-      const v=i.value; i.value="";
+      const v=i.value; i.value=""; S.aiDraft="";
       askCoach(v);
     };
     if(S.aiOpen&&document.activeElement===document.body){
@@ -13430,6 +13447,9 @@ function askCoach(q){
       const proposal=write?{tool:String(write.tool||""),args:(write.args&&typeof write.args==="object")?write.args:{},state:"open"}:null;
       S.chatThinking=false;
       S.chat=[...S.chat,{role:"coach",text:reply,tools,proposal}];
+      /* Reply landed while the dock was closed → badge the FAB so the coach
+         sees there's something waiting; cleared when they reopen. */
+      if(S.aiOpen===false) S.aiUnread=(S.aiUnread||0)+1;
       render();
     }).catch(()=>{
       if(epoch!==chatEpoch) return;
@@ -13788,7 +13808,7 @@ document.addEventListener("keydown",e=>{
   if(!(e.key==="k"||e.key==="K")||!(e.metaKey||e.ctrlKey)) return;
   if(S.portal!=="coach") return;
   e.preventDefault();
-  S.aiOpen=true; S.aiCollapsed=false; render();
+  S.aiOpen=true; S.aiCollapsed=false; S.aiUnread=0; render();
   const i=document.getElementById("aiDockInput"); if(i) i.focus();
 });
 document.addEventListener("click",e=>{
