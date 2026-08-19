@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="e032ae4c6ead3dfe">
+<meta name="sporve-build" content="c708279249654146">
 </head>
 <body>
 <noscript><h1>Sporv — Every sport. One app.</h1><p>Sporv connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -1521,10 +1521,14 @@ img{max-width:100%;display:block}
   letter-spacing:.08em;text-transform:uppercase;color:#9AA6B2;
   background:rgba(154,166,178,.12);border-radius:999px;padding:3px 9px}
 .aidock-ctx .aidock-ic{margin-left:auto;width:28px;height:28px}
-.aidock-chips{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:0 0 2px}
-.aidock-chip{font-family:var(--sans);font-size:var(--text-xs);font-weight:600;
+.aidock-chips{display:flex;gap:7px;flex-wrap:nowrap;align-items:center;margin:0 0 8px;
+  overflow-x:auto;scrollbar-width:none}
+.aidock-chips::-webkit-scrollbar{display:none}
+.aidock-chip{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:0 0 auto;
+  font-family:var(--sans);font-size:var(--text-xs);font-weight:600;
   color:#C3CBD4;background:#131519;border:1px solid #2A313B;border-radius:999px;
   padding:6px 12px;min-height:32px;cursor:pointer;transition:.14s}
+.aidock-chip svg{opacity:.7;flex:none}
 .aidock-chip:hover{background:#1B1F26;border-color:#414B57;color:#F5F7F9}
 /* Collapsed: a slim strip. Never overlaps a table row or an action button. */
 .aidock-strip{width:100%;display:flex;align-items:center;gap:10px;
@@ -1536,7 +1540,7 @@ img{max-width:100%;display:block}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .aidock-kbd{margin-left:auto;font-family:var(--mono);font-size:11px;color:#8A93A0;
   border:1px solid #2A313B;border-radius:6px;padding:2px 6px;flex:none}
-@media(max-width:560px){.aidock-chips{display:none}}
+/* chips stay on mobile too (spec: one line, horizontally scrollable) */
 
 /* No-orange landing. The accent family is redefined to slate for this route
    only; #app.noorange is set by render() when the landing is showing. Every
@@ -1747,8 +1751,13 @@ img{max-width:100%;display:block}
    maximized Amboras state (its own wrapper) is unaffected. top/left 50% +
    translate(-50%,-50%) is the exact-centre transform that survives the panel's
    min() width/height changing under it. */
-.aipill:has(.aidock-panel.talking){top:50%;bottom:auto;transform:translate(-50%,-50%)}
-@media(max-width:767px){.aipill:has(.aidock-panel.talking){top:auto;bottom:16px;transform:translateX(-50%)}}
+/* GROW UPWARD FROM THE BOTTOM ANCHOR (owner, 2026-08-19 — "follow the prompts
+   exactly", superseding PR #165's dead-centre). The talking panel stays pinned
+   at bottom:24px like the compact pill, so the composer never moves; the panel's
+   height grows UP and the conversation fills the space above the input. That
+   in-place composer is the signature of the reference pattern. */
+.aipill:has(.aidock-panel.talking){bottom:24px;top:auto;transform:translateX(-50%)}
+@media(max-width:767px){.aipill:has(.aidock-panel.talking){bottom:16px;transform:translateX(-50%)}}
 /* The spacer. Defaults to 0 so every page without a pill is untouched, and
    render() overwrites it with the measured height + the 24px offset + a 16px
    breathing gap. On #app rather than body because the coach dark ground is
@@ -1803,7 +1812,14 @@ img{max-width:100%;display:block}
    reply was read through a slot. The composer keeps its reference geometry; the
    panel grows instead. calc(100vh - 160px) still governs short viewports, so
    this cannot push the pill off a laptop screen. */
-.aidock-panel.talking{height:min(620px,calc(100vh - 160px))}
+.aidock-panel.talking{height:min(620px,calc(100vh - 160px));
+  transform-origin:bottom center;animation:aigrow .28s cubic-bezier(.32,.72,0,1)}
+/* Height animates from a short bar up to full; because the pill is bottom-pinned
+   and the composer is the panel's bottom child, the input stays put and the
+   thread area is what grows. ~280ms per spec. */
+@keyframes aigrow{from{height:150px;opacity:.25}}
+@media(prefers-reduced-motion:reduce){.aidock-panel.talking{animation:aigrow-rm .16s ease}}
+@keyframes aigrow-rm{from{opacity:0}}
 /* At rest the "panel" IS the bar: no border, no ground, no glow of its own —
    the composer supplies all three. Only .talking (a live conversation) turns it
    back into a surface that has to hold a scrolling thread. */
@@ -7952,6 +7968,19 @@ function aiContext(){
   return {label:LABEL[t]||t, chips:MAP[t]||["What needs my attention today?"]};
 }
 
+/* Quick-action chips ROW, sat ABOVE the composer bubble (spec) — its own row,
+   not inside the input pill, so the composer bubble stays one lean row (the
+   coach must always see what they type — smoke guards that at <=130px). One
+   line, horizontally scrollable, never wraps. Each chip maps to a REAL
+   coach-command tool (aiContext keeps that honest); clicking fills the input.
+   Revived 2026-08-19 per owner "follow the prompts exactly". */
+function aiChipsHTML(){
+  const chips=aiContext().chips;
+  if(!chips.length) return "";
+  return `<div class="aidock-chips">${chips.map(c=>
+    `<button type="button" class="aidock-chip" data-aichip="${esc(c)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.5 5L19 8.5 13.5 10 12 15l-1.5-5L5 8.5 10.5 7z"/></svg>${esc(c)}</button>`).join("")}</div>`;
+}
+
 /* The review card — the one genuinely new UI piece of the chatbox build.
    A write PROPOSAL from coach-command renders as: what will happen, the exact
    draft (editable — the coach's edit wins over the model's text), and honest
@@ -8123,6 +8152,7 @@ function aiDockHTML(){
             <i class="dotdot"></i><i class="dotdot" style="animation-delay:.16s"></i><i class="dotdot" style="animation-delay:.32s"></i></div>`:""}
         </div>
       </div>
+      ${aiChipsHTML()}
       <form class="aidock-compose aimax-compose" id="aiDockForm">
         <input id="aiDockInput" class="aidock-input" placeholder="Write a message…"
                value="${esc(S.aiDraft||"")}" aria-label="Message Sporv AI" autocomplete="off">
@@ -8181,6 +8211,7 @@ function aiDockHTML(){
         ${S.chatThinking?`<div class="bub them" style="align-self:flex-start;display:flex;gap:5px;align-items:center">
           <i class="dotdot"></i><i class="dotdot" style="animation-delay:.16s"></i><i class="dotdot" style="animation-delay:.32s"></i></div>`:""}
       </div>`:""}
+      ${aiChipsHTML()}
       <form class="aidock-compose" id="aiDockForm">
         ${S.aiHistOpen&&!S.aiMax?histDropHTML(true):""}
         ${/* Two rows, matching the reference exactly: the message field owns the
