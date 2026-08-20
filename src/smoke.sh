@@ -1929,7 +1929,7 @@ ams=$($B js "
  S.aiHistOpen=true;render();
  const esc=()=>document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
  esc();if(S.aiHistOpen||!S.aiMax)bad.push('ESC1');
- esc();if(S.aiMax||S.aiOpen===false)bad.push('ESC2');
+ esc();if(S.aiOpen!==false)bad.push('ESC2');
  esc();if(S.aiOpen!==false)bad.push('ESC3');
  S.aiOpen=true;S.aiMax=false;S.modal={type:'addchild'};render();
  esc();if(S.modal)bad.push('MODAL_ESC');
