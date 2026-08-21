@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://the-sporve-web.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="58200f8e6f8fc8cc">
+<meta name="sporve-build" content="fc75908fd1a48cb7">
 </head>
 <body>
 <noscript><h1>Sporv — Every sport. One app.</h1><p>Sporv connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -201,7 +201,13 @@
      reverts rev.2's Inter body on the FAMILY/marketing side. Both embedded; a token
      swap, not a Google Fonts load (CSP default-src 'self'). The COACH dashboard keeps
      Inter body (reg-coach --sans pin) — it's the app, not the landing. */
-  --display:"Syne",system-ui,-apple-system,"Segoe UI",sans-serif;
+  /* DISPLAY = Archivo (owner directive 2026-08-21: "Nike/Whoop feeling, text
+     still very professional"). Archivo is a grotesque built for punchy headlines
+     — the athletic-technical voice Nike/Whoop live in — vs Syne's fashion/
+     editorial geometry. Already embedded (build.py maps archivo→"Archivo" 400-800),
+     so zero CSP/page-weight cost. Body stays Plus Jakarta / Inter (professional);
+     numerals stay JetBrains Mono. Revises D7 from Syne. */
+  --display:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
   /* §3.5 nav face + tabs use the reference body voice (Plus Jakarta). */
   --nav-face:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --sans:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,
@@ -420,9 +426,10 @@ img{max-width:100%;display:block}
   font-family:"Inter",system-ui,-apple-system,sans-serif;
 }
 #app.reg-tabs{
-  /* Product-toggle register (coachinfo/trust/pricing). Syne LARGE HEADERS + PLUS
-     JAKARTA body/tabs (owner 2026-08-20 rev.3 — match sporve.vercel.app). */
-  --display:"Syne",system-ui,-apple-system,"Segoe UI",sans-serif;
+  /* Product-toggle register (coachinfo/trust/pricing). Archivo LARGE HEADERS +
+     PLUS JAKARTA body/tabs (owner 2026-08-21: Nike/Whoop display, professional
+     body). Kept in sync with the :root display face above. */
+  --display:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
   --sans:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   font-family:var(--sans);
 }
