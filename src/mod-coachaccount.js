@@ -114,8 +114,8 @@
       adds: "Unlimited AI actions and up to three seats.", buyable: true,
     },
     enterprise: {
-      id: "enterprise", name: "Sporv Enterprise", price: "$149", per: "/mo",
-      adds: "Multi-player workspace, in development.", buyable: false,
+      id: "enterprise", name: "Sporv Enterprise", price: "Custom", per: "",
+      adds: "Multi-player workspace — talk to us. In development.", buyable: false,
     },
   };
 
