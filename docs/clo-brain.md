@@ -374,6 +374,10 @@ when two conflict; strike the loser, don't delete the history.
   L10059-10065, commit d50165a). The 5-cell line above is superseded.
 - **The AI dock already has 4 states** — docked column, `aiCollapsed`, `aiMax`,
   `aiFull` fullscreen (host L9449, L13096, L14105, L15397). The reference's
-  `.collapsed`/`.full` mechanics are implemented; the only missing affordances are
-  the vertical reopen TAB (we ship a round `.aidock-fab`, host L9624) and a
-  persistent 260px history RAIL (we ship `histDropHTML()` as a dropdown, L9344).
+  `.collapsed`/`.full` mechanics are implemented. UPDATED (PR #265, 2026-08-25):
+  the two formerly-missing affordances are now shipped — the closed state renders
+  the vertical "Sporv AI" reopen tab (`.aidock-reopen`, replacing the round
+  `.aidock-fab` when closed; the FAB survives only as the open-state toggle at
+  <1280), and `aiFull` renders a persistent 260px history rail (`histRailHTML()`)
+  beside the conversation, with `histDropHTML()` kept as the narrow-width dropdown.
+  Do not restore the round-FAB closed state.

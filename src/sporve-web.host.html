@@ -2536,17 +2536,20 @@ html.coldock .aidock-fab{display:none}
 /* ── Reference chat shell (owner 2026-08-25): docked-column header, vertical
    reopen tab, and the fullscreen history rail. Dark literals follow the
    existing aidock pattern — this surface only ever renders on the coach
-   ground, and white/slate literals are the colour law there. */
+   ground, and white/slate literals are the colour law there. Font sizes stay
+   px LITERALS on purpose: this block styles #layer, which sits OUTSIDE #app,
+   so the #app.coachdark token retune never reaches it and var(--text-sm)
+   would resolve to the 10px family value (CodeRabbit, PR #265). */
 .aidock-head{display:flex;align-items:center;gap:6px;height:48px;flex:none;
   padding:0 10px 0 16px;border-bottom:1px solid #2A313B}
 .aidock-head-t{font-family:var(--display);text-transform:uppercase;font-weight:500;
   font-size:13px;letter-spacing:.08em;color:#F5F7F9}
-.aidock-reopen{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:85;
+.aidock .aidock-reopen{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:85;
   writing-mode:vertical-rl;padding:14px 7px;border:1px solid #2A313B;border-right:0;
   border-radius:10px 0 0 10px;background:#131519;color:#C3CBD4;
   font-family:var(--display);text-transform:uppercase;font-weight:500;
   font-size:12px;letter-spacing:.14em;box-shadow:0 6px 22px rgba(0,0,0,.45)}
-.aidock-reopen:hover{color:#F5F7F9;background:#1B2129}
+.aidock .aidock-reopen:hover{color:#F5F7F9;background:#1B2129}
 .aidock-reopen .aidock-fab-badge{top:-6px;right:auto;left:-6px}
 .aimax-body{display:flex;flex:1 1 auto;min-height:0}
 .aimax-conv{display:flex;flex-direction:column;flex:1;min-width:0}
@@ -2555,10 +2558,10 @@ html.coldock .aidock-fab{display:none}
   .aidock-panel.aimax.aifull .aimax-rail{display:flex;flex-direction:column;gap:1px;
     width:260px;flex:none;overflow-y:auto;padding:12px;border-right:1px solid #2A313B}
 }
-.aimax-railnew{display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+.aimax-rail .aimax-railnew{display:flex;align-items:center;gap:8px;width:100%;text-align:left;
   padding:9px 10px;border-radius:8px;border:1px solid #2A313B;font-size:13px;
   color:#F5F7F9;margin-bottom:14px;flex:none}
-.aimax-railnew:hover{background:#1B1F26}
+.aimax-rail .aimax-railnew:hover{background:#1B1F26}
 .aimax-railg{font-family:var(--display);text-transform:uppercase;font-size:10px;
   letter-spacing:.14em;color:#9AA6B2;padding:8px 10px 4px;flex:none}
 .aimax-aihint{color:#9AA6B2;font-size:var(--text-sm);text-align:center;
@@ -3438,11 +3441,13 @@ html.coldock .dash>div{width:100%;margin:0}
 .gs2{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
 .gscard{border:1px solid var(--rule);border-radius:12px;padding:20px;background:var(--paper)}
 .gshd{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
-.gshd .gs-sec{font-size:14.5px;letter-spacing:.04em;margin:0}
-.gshd .gscount{font-size:12px;color:var(--muted)}
+.gshd .gs-sec{font-size:var(--text-sm);letter-spacing:.04em;margin:0}
+.gshd .gscount{font-size:12px;color:var(--muted)}  /* reference fine size — no 12px token on the coach scale */
 .gsteps{display:flex;flex-direction:column}
-.gstep{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
-  padding:10px 2px;font-size:13.5px;color:var(--muted);border-bottom:1px solid var(--rule)}
+.gsteps .gstep{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  /* .gsteps .gstep, not bare .gstep: body.reg-coach button{font:inherit} is
+     (0,1,1) and silently resets a single-class button's font-size. */
+  padding:10px 2px;font-size:var(--text-xs);color:var(--muted);border-bottom:1px solid var(--rule)}
 .gstep:last-child{border-bottom:0}
 .gsdot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--faint);flex:none}
 .gstep.done .gsdot{background:var(--faint);border-color:var(--faint)}
@@ -3453,18 +3458,20 @@ html.coldock .dash>div{width:100%;margin:0}
   font-weight:500;font-size:12px;letter-spacing:.06em;border:1px solid var(--rule);
   border-radius:6px;padding:5px 9px}
 .gsguide{display:flex;flex-direction:column;justify-content:center}
-.gsguide-k{letter-spacing:.12em;font-size:12px;color:var(--faint)}
-.gsguide h3{font-size:22px;margin:10px 0 8px;line-height:1.15}
-.gsguide p{color:var(--muted);font-size:13px;line-height:1.55;margin:0}
+.gsguide-k{letter-spacing:.12em;font-size:12px;color:var(--faint)}  /* reference eyebrow — no 12px token on the coach scale */
+.gsguide h3{font-size:22px;margin:10px 0 8px;line-height:1.15}  /* reference 22px fixed — --text-2xl clamps to 30 here */
+.gsguide p{color:var(--muted);font-size:var(--text-xs);line-height:1.55;margin:0}
 .today-list{border:1px solid var(--rule);border-radius:12px;background:var(--paper);overflow:hidden}
-.today-row{position:relative;display:flex;justify-content:space-between;align-items:center;gap:16px;
-  width:100%;text-align:left;padding:14px 18px;border-bottom:1px solid var(--rule);font-size:13.5px}
+.today-list .today-row{position:relative;display:flex;justify-content:space-between;align-items:center;gap:16px;
+  width:100%;text-align:left;padding:14px 18px;border-bottom:1px solid var(--rule);font-size:var(--text-xs)}
 .today-row:last-child{border-bottom:0}
 .today-row:hover{background:var(--raise2)}
 .today-row .tspine{position:absolute;left:0;top:0;bottom:0;width:3px}
 .today-row .tr-l{color:var(--ink);min-width:0}
 .today-row .tr-r{color:var(--muted);flex:none}
-#app.coachdark .greet{font-size:24px}
+/* Class-level (body.reg-coach), NOT #app.coachdark — an id-level selector here
+   would silently outrank every .greet class rule (CodeRabbit, PR #265). */
+body.reg-coach .greet{font-size:24px}
 @media(max-width:900px){.gs2{grid-template-columns:1fr}
   .today-row{flex-direction:column;align-items:flex-start;gap:4px}}
 .gs-continue{align-self:stretch;width:100%;justify-content:center;margin:0 0 14px}
