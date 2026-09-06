@@ -25,7 +25,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta name="sporve-build" content="5a555de9988f2d44">
+<meta name="sporve-build" content="d9b63b94f2dc8ab8">
 </head>
 <body>
 <noscript><h1>Sporv — Every sport. One app.</h1><p>Sporv connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -11945,16 +11945,21 @@ function loadLiveObligations(){
 function agentRunAfterConnect(){
   const pv=S.coachProvider;
   if(!(pv&&pv.id&&realSignedIn()&&window.SporveAPI&&window.SporveAPI.isSignedIn&&window.SporveAPI.isSignedIn())) return;
-  if(S.agentRunning) return;
+  /* A trigger that lands mid-run is QUEUED, not dropped — the running RPC's
+     snapshot may predate the rows that second connector just committed, so
+     one follow-up run fires when the first completes (CodeRabbit, PR #356). */
+  if(S.agentRunning){S.agentRerun=true;return;}
   S.agentRunning=true;
+  const done=()=>{S.agentRunning=false;
+    if(S.agentRerun){S.agentRerun=false;agentRunAfterConnect();}};
   window.SporveAPI.rpc("run_agent_drafts",{p_provider:pv.id})
-    .then(r=>{S.agentRunning=false;
+    .then(r=>{
       S.obligLive=false;S.findLoaded=false;
       loadLiveObligations();loadLiveFindings();
       const n=(r&&r.total)||0;
       if(n) toast("The agent drafted "+n+" item"+(n===1?"":"s")+" from your setup — they're in your queue for review. Nothing was sent.");
-      render();})
-    .catch(()=>{S.agentRunning=false;/* cron still covers it; silence beats a scary error at setup's end */});
+      render();done();})
+    .catch(()=>{done();/* cron still covers it; silence beats a scary error at setup's end */});
 }
 /* Demo parser for step 5 ("unstructured input is a native input type"). A
    forwarded email/text is pasted; heuristics turn it into DRAFT obligations.
