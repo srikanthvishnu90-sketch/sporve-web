@@ -25,7 +25,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta name="sporve-build" content="9f77d161ee9e4a79">
+<meta name="sporve-build" content="9844371949d6baf5">
 </head>
 <body>
 <noscript><h1>Sporv — Every sport. One app.</h1><p>Sporv connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -1246,7 +1246,7 @@ img{max-width:100%;display:block}
    the sm shrink read as tiny in his screenshot). 15px on desktop, the largest
    on-scale body size. #app-scoped to win against the app-level input sizing;
    same pattern as the hero-search cell. */
-#app .cg-input{font-size:var(--text-lg)}
+#app .cg-input{font-size:var(--text-base)}
 #app .cg-fine.cg-flip,#app .cg-fine.cg-flip button{font-size:var(--text-md)}
 .cg-input::placeholder{color:#8290A0}
 .cg-input:focus{outline:none;border-color:#8FA3BC}
@@ -1256,6 +1256,10 @@ img{max-width:100%;display:block}
    the only reliable override is an opaque inset shadow + text-fill-color
    (owner fix 2026-09-05). Values are the field's own dark palette above
    (#14181D ground / #F7F9FF ink) — no new hex introduced. */
+/* The gate is a coach-side surface: it adopts the coach body size (15.5px,
+   on-scale) so fields, buttons and copy read at modern auth-form scale —
+   owner rev.3 ("make the text larger", with screenshot). */
+.coachgate{--text-base:15.5px;--text-md:15.5px}
 .coachgate input:-webkit-autofill,
 .coachgate input:-webkit-autofill:hover,
 .coachgate input:-webkit-autofill:focus,
