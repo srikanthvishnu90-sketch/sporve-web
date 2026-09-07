@@ -1209,11 +1209,11 @@ img{max-width:100%;display:block}
 /* 54px with text-lg made the column read as a phone form blown up on a
    desktop. 44px is still the accessible touch floor, and text-base is the
    size every other input on the site uses. */
-.cg-input{width:100%;height:44px;padding:0 14px;border-radius:10px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;font-family:var(--sans);font-size:var(--text-sm)}
-/* #app-scoped so the typed text actually lands at --text-sm (owner 2026-09-07
-   "smaller"): a bare class loses to the app-level input sizing. Same pattern
-   as the hero-search cell. */
-#app .cg-input{font-size:var(--text-sm)}
+.cg-input{width:100%;height:44px;padding:0 14px;border-radius:10px;border:1px solid #2A333F;background:#14181D;color:#F7F9FF;font-family:var(--sans);font-size:var(--text-base)}
+/* Typed text at body size (owner 2026-09-07 rev.2: "never this small" — the
+   --text-sm shrink was too far in a 44px field). #app-scoped to win against
+   the app-level input sizing; same pattern as the hero-search cell. */
+#app .cg-input{font-size:var(--text-base)}
 #app .cg-fine.cg-flip,#app .cg-fine.cg-flip button{font-size:var(--text-md)}
 .cg-input::placeholder{color:#8290A0}
 .cg-input:focus{outline:none;border-color:#8FA3BC}
