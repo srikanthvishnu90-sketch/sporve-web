@@ -25,7 +25,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta name="sporve-build" content="e7344ab277334434">
+<meta name="sporve-build" content="1c246cc3d3a6b14c">
 </head>
 <body>
 <noscript><h1>Sporv — Every sport. One app.</h1><p>Sporv connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -16799,8 +16799,9 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
         pages:Array.isArray(r.pages)?r.pages.length:0};
       w.extracted=true;w.step=2;render();
       const n=(w.draft.teams||[]).length,pg=w.draft.pages;
-      toast(n?("Drafted "+n+" line"+(n===1?"":"s")+(pg>1?" from "+pg+" pages":"")+" — confirm or edit each one."):
-             "That site listed no team or program structure — enter it by hand below.");
+      const read=pg>0?(" from "+pg+" page"+(pg===1?"":"s")):"";
+      toast(n?("Drafted "+n+" line"+(n===1?"":"s")+read+" — confirm or edit each one."):
+             ("That site listed no team or program structure"+read+" — enter it by hand below."));
     }).catch(er=>{w.busy=false;w.err=(er&&er.message)||"Could not read that site.";render();});
   };
 

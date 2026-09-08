@@ -16751,8 +16751,9 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
         pages:Array.isArray(r.pages)?r.pages.length:0};
       w.extracted=true;w.step=2;render();
       const n=(w.draft.teams||[]).length,pg=w.draft.pages;
-      toast(n?("Drafted "+n+" line"+(n===1?"":"s")+(pg>1?" from "+pg+" pages":"")+" — confirm or edit each one."):
-             "That site listed no team or program structure — enter it by hand below.");
+      const read=pg>0?(" from "+pg+" page"+(pg===1?"":"s")):"";
+      toast(n?("Drafted "+n+" line"+(n===1?"":"s")+read+" — confirm or edit each one."):
+             ("That site listed no team or program structure"+read+" — enter it by hand below."));
     }).catch(er=>{w.busy=false;w.err=(er&&er.message)||"Could not read that site.";render();});
   };
 
