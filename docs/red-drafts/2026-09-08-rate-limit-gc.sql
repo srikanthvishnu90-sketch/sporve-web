@@ -9,8 +9,14 @@
 -- for callers; only rows older than the longest window (1 day) are removed.
 -- Inverse: select cron.unschedule('sporv-rate-limit-gc'); drop function public.gc_rate_limits();
 -- Verification: select jobname, schedule from cron.job where jobname='sporv-rate-limit-gc';
---   then next morning: select count(*) from public.waitlist_rate_limit where ts < now()-interval '2 days'; -- 0
+--   then after the first 03:55 run (cron.job_run_details shows it succeeded):
+--   select count(*) from public.waitlist_rate_limit where ts < now()-interval '3 days'; -- 0
+--   (3 days, not 2: rows can age up to one schedule interval past the cutoff
+--   between sweeps).
 begin;
+
+-- the sweep filters on ts alone; the existing (ip, ts) index cannot serve that
+create index if not exists idx_waitlist_rate_limit_ts on public.waitlist_rate_limit (ts);
 
 create or replace function public.gc_rate_limits()
 returns table (edge_deleted bigint, waitlist_deleted bigint)

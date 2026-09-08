@@ -11,7 +11,17 @@
 -- Inverse: re-run the previous definition (migration 20260905 body in git).
 -- Verification: redeem as a fresh user → select * from guardians where user_id=auth.uid() → 1 row;
 --   redeem the same token again → 'already been used' (unchanged).
+-- Known (pre-existing, unchanged): the 'expired' status write below is rolled
+-- back by the exception that follows it, so an expired invite stays 'pending'
+-- in the table; the client still gets the right error. A cleanup sweep, not
+-- this RPC, is the place to persist expiry.
 begin;
+
+-- Two concurrent redemptions lock two different invite rows, so the existence
+-- check alone cannot stop a duplicate guardian. Checked 2026-09-08: prod has
+-- zero (provider_id, user_id) duplicates today, so this index creates cleanly.
+create unique index if not exists uq_guardians_provider_user
+  on public.guardians (provider_id, user_id) where user_id is not null;
 
 create or replace function public.redeem_coach_invite(p_token text)
 returns uuid language plpgsql security definer set search_path = '' as $function$
@@ -44,7 +54,8 @@ begin
          and lower(email) = lower(coalesce(v_inv.invited_email, v_email));
     else
       insert into public.guardians (provider_id, user_id, email, email_status)
-      values (v_inv.provider_id, auth.uid(), coalesce(v_inv.invited_email, v_email), 'ok');
+      values (v_inv.provider_id, auth.uid(), coalesce(v_inv.invited_email, v_email), 'ok')
+      on conflict (provider_id, user_id) where user_id is not null do nothing;
     end if;
   end if;
 

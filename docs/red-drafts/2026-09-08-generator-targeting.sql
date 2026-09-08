@@ -34,10 +34,12 @@ begin
   left join lateral (select g2.id, g2.first_name from public.guardian_links gl join public.guardians g2 on g2.id=gl.guardian_id
                      where gl.member_id=m.id and gl.is_payer and g2.email_status='ok' limit 1) g on true
   where g.id is not null
-    -- golden set 2026-09-08: never pitch open spots to a family already in the program
+    -- golden set 2026-09-08: never pitch open spots to a family already in the
+    -- program THIS season (an alumni family from a past season is a fair target)
     and not exists (select 1 from public.fee_schedules fs
+                    join public.seasons s on s.id = fs.season_id
                     where fs.member_id = m.id and fs.program_id = pr.id
-                      and fs.status in ('active','complete'))
+                      and fs.status = 'active' and s.end_date >= current_date)
     and (p_provider is null or pr.provider_id=p_provider) and (p_force or public.agent_autodraft_on(pr.provider_id))
   on conflict (source_ref) where source_kind='agent' and status<>'void' do nothing;
   get diagnostics inserted = row_count;

@@ -23,12 +23,23 @@
 --   returns 42501 (permission denied) instead of a boolean.
 begin;
 
-revoke execute on function public.is_org_admin(uuid) from anon;
-revoke execute on function public.provider_acceptance_rate(uuid) from anon;
-revoke execute on function public.provider_instant_book_eligible(uuid) from anon;
-revoke execute on function public.provider_is_fresh(uuid, integer) from anon;
-revoke execute on function public.provider_median_response_seconds(uuid) from anon;
-revoke execute on function public.provider_safety_cleared(uuid) from anon;
+-- Functions get EXECUTE for PUBLIC by default, and is_org_admin still has it
+-- (checked 2026-09-08: has_function_privilege('public', …) = true). Revoking
+-- anon alone would leave that path open, so revoke PUBLIC too and re-grant
+-- explicitly to the roles that call them.
+revoke execute on function public.is_org_admin(uuid) from public, anon;
+revoke execute on function public.provider_acceptance_rate(uuid) from public, anon;
+revoke execute on function public.provider_instant_book_eligible(uuid) from public, anon;
+revoke execute on function public.provider_is_fresh(uuid, integer) from public, anon;
+revoke execute on function public.provider_median_response_seconds(uuid) from public, anon;
+revoke execute on function public.provider_safety_cleared(uuid) from public, anon;
+
+grant execute on function public.is_org_admin(uuid) to authenticated, service_role;
+grant execute on function public.provider_acceptance_rate(uuid) to authenticated, service_role;
+grant execute on function public.provider_instant_book_eligible(uuid) to authenticated, service_role;
+grant execute on function public.provider_is_fresh(uuid, integer) to authenticated, service_role;
+grant execute on function public.provider_median_response_seconds(uuid) to authenticated, service_role;
+grant execute on function public.provider_safety_cleared(uuid) to authenticated, service_role;
 
 -- Advisor INFO 0008: email_suppressions has RLS on and no policy. That already
 -- denies every non-service role; this makes the intent explicit so the next
