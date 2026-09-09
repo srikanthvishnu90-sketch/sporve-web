@@ -54,8 +54,9 @@ create table public.platform_billing_provider_bindings (
 
 -- Checkout/activation writes this trusted reservation before any webhook can
 -- affect an org. Webhook metadata is never an authorization source. Replacing a
--- subscription is an explicit activation transaction that retires the old row
--- and inserts the new pending row; it is not implemented by this draft.
+-- subscription is an explicit activation transaction in the companion Checkout
+-- draft. The prior terminal projection is retained as historical authorization;
+-- it can receive immutable superseded receipts but can never regain access.
 create table public.platform_billing_subscription_authorizations (
   provider_id uuid not null references public.providers(id) on delete restrict,
   livemode boolean not null,
@@ -181,7 +182,6 @@ declare
   v_provider_id uuid;
   v_plan_key text;
   v_receipt public.platform_billing_receipts%rowtype;
-  v_cursor public.platform_billing_provider_projection%rowtype;
   v_assignment public.provider_entitlement_assignments%rowtype;
   v_effective_plan text;
   v_assignment_source text;
@@ -289,8 +289,22 @@ begin
   select * into strict v_authorization
     from public.platform_billing_subscription_authorizations
     where provider_id=v_provider_id and livemode=v_livemode
-      and stripe_subscription_id=v_subscription_id and stripe_customer_id=v_customer_id
+      and stripe_customer_id=v_customer_id and state in ('pending','active')
     for update;
+  v_stale := v_authorization.stripe_subscription_id <> v_subscription_id;
+  if v_stale then
+    -- Only a previously projected terminal subscription belonging to this exact
+    -- provider/customer/mode is historical. A same-customer unknown subscription
+    -- is not authorized, even if the Stripe event is genuine.
+    perform 1 from public.platform_billing_subscriptions s
+      where s.provider_id=v_provider_id and s.livemode=v_livemode
+        and s.stripe_subscription_id=v_subscription_id
+        and s.stripe_customer_id=v_customer_id
+        and s.stripe_status in ('canceled','incomplete_expired');
+    if not found then
+      raise exception 'Subscription is not authorized for this provider' using errcode='42501';
+    end if;
+  end if;
   -- Lock hierarchy is provider -> entitlement assignment -> catalog/projection.
   -- This matches the entitlement resolver and serializes all subscriptions for
   -- one provider without a cross-provider lock.
@@ -320,10 +334,6 @@ begin
   -- `active` gates new Checkout creation, not webhook projection.
   select plan_key into strict v_plan_key from public.platform_billing_prices
     where livemode=v_livemode and stripe_price_id=v_price_id for share;
-
-  -- Revision CAS replaces timestamp ordering. No write happens on conflict;
-  -- the handler refetches the current Stripe subscription and prepares again.
-  v_stale := false;
 
   v_is_paid := v_status in ('active','trialing','past_due');
   select case when v_is_paid then v_plan_key else bp.free_plan_key end,
@@ -383,6 +393,12 @@ begin
     if v_assignment.ends_at is not null and v_assignment.ends_at<=now() then
       v_effective_plan := v_assignment.fallback_plan_key;
     end if;
+  else
+    -- Record the CURRENT assignment in the immutable receipt before insertion;
+    -- a late event for a replaced subscription never projects its old tier.
+    v_effective_plan := case
+      when v_assignment.ends_at is not null and v_assignment.ends_at<=now()
+        then v_assignment.fallback_plan_key else v_assignment.plan_key end;
   end if;
 
   -- Billing-system alert, not an AI-generated outbound draft: no approval/send
@@ -413,12 +429,6 @@ begin
     v_binding.projection_revision,v_assignment.revision,v_effective_plan)
   returning * into v_receipt;
   if not found then raise exception 'Platform billing receipt was not written' using errcode='55000'; end if;
-  if v_stale then
-    select * into strict v_assignment from public.provider_entitlement_assignments where provider_id=v_provider_id;
-    select coalesce(case when v_assignment.ends_at is not null and v_assignment.ends_at<=now()
-      then v_assignment.fallback_plan_key else v_assignment.plan_key end,bp.free_plan_key)
-      into strict v_effective_plan from public.billing_policy bp where bp.singleton;
-  end if;
   return jsonb_build_object('receipt_id',v_receipt.receipt_id::text,'event_id',v_event_id,
     'outcome',v_receipt.outcome,'payload_sha256',v_hash,'provider_id',v_provider_id::text,
     'subscription_id',v_subscription_id,'customer_id',v_customer_id,
@@ -466,8 +476,13 @@ begin
     where provider_id=v_provider and livemode=v_mode;
   perform 1 from public.platform_billing_subscription_authorizations a
     where a.provider_id=v_provider and a.livemode=v_mode
-      and a.stripe_subscription_id=v_sub and a.stripe_customer_id=v_customer
-      and a.state in ('pending','active');
+      and a.stripe_customer_id=v_customer and a.state in ('pending','active')
+      and (a.stripe_subscription_id=v_sub or exists (
+        select 1 from public.platform_billing_subscriptions s
+        where s.provider_id=v_provider and s.livemode=v_mode
+          and s.stripe_subscription_id=v_sub and s.stripe_customer_id=v_customer
+          and s.stripe_status in ('canceled','incomplete_expired')
+      ));
   if not found then raise exception 'Subscription is not authorized for this provider' using errcode='42501'; end if;
   return jsonb_build_object('outcome','ready','provider_id',v_provider::text,
     'expected_projection_revision',v_binding.projection_revision);
@@ -499,19 +514,13 @@ grant select,insert,update on public.platform_billing_customers,
 revoke insert,update,delete,truncate,references,trigger on public.platform_billing_receipts from service_role;
 grant select on public.platform_billing_receipts to service_role;
 
--- UNREADY / caller contract: Stripe's retrieved subscription has no monotonic
--- update version tied to the event. This draft serializes provider projections
--- and prevents older event timestamps from overwriting newer ones, but equal-
--- timestamp events are deliberately first-writer-wins rather than falsely
--- ordered by event id. It cannot prove a fetched snapshot was caused by that
--- event. DEPLOYMENT HOLD: replace timestamp ordering with a pre-fetch revision
--- read + atomic compare-and-set, refetch on conflict, and immutable revision
--- receipts. Prove current-subscription identity across subscription replacement.
--- Reconciliation must use its own observed-snapshot receipt, never fabricate a
--- newer Stripe event timestamp. This existing cursor is not convergence proof.
--- Also deploy only after billing-webhook checks the returned snapshot for an
--- applied receipt (already implemented) and after live/test mapping rows exist.
--- Invoice failures now insert a tenant-bound queue finding in the receipt
--- transaction. Its SQL fixture and live queue rendering must still be verified.
+-- DEPLOYMENT HOLD: the pre-fetch revision/CAS and historical-subscription
+-- receipt protocol requires independent execution of the CURRENT SQL fixtures,
+-- Checkout activation integration, verified test/live customer/price mappings,
+-- coordinated legacy caller cutover, and actual Stripe lifecycle evidence.
+-- The cursor is diagnostic, never timestamp-based causality proof. A missed
+-- webhook still needs a reconciliation path with its own observed-snapshot
+-- receipt; do not fabricate a Stripe event timestamp to force projection.
+-- Invoice findings and superseded receipts must also be verified in the queue.
 
 commit;

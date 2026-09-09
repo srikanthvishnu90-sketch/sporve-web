@@ -1,5 +1,8 @@
 -- Prompt 1 [CRITICAL-PATH]: reviewable migration; NOT applied to production.
--- Preflight against the selected sporv branch before promoting to migrations/.
+-- Preflight against the verified production project before promoting to migrations/.
+-- September 9 constitution supersedes the earlier price/limit/label seed.
+-- Price constants are generated from _shared/billing-pricing.json; unconfirmed
+-- prices cannot start Checkout. Catalog capability flags still guide upgrades.
 -- Source baseline uses pro/enterprise; target keys are solo/organization.
 -- Rename those legacy keys without deleting customers or subscription history.
 -- Exact canonical migration number is assigned only after live parity review.
@@ -89,41 +92,43 @@ with all_jobs as (
     'idle_capacity_offers','proposals','proposal_apply','records'
   ]::text[] as jobs
 ), catalog as (
-  select 'free'::text as plan, 'Sporv Free'::text as display_name,
+  select 'free'::text as plan, 'Free'::text as display_name,
     'free'::text as public_slug, 0 as sort_order, 15 as member_cap,
     1 as admin_cap, 1 as group_cap,
-    array['website','csv']::text[] as connectors,
+    array['website','csv','stripe']::text[] as connectors,
     array['overdue_summary','waivers_unsigned','reconciliation_drift',
       'refund_exposure','waiver_drift','collection_trend','dues_chase',
-      'installment_followups','waiver_followups','treasurer_summary']::text[] as jobs,
+      'installment_followups','waiver_followups']::text[] as jobs,
     array['roster','groups','schedule','review_queue','money','documents',
       'settings','ask','stripe_connect','dues_collection','export','camps']::text[] as modules,
     'nightly'::text as scan_mode, 20 as draft_quota_month,
     20 as send_quota_month, 25 as ask_quota_month,
-    true as branding_footer, false as camps_included,
+    true as branding_footer, true as camps_included,
     false as purchasable, 0::numeric as monthly, 0::numeric as annual
   union all
-  select 'solo','Sporv Individual','individual',1,100,1,-1,
-    array['website','csv','google_calendar','gmail','sms'],all_jobs.jobs,
+  select 'solo','Solo','solo',1,100,1,-1,
+    array['website','csv','stripe','google_calendar','gmail','sms'],
+    array_remove(all_jobs.jobs,'treasurer_summary'),
     array['roster','groups','schedule','review_queue','money','documents',
       'settings','ask','stripe_connect','dues_collection','export','camps',
       'booking_page','packages_credits','notes','progress_tracker','records',
       'proposals','client_sourcing'],
-    'triggered',-1,500,500,false,false,true,39,390 from all_jobs
+    'triggered',-1,-1,500,false,true,true,0,0 from all_jobs
   union all
-  select 'organization','Sporv Enterprise','enterprise',2,-1,-1,-1,
-    array['website','csv','google_calendar','gmail','sms','outlook',
+  select 'organization','Organization','organization',2,150,5,-1,
+    array['website','csv','stripe','google_calendar','gmail','sms','outlook',
       'microsoft_calendar','google_sheets','google_drive','quickbooks',
       'google_business_profile','migration_sportsengine','migration_teamsnap',
-      'migration_leagueapps','migration_spond','migration_jersey_watch','migration_sheets'],
+      'migration_leagueapps','migration_spond','migration_jersey_watch','migration_sheets',
+      'migration_sports_connect'],
     all_jobs.jobs,
     array['roster','groups','schedule','review_queue','money','documents',
       'settings','ask','stripe_connect','dues_collection','export','camps',
       'booking_page','packages_credits','notes','progress_tracker','records',
       'proposals','client_sourcing','installments','rsvp','team_chat','invite_link',
       'eligibility','memberships','capacity_checkin','multi_program',
-      'staff_roles','migration_service'],
-    'ondemand',-1,-1,-1,false,true,true,449,4490 from all_jobs
+      'staff_roles','migration_service','registration_form','league_view'],
+    'ondemand',-1,-1,2500,false,true,true,0,0 from all_jobs
 )
 insert into public.plan_entitlements(plan,display_name,public_slug,sort_order,
   member_cap,admin_cap,group_cap,connectors,jobs,modules,scan_mode,
@@ -140,6 +145,34 @@ on conflict(plan) do update set
   branding_footer=excluded.branding_footer,camps_included=excluded.camps_included,
   purchasable=excluded.purchasable,price_usd_month=excluded.price_usd_month,
   price_usd_year=excluded.price_usd_year;
+
+-- BEGIN GENERATED BILLING PRICES
+-- Generated from supabase/functions/_shared/billing-pricing.json.
+-- Owner confirmation is enforced by platform Checkout, not by hiding plans.
+-- Annual offer: two months free; confirmed: false.
+do $billing_prices$
+declare written integer; verified integer;
+begin
+with expected(plan,monthly_cents,annual_cents) as (values
+  ('free',0,0),
+  ('solo',4900,49000),
+  ('organization',19900,199000)
+), changed as (
+  update public.plan_entitlements e
+  set price_usd_month=p.monthly_cents::numeric/100,
+      price_usd_year=p.annual_cents::numeric/100
+  from expected p where e.plan=p.plan
+  returning e.plan,e.price_usd_month,e.price_usd_year
+)
+select count(*),count(*) filter (where c.price_usd_month=p.monthly_cents::numeric/100
+  and c.price_usd_year=p.annual_cents::numeric/100)
+into written,verified from changed c join expected p using(plan);
+if written<>3 or verified<>3 then
+  raise exception 'Billing price seed did not persist all three expected rows';
+end if;
+end;
+$billing_prices$;
+-- END GENERATED BILLING PRICES
 
 alter table public.plan_entitlements
   alter column display_name set not null, alter column public_slug set not null,
@@ -172,7 +205,8 @@ create table public.billing_policy (
   currency text not null check(currency ~ '^[a-z]{3}$'),
   branding_text text not null
 );
-insert into public.billing_policy values(true,'free','organization',14,4900,'usd','Sent via Sporv');
+-- Keep compatibility columns for existing readers; no per-camp fee at launch.
+insert into public.billing_policy values(true,'free','organization',14,0,'usd','Sent via Sporv');
 
 create table public.provider_entitlement_assignments (
   provider_id uuid primary key references public.providers(id) on delete cascade,

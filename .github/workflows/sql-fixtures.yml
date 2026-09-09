@@ -1,0 +1,82 @@
+name: Isolated SQL fixtures
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/red-drafts/**.sql'
+      - 'supabase/migrations/20260907_001034_trigger_function_grants.sql'
+      - '.github/workflows/sql-fixtures.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fixture:
+    name: SQL / ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: entitlement catalog
+            database: sporv_entitlement_fixture
+            file: 2026-09-08-plan-entitlements.test.sql
+          - name: AI quota
+            database: sporv_entitlement_fixture
+            file: 2026-09-08-entitlement-ai-quota.test.sql
+          - name: entitlement guards
+            database: sporv_entitlement_guard_test
+            file: 2026-09-08-entitlement-guards.test.sql
+          - name: platform billing
+            database: sporv_platform_billing_fixture
+            file: 2026-09-08-platform-billing.test.sql
+          - name: billing checkout
+            database: sporv_platform_billing_fixture
+            file: 2026-09-08-platform-billing-checkout.test.sql
+          - name: agent entitlements
+            database: sporv_agent_entitlements_fixture
+            file: 2026-09-09-agent-entitlements.test.sql
+          - name: approved inbox and send quota
+            database: sporv_parent_send_test
+            file: 2026-09-09-parent-update-send.test.sql
+          - name: trigger grants
+            database: sporv_trigger_grants_test
+            file: 2026-09-06-trigger-function-grants.test.sql
+    # Each matrix job gets its own disposable cluster and role catalog.
+    # This credential is only for that local service; no production secrets are used.
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture-only-password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: ${{ job.services.postgres.ports[5432] }}
+      PGUSER: postgres
+      PGPASSWORD: fixture-only-password
+      PGDATABASE: ${{ matrix.database }}
+      FIXTURE_FILE: ${{ matrix.file }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Verify isolated server and execute fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = 127.0.0.1
+          createdb "$PGDATABASE"
+          psql -X -v ON_ERROR_STOP=1 -c 'SELECT version(), current_database();'
+          psql -X -v ON_ERROR_STOP=1 -f "docs/red-drafts/$FIXTURE_FILE"

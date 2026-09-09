@@ -5,6 +5,20 @@
 -- These table definitions use the actual column names/types required by the
 -- baseline and 20260831_001007/001010; no application-only stand-ins are used.
 
+-- Refuse a shared/production database before creating cluster-wide fixture
+-- roles. Each test starts independently; no roles inherited from another test.
+do $$ begin
+  if current_database() <> 'sporv_entitlement_guard_test' then
+    raise exception 'Run only in the disposable sporv_entitlement_guard_test database';
+  end if;
+  if exists (select 1 from pg_tables where schemaname='public')
+     or exists (select 1 from pg_namespace where nspname='auth') then
+    raise exception 'The entitlement guard fixture requires an empty database';
+  end if;
+end $$;
+create role anon nologin;
+create role authenticated nologin;
+create role service_role nologin bypassrls;
 create extension if not exists pgcrypto;
 -- Supabase exposes these helpers in production. The disposable PostgreSQL
 -- harness supplies their unauthenticated equivalents solely so the trigger
