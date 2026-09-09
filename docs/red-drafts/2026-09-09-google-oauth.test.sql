@@ -45,7 +45,10 @@ create role service_role;
 create schema vault;
 create table vault.secrets (
   id uuid primary key default gen_random_uuid(),
-  name text, description text, secret text,
+  -- UNIQUE on purpose: real Supabase Vault enforces it, and without it here
+  -- the stub hides a reconnect that would fail in production. CodeRabbit
+  -- caught exactly that on PR #400.
+  name text unique, description text, secret text,
   created_at timestamptz not null default now());
 create view vault.decrypted_secrets as
   select id, name, description, secret as decrypted_secret from vault.secrets;
@@ -91,7 +94,11 @@ declare n int;
 begin
   select count(*) into n from public.connector_claim_oauth_state('st-old');
   if n <> 0 then raise exception 'FAIL: an expired state was accepted'; end if;
-  raise notice 'ok  an expired state is never claimable';
+  -- And it is gone. Nothing else sweeps this table: an abandoned consent
+  -- screen would otherwise leave a row behind forever.
+  select count(*) into n from public.connector_oauth_state where state = 'st-old';
+  if n <> 0 then raise exception 'FAIL: the expired state was left behind'; end if;
+  raise notice 'ok  an expired state is never claimable, and is swept';
 end $$;
 
 -- ── 3. a signed-in customer cannot reach the secret functions ────────────
@@ -145,13 +152,28 @@ begin
   raise notice 'ok  storing replaces the old token and reading returns the new one';
 end $$;
 
--- An empty secret is a bug upstream, never a valid state.
+-- Reconnect twice more. With vault.secrets.name unique and the name derived
+-- from the connector id, a create-before-delete ordering fails here on the
+-- second pass — which is what production would have done.
+do $$
+declare s text;
+begin
+  perform public.connector_store_secret('33333333-3333-3333-3333-333333333333','refresh-three');
+  perform public.connector_store_secret('33333333-3333-3333-3333-333333333333','refresh-four');
+  s := public.connector_read_secret('33333333-3333-3333-3333-333333333333');
+  if s <> 'refresh-four' then raise exception 'FAIL: read back % after two reconnects', s; end if;
+  raise notice 'ok  repeated reconnects do not collide on the secret name';
+end $$;
+
+-- An empty secret is a bug upstream, never a valid state. The handler asserts
+-- the EXACT message: catching any error here would let an unrelated failure
+-- (a missing column, a permission change) pass as a working guard.
 do $$ begin
   begin
     perform public.connector_store_secret('33333333-3333-3333-3333-333333333333','');
     raise exception 'FAIL: an empty secret was stored';
   exception when raise_exception then
-    if sqlerrm like 'FAIL:%' then raise; end if;
+    if sqlerrm <> 'refusing to store an empty connector secret' then raise; end if;
     raise notice 'ok  an empty secret is refused';
   end;
 end $$;
