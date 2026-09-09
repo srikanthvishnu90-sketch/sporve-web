@@ -62,20 +62,27 @@ begin
   if not exists(select 1 from public.plan_entitlements where plan='free'
       and member_cap=15 and admin_cap=1 and group_cap=1
       and draft_quota_month=20 and send_quota_month=20 and ask_quota_month=25
-      and connectors=array['website','csv'] and branding_footer and not camps_included
+      and display_name='Free' and public_slug='free'
+      and connectors=array['website','csv','stripe'] and branding_footer and camps_included
       and scan_mode='nightly') then raise exception 'FAIL: Free catalog'; end if;
   if not exists(select 1 from public.plan_entitlements where plan='solo'
       and member_cap=100 and admin_cap=1 and group_cap=-1
-      and draft_quota_month=-1 and send_quota_month=500 and ask_quota_month=500
-      and price_usd_month=39 and price_usd_year=390
+      and display_name='Solo' and public_slug='solo'
+      and draft_quota_month=-1 and send_quota_month=-1 and ask_quota_month=500
+      and price_usd_month>0 and price_usd_year=price_usd_month*10
       and 'gmail'=any(connectors) and not ('outlook'=any(connectors))) then
-    raise exception 'FAIL: Individual catalog'; end if;
+    raise exception 'FAIL: Solo catalog'; end if;
   if not exists(select 1 from public.plan_entitlements where plan='organization'
-      and member_cap=-1 and admin_cap=-1 and group_cap=-1
-      and draft_quota_month=-1 and send_quota_month=-1 and ask_quota_month=-1
-      and price_usd_month=449 and price_usd_year=4490
+      and display_name='Organization' and public_slug='organization'
+      and member_cap=150 and admin_cap=5 and group_cap=-1
+      and draft_quota_month=-1 and send_quota_month=-1 and ask_quota_month=2500
+      and price_usd_month>0 and price_usd_year=price_usd_month*10
       and 'outlook'=any(connectors) and camps_included) then
-    raise exception 'FAIL: Enterprise catalog'; end if;
+    raise exception 'FAIL: Organization catalog'; end if;
+  if exists(select from public.plan_entitlements where not ('stripe'=any(connectors)))
+    or exists(select from public.billing_policy where camp_price_cents<>0)
+    or exists(select from public.plan_entitlements where plan in ('free','solo') and 'treasurer_summary'=any(jobs)) then
+    raise exception 'FAIL: Stripe availability, no camp fee or Organization-only treasurer job'; end if;
   e:=public.get_provider_entitlements('10000000-0000-4000-8000-000000000001');
   if e->>'plan'<>'solo' or e->>'entitlement_source'<>'legacy' then
     raise exception 'FAIL: preserve legacy access without retroactive trial'; end if;
@@ -86,7 +93,7 @@ begin
     ('10000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002');
   e:=public.get_provider_entitlements('10000000-0000-4000-8000-000000000002');
   if e->>'plan'<>'organization' or e->>'entitlement_source'<>'trial' then
-    raise exception 'FAIL: new org no-card Enterprise trial'; end if;
+    raise exception 'FAIL: new org no-card Organization trial'; end if;
   if not exists(select 1 from public.provider_entitlement_assignments
       where provider_id='10000000-0000-4000-8000-000000000002'
       and ends_at-starts_at=interval '14 days') then raise exception 'FAIL: trial duration'; end if;
