@@ -63,13 +63,24 @@ revoke all on public.connector_oauth_state from anon, authenticated;
 
 -- ── 2. claim the state, exactly once ─────────────────────────────────────
 -- The delete and the read are one statement, so two concurrent callbacks
--- cannot both succeed. An expired row returns nothing and is cleaned up.
+-- cannot both succeed.
+--
+-- The data-modifying CTE sweeps expired rows on the way past. Nothing else
+-- ever would: an abandoned consent screen leaves a row behind, and this table
+-- has no other writer and no cron. The two DELETEs touch disjoint sets
+-- (expired versus unexpired) so they cannot fight, and the expires_at index
+-- makes the sweep cheap.
 create or replace function public.connector_claim_oauth_state(p_state text)
 returns table (provider_id uuid, user_id uuid, kind public.connector_kind, redirect_to text)
 language sql
 security definer
 set search_path = public, pg_temp
 as $$
+  with swept as (
+    delete from public.connector_oauth_state
+     where expires_at <= now()
+    returning 1
+  )
   delete from public.connector_oauth_state s
    where s.state = p_state
      and s.expires_at > now()
@@ -100,14 +111,19 @@ begin
     raise exception 'no such connector %', p_connector;
   end if;
 
+  -- Drop the superseded secret FIRST. vault.secrets.name is unique, and the
+  -- name is derived from the connector id, so creating before deleting would
+  -- collide on every reconnect. A plpgsql function is one transaction, so if
+  -- create_secret then fails the delete rolls back with it and the old token
+  -- survives — the ordering costs nothing.
+  if v_old is not null then
+    delete from vault.secrets where id = v_old;
+  end if;
+
   v_new := vault.create_secret(p_secret, 'connector:' || p_connector::text,
                                'OAuth refresh token for org_connectors row ' || p_connector::text);
   update public.org_connectors set vault_secret_id = v_new, updated_at = now()
    where id = p_connector;
-
-  if v_old is not null then
-    delete from vault.secrets where id = v_old;
-  end if;
   return v_new;
 end $$;
 
