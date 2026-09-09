@@ -153,3 +153,62 @@ do $$ declare v_msg uuid:=public.fixture_email(); begin
   raise notice 'PASS altered email wire cannot authorize a provider request';
 end $$;
 rollback;
+
+begin;
+update public.provider_entitlement_assignments set plan_key='free' where provider_id='00000000-0000-0000-0000-000000000003';
+update public.plan_entitlements set send_quota_month=2 where plan='free';
+do $$ declare v_msg uuid:=public.fixture_email(); a jsonb; v_extra uuid; detail text; begin
+  a:=public.fixture_prepare_email(v_msg);
+  assert (a->>'wire_body')::jsonb->>'text' like E'Approved fixture body\n\nSent via Sporv\n\nUnsubscribe%';
+  v_extra:=public.fixture_email();
+  begin perform public.fixture_prepare_email(v_extra); raise exception 'Expected shared send quota denial';
+    exception when sqlstate 'PT402' then get stacked diagnostics detail=pg_exception_detail;
+    assert detail::jsonb='{"reason":"send_quota_month","current_plan":"free","upgrade_to":"solo","limit":2,"current":2}'::jsonb; end;
+  assert (select status='approved' and sent_at is null from public.outbound_messages where id=v_extra);
+  raise notice 'PASS Free branding is catalog-driven; next email returns exact402 without deleting its draft';
+end $$;
+rollback;
+
+begin;
+create trigger fixture_skip_email_processing before update on public.outbound_messages for each row execute function public.fixture_skip();
+do $$ declare v_msg uuid:=public.fixture_email(); begin
+  begin perform public.fixture_prepare_email(v_msg); raise exception 'Expected no-op processing denial'; exception when sqlstate 'PT503' then null; end;
+  assert not exists(select 1 from public.message_send_quota_claims where source_id=v_msg);
+  assert not exists(select 1 from public.outbound_email_dispatches where message_id=v_msg);
+  raise notice 'PASS no-op processing rolls back dispatch, attempt and quota';
+end $$;
+rollback;
+
+begin;
+do $$ declare v_msg uuid:=public.fixture_email(); a jsonb; n bigint; begin
+  a:=public.fixture_prepare_email(v_msg);
+  select count(*) into n from public.outbound_email_results;
+  create trigger fixture_skip_email_result before insert on public.outbound_email_results for each row execute function public.fixture_skip();
+  begin perform public.fixture_email_result(a,'accepted','missing-result-fixture'); raise exception 'Expected no-op result denial'; exception when sqlstate 'PT503' then null; end;
+  assert (select count(*)=n from public.outbound_email_results);
+  assert (select state='reserved' from public.message_send_quota_claims where source_id=v_msg);
+  assert (select status='processing' and sent_at is null from public.outbound_messages where id=v_msg);
+  drop trigger fixture_skip_email_result on public.outbound_email_results;
+  create trigger fixture_skip_email_sent before update on public.outbound_messages for each row execute function public.fixture_skip();
+  begin perform public.fixture_email_result(a,'accepted','missing-sent-fixture'); raise exception 'Expected no-op sent denial'; exception when sqlstate 'PT503' then null; end;
+  assert (select count(*)=n from public.outbound_email_results);
+  assert (select state='reserved' from public.message_send_quota_claims where source_id=v_msg);
+  assert (select state='dispatching' from public.outbound_email_dispatches where message_id=v_msg);
+  raise notice 'PASS no-op result/sent projection rolls back acceptance and preserves unknown dispatch';
+end $$;
+rollback;
+
+begin;
+create function public.fixture_alter_email_result() returns trigger language plpgsql as $$ begin
+  new.provider_message_id:='not-the-provider-receipt'; return new;
+end $$;
+create trigger fixture_alter_email_result before insert on public.outbound_email_results for each row execute function public.fixture_alter_email_result();
+do $$ declare v_msg uuid:=public.fixture_email(); a jsonb; begin
+  a:=public.fixture_prepare_email(v_msg);
+  begin perform public.fixture_email_result(a,'accepted','actual-provider-fixture'); raise exception 'Accepted a trigger-altered provider receipt';
+    exception when sqlstate 'PT503' then null; end;
+  assert not exists(select 1 from public.outbound_email_results where dispatch_id=(a->>'dispatch_id')::uuid);
+  assert (select state='reserved' from public.message_send_quota_claims where source_id=v_msg);
+  raise notice 'PASS altered provider receipt cannot mark the email sent';
+end $$;
+rollback;
