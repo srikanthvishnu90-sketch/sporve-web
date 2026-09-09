@@ -63,7 +63,6 @@ jobs:
           --health-retries 10
     env:
       PGHOST: 127.0.0.1
-      PGPORT: ${{ job.services.postgres.ports[5432] }}
       PGUSER: postgres
       PGPASSWORD: fixture-only-password
       PGDATABASE: ${{ matrix.database }}
@@ -74,6 +73,8 @@ jobs:
           persist-credentials: false
       - name: Verify isolated server and execute fixture
         shell: bash
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: |
           set -euo pipefail
           test "$PGHOST" = 127.0.0.1
