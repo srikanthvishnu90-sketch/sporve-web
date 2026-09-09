@@ -392,3 +392,56 @@ do $$ declare v_id uuid:=public.fixture_approved_outbound(); d text; begin
   assert not has_function_privilege('anon','public.deliver_approved_lifecycle_inbox(uuid,uuid,uuid,timestamptz,jsonb,uuid)','execute');
   raise notice 'PASS worker shared quota denial and service-only RPC grants';
 end $$;
+
+-- Regression: a reservation is not a permanent entitlement. Rechecks must
+-- preserve accepted receipts but refuse an over-cap pending claim after a
+-- downgrade and a previous-month claim with unknown external acceptance.
+begin;
+do $$
+declare
+  v_source uuid:=gen_random_uuid(); v_done_source uuid:=gen_random_uuid();
+  v_claim uuid; v_done uuid; v_receipt uuid:=gen_random_uuid();
+  v_before jsonb; v_detail text; v_failures text[]:='{}';
+begin
+  update public.provider_entitlement_assignments set plan_key='solo'
+    where provider_id='00000000-0000-0000-0000-000000000002';
+  v_claim:=public.reserve_message_send_quota_internal('00000000-0000-0000-0000-000000000002','outbound',v_source);
+  v_done:=public.reserve_message_send_quota_internal('00000000-0000-0000-0000-000000000002','outbound',v_done_source);
+  perform public.accept_message_send_quota_internal(v_done,'00000000-0000-0000-0000-000000000002',v_receipt);
+  update public.provider_entitlement_assignments set plan_key='free'
+    where provider_id='00000000-0000-0000-0000-000000000002';
+  update public.plan_entitlements set send_quota_month=0 where plan='free';
+  select to_jsonb(q) into v_before from public.message_send_quota_claims q where id=v_claim;
+  begin
+    perform public.reserve_message_send_quota_internal('00000000-0000-0000-0000-000000000002','outbound',v_source);
+    v_failures:=array_append(v_failures,'pending claim bypassed downgraded quota');
+  exception when sqlstate 'PT402' then
+    get stacked diagnostics v_detail=pg_exception_detail;
+    assert v_detail::jsonb->>'reason'='send_quota_month';
+    assert v_detail::jsonb->>'current_plan'='free';
+    assert v_detail::jsonb->>'upgrade_to'='solo';
+    assert v_detail::jsonb->>'limit'='0';
+    assert (v_detail::jsonb->>'current')::integer>0;
+  end;
+  assert (select to_jsonb(q)=v_before from public.message_send_quota_claims q where id=v_claim);
+  assert public.reserve_message_send_quota_internal('00000000-0000-0000-0000-000000000002','outbound',v_done_source)=v_done;
+  assert (select delivery_receipt_id=v_receipt and state='accepted' from public.message_send_quota_claims where id=v_done);
+
+  update public.provider_entitlement_assignments set plan_key='solo'
+    where provider_id='00000000-0000-0000-0000-000000000002';
+  update public.message_send_quota_claims set
+    reserved_at=(date_trunc('month',clock_timestamp() at time zone 'UTC')-interval '1 month') at time zone 'UTC',
+    quota_month=(date_trunc('month',clock_timestamp() at time zone 'UTC')-interval '1 month')::date
+    where id=v_claim;
+  select to_jsonb(q) into v_before from public.message_send_quota_claims q where id=v_claim;
+  begin
+    perform public.reserve_message_send_quota_internal('00000000-0000-0000-0000-000000000002','outbound',v_source);
+    v_failures:=array_append(v_failures,'previous-month claim reused without reconciliation');
+  exception when sqlstate 'PT409' then null;
+  end;
+  assert (select to_jsonb(q)=v_before from public.message_send_quota_claims q where id=v_claim);
+  assert (select count(*)=1 from public.message_send_quota_events where claim_id=v_claim);
+  if cardinality(v_failures)>0 then raise exception '%',array_to_string(v_failures,'; '); end if;
+  raise notice 'PASS existing pending reservation rechecks downgrade; old-month ambiguity blocked; accepted receipt unchanged';
+end $$;
+rollback;
