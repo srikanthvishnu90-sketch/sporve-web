@@ -102,15 +102,15 @@
   /* ── TYPE SCALE: eight steps, no ninth. Carried verbatim from the marketing
      landing (sporve-landing/tokens.css) so the two web surfaces share one
      scale. Every text element on this page maps to one of these. */
-  --text-xs:10.5px;                    /* eyebrows, stat labels, chips (micro — kept ≥10) */
-  --text-sm:10px;                      /* meta lines, captions, buttons  (−2, owner 08-23) */
-  --text-base:12.5px;                  /* body paragraphs                (−2, owner 08-23) */
-  --text-md:13.5px;                    /* lead paragraph only            (−2, owner 08-23) */
-  --text-lg:clamp(13px,1.3vw,15px);    /* card titles, coach name        (−2 more, owner 08-23) */
-  --text-xl:clamp(21px,1.9vw,27px);    /* stat numerals — NOT a header, unchanged */
-  --text-2xl:clamp(20px,2.2vw,28px);   /* section headers (h2)           (−2 more, owner 08-23) */
-  --text-hero:clamp(28px,3.6vw,50px);  /* h1 only                        (−2 more, owner 08-23) */
-  --text-hero-lp:clamp(31px,4.5vw,57px);/* landing hero headline          (−2 more, owner 08-23) */
+  --text-xs:11px;                      /* eyebrows, stat labels, chips (micro) */
+  --text-sm:13px;                      /* meta lines, captions, buttons */
+  --text-base:15px;                    /* body paragraphs */
+  --text-md:16px;                      /* lead paragraph only */
+  --text-lg:clamp(16px,1.4vw,18px);    /* card titles, coach name */
+  --text-xl:clamp(22px,2vw,28px);      /* stat numerals */
+  --text-2xl:clamp(22px,2.4vw,30px);   /* section headers (h2) */
+  --text-hero:clamp(32px,3.8vw,52px);  /* h1 only */
+  --text-hero-lp:clamp(34px,4.6vw,58px);/* landing hero headline */
   /* The ONE class of exception: a `font-size` that sizes a GLYPH rather than
      text -- an avatar initial, an emoji, a chevron, a sport badge's icon.
      Those are icon dimensions expressed in font-size units, and a fluid clamp
@@ -2338,11 +2338,28 @@ img{max-width:100%;display:block}
 .aipill.aidock-col .aidock-panel.talking{
   width:100%;height:100%;max-height:none;border-radius:0;border:0;
   border-left:1px solid #333A45;box-shadow:none;animation:none;overflow:hidden;
-  background:#0A0C0F;display:flex;flex-direction:column}
+  background:#0A0C0F;display:flex;flex-direction:column;position:relative}
 .aipill.aidock-col .aidock-scroll{flex:1 1 auto;min-height:0}
 .aipill.aidock-col .aidock-empty{margin:auto 0}
 .aipill.aidock-col .aidock-chips{max-width:100%;flex-wrap:wrap;flex:0 0 auto}   /* column: chips wrap, never clip off the rail edge (owner 2026-08-24) */
 .aipill.aidock-col .aidock-compose{flex:0 0 auto}
+
+/* ── draggable slider / resizer for AI column ────────────────────── */
+.aidock-resizer{
+  position:absolute;left:-5px;top:0;bottom:0;width:10px;cursor:ew-resize;z-index:85;
+  user-select:none;-webkit-user-select:none;touch-action:none;transition:background .15s ease;
+}
+.aidock-resizer::after{
+  content:"";position:absolute;left:4px;top:50%;transform:translateY(-50%);
+  width:3px;height:38px;border-radius:999px;background:rgba(255,255,255,.22);
+  transition:background .15s,height .15s;
+}
+.aidock-resizer:hover{background:rgba(137,207,240,.12)}
+.aidock-resizer:hover::after,
+body.resizing-ai .aidock-resizer::after{background:var(--baby);height:54px;box-shadow:0 0 8px rgba(137,207,240,.6)}
+body.resizing-ai{cursor:ew-resize!important;user-select:none!important}
+body.resizing-ai #app{transition:none!important}
+body.resizing-ai .aipill.aidock-col{transition:none!important}
 /* The floating FAB is redundant while the panel is a permanent column. */
 html.coldock .aidock-fab{display:none}
 /* Owner 2026-08-18: an ACTIVE chatbox (a live conversation panel) sits dead
@@ -2393,31 +2410,6 @@ html.coldock .aidock-fab{display:none}
   border-radius:999px;background:#E9EEF4;color:#14202C;font:800 11px/19px var(--sans);
   text-align:center;box-shadow:0 0 0 2px #0A0C0F}
 .aidock-fab-mark{font-family:var(--display);font-weight:700;font-size:var(--text-xl);line-height:1;letter-spacing:-.04em}
-/* THE CHAT DOCK IS BLACK. Owner spec 2026-08-12: black ground, white text, a
-   grey-slate glow around it, sitting at the bottom of the screen — the shape
-   Claude and Ambora use.
-
-   Literals, not tokens, for the ground and the text. --paper INVERTS under
-   data-theme="dark", so a panel painted with it would flip to near-white in
-   dark mode while its children stayed light-on-dark. §3 records that exact
-   defect ("--paper has produced near-black-on-black"), so a surface that is
-   ALWAYS dark must say so in hex. */
-/* max-height, not height. A fixed 520px made the empty state a tall black
-   slab; the spec wants a PILL that grows into a panel as the thread does. The
-   scroll region is flex:1 with overflow-y:auto, so it absorbs the difference
-   and the composer stays pinned to the bottom either way. */
-/* .talking gives the panel a real HEIGHT once a conversation exists.
-   max-height alone let the flex children size to their content, so the thread
-   region collapsed to ~171px inside a 441px panel — the composer and header ate
-   the rest and the reply was legible only through a slot. This is the regression
-   behind "you can't even see the response". Empty, it stays a compact pill;
-   talking, it commits to the full stage and .aidock-scroll's flex:1 fills it. */
-/* 620, not 520. Measured on a 900px viewport the panel spent 248px of its 520
-   on chrome — head 68 + chips 32 + composer 148 — leaving the conversation 250px,
-   less than half the box, so a two-message exchange already overflowed and the
-   reply was read through a slot. The composer keeps its reference geometry; the
-   panel grows instead. calc(100vh - 160px) still governs short viewports, so
-   this cannot push the pill off a laptop screen. */
 .aidock-panel.talking{height:min(620px,calc(100vh - 160px));
   transform-origin:center;animation:aigrow .24s cubic-bezier(.32,.72,0,1)}
 /* Centred scale-in (the panel is viewport-centred, so it grows from its middle
@@ -2798,7 +2790,7 @@ html.coldock .aidock-fab{display:none}
 /* ── messages ────────────────────────────────────────────────────── */
 .msg-wrap{display:grid;grid-template-columns:320px 1fr;gap:0;border:1px solid var(--rule);border-radius:var(--r-l);overflow:hidden;height:min(660px,72vh);margin:26px 0 64px}
 .msg-list{border-right:1px solid var(--rule);overflow-y:auto;background:var(--raise)}
-.msg-item{display:flex;gap:12px;padding:15px 17px;width:100%;text-align:left;border-bottom:1px solid var(--rule);transition:.13s}
+.msg-item{display:flex;gap:12px;align-items:center;padding:14px 17px;width:100%;text-align:left;border-bottom:1px solid var(--rule);transition:.13s}
 .msg-item:hover{background:var(--raise2)}
 .msg-item.on{background:var(--paper);box-shadow:inset 3px 0 0 var(--slate)}
 .msg-thread{display:flex;flex-direction:column;min-width:0}
@@ -2826,8 +2818,12 @@ html.coldock .aidock-fab{display:none}
 .msg-compose{display:flex;gap:10px;padding:15px;border-top:1px solid var(--rule);background:var(--paper)}
 .msg-compose input{flex:1;padding:12px 15px;border:1px solid var(--rule-strong);border-radius:999px;font:inherit;background:var(--paper);color:var(--ink)}
 .msg-compose input:focus{outline:none;border-color:var(--slate)}
-.msg-sub{color:var(--muted);font-size:var(--t-small);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg-sub{color:var(--muted);font-size:var(--text-sm);line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .msg-from{font-size:var(--t-small);font-weight:700;color:var(--muted);margin:0 0 -5px 3px}
+
+/* ── approvals queue draft body ──────────────────────────────────── */
+.apv-body{padding:14px 16px;background:var(--raise);border:1px solid var(--rule-strong);border-radius:var(--r-ctl);font-size:var(--text-base);line-height:1.6;color:var(--ink);min-height:72px;white-space:pre-wrap;outline:none;transition:border-color .15s,background .15s}
+.apv-body:focus{border-color:var(--slate);background:var(--paper);box-shadow:0 0 0 3px var(--slate-ring)}
 
 /* ── people picker (group messaging) ─────────────────────────────── */
 .pick-list{max-height:260px;overflow-y:auto;border:1px solid var(--rule);border-radius:var(--r-m);padding:4px}
@@ -3302,11 +3298,21 @@ h2.ctr{margin-bottom:10px}
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
 #app.coachdark .acct:hover .avatar{background:#47617C;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.32)}
-/* Hardcoded light values inside the coach shell that tokens cannot reach.
-   .cmdbar is a fixed, near-white panel — the command bar itself. Its text took
-   the dark-ground tokens while its own background stayed white, leaving the
-   suggestion chips at 2.38:1. It only renders wide, which is why a default
-   viewport misses it and 1440x900 catches it. */
+#app.coachdark textarea,
+#app.coachdark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]),
+#app.coachdark select{
+  background:#11151B;color:#F5F7F9;border:1px solid #26303D;border-radius:var(--r-ctl);
+  font:inherit;font-size:var(--text-base);padding:12px 15px;box-sizing:border-box;
+  transition:border-color .15s,box-shadow .15s,background .15s;
+}
+#app.coachdark textarea:focus,
+#app.coachdark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):focus,
+#app.coachdark select:focus{
+  outline:none;border-color:var(--slate);background:#161B22;box-shadow:0 0 0 3px var(--slate-ring);
+}
+#app.coachdark textarea::placeholder,
+#app.coachdark input::placeholder{color:#64748B}
+
 #app.coachdark .cmdbar{
   background:rgba(19,21,25,.98);
   box-shadow:0 6px 8px rgba(0,0,0,.42),0 18px 48px rgba(0,0,0,.55);
@@ -3627,29 +3633,31 @@ body.reg-coach .greet{font-size:24px}
 
 /* ── About & Support ─────────────────────────────────────────────────
    The four footer columns, relocated into one account entry. Built on native
-   <details> rather than the .acc component: .acc is wired inside wireLanding(),
-   which only runs on the landing route, so an .acc accordion on an account page
-   would render permanently collapsed. <details> needs no JS at all. */
-.abt{border-top:1px solid var(--rule);max-width:760px}
-.abt-grp{border-bottom:1px solid var(--rule)}
+   <details> rather than the .acc component. */
+.abt{max-width:780px;margin-top:24px;display:flex;flex-direction:column;gap:14px}
+.abt-grp{border:1px solid var(--rule);border-radius:var(--r-card);background:var(--paper);overflow:hidden;box-shadow:var(--shadow-subtle);transition:border-color .18s,box-shadow .18s}
+.abt-grp:hover{border-color:var(--rule-strong)}
+.abt-grp[open]{border-color:var(--rule-strong);box-shadow:var(--shadow)}
 .abt-sum{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;
-  gap:20px;padding:20px 2px;font-size:var(--text-lg);font-weight:700;
-  letter-spacing:-.015em;color:var(--ink);transition:color .16s}
+  gap:20px;padding:18px 22px;font-size:17.5px;font-weight:700;
+  letter-spacing:-.015em;color:var(--ink);transition:background .15s,color .15s;user-select:none}
 .abt-sum::-webkit-details-marker{display:none}
-.abt-sum:hover{color:var(--slate-ink)}
-.abt-grp[open] .abt-sum{color:var(--slate-ink)}
-/* plus that rotates to a cross — same affordance the FAQ accordion uses */
-.abt-cue{position:relative;width:15px;height:15px;flex:0 0 auto;
-  transition:transform .26s cubic-bezier(.22,1,.36,1)}
+.abt-sum:hover{background:var(--raise)}
+.abt-grp[open] .abt-sum{background:var(--raise);border-bottom:1px solid var(--rule);color:var(--ink)}
+/* circular plus/cross toggle pill */
+.abt-cue{position:relative;width:28px;height:28px;border-radius:999px;background:var(--raise2);flex:0 0 auto;
+  color:var(--ink);display:grid;place-items:center;transition:transform .26s cubic-bezier(.22,1,.36,1),background .15s,color .15s}
 .abt-cue::before,.abt-cue::after{content:"";position:absolute;left:50%;top:50%;
   background:currentColor;border-radius:1px}
-.abt-cue::before{width:13px;height:2px;transform:translate(-50%,-50%)}
-.abt-cue::after{width:2px;height:13px;transform:translate(-50%,-50%)}
-.abt-grp[open] .abt-cue{transform:rotate(45deg)}
-.abt-links{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:0 2px 18px}
-.abt-links button,.abt-links a{font-size:var(--text-base);color:var(--muted);
-  text-align:left;text-decoration:none;padding:8px 0;transition:color .14s}
-.abt-links button:hover,.abt-links a:hover{color:var(--ink)}
+.abt-cue::before{width:12px;height:2px;transform:translate(-50%,-50%)}
+.abt-cue::after{width:2px;height:12px;transform:translate(-50%,-50%)}
+.abt-grp[open] .abt-cue{transform:rotate(45deg);background:var(--slate);color:var(--slate-on)}
+.abt-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px;padding:14px 18px;background:var(--paper)}
+.abt-links button,.abt-links a{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:15px;font-weight:500;color:var(--ink-2);
+  text-align:left;text-decoration:none;padding:11px 14px;border-radius:var(--r-ctl);transition:all .14s ease;background:var(--paper);border:1px solid transparent}
+.abt-links button:hover,.abt-links a:hover{color:var(--ink);background:var(--raise);border-color:var(--rule);transform:translateX(3px)}
+.abt-links button::after,.abt-links a::after{content:"→";font-size:14px;color:var(--faint);transition:color .14s,transform .14s}
+.abt-links button:hover::after,.abt-links a:hover::after{color:var(--slate-ink);transform:translateX(2px)}
 
 /* ── T5 close-zone: Amboras-style dark closer fused with the footer ──
    Obsidian ground (#0A0C0F, already the hero base) with a top hairline; all
@@ -4876,7 +4884,7 @@ body.reg-coach .rail button.on{font-weight:600}
   font-family:var(--roboto-cond)!important;text-transform:uppercase;font-weight:500!important;
   letter-spacing:.01em;font-style:normal;
 }
-#app .rebuild-page .pg-eyebrow{font-size:12px;letter-spacing:.14em}
+#app .rebuild-page .pg-eyebrow{font-size:13.5px;letter-spacing:.14em;font-weight:600}
 
 /* THE BLACK-TEXT LAW — white + slate bands: every text token is near-black.
    !important is deliberate and scoped: several pages carry inline colour on
@@ -5628,19 +5636,19 @@ body.reg-coach .rail button.on{font-weight:600}
   gap:clamp(24px,4vw,64px);align-items:end}
 .rebuild-page .pg-hero-title,.rebuild-page .pg-hero-copy{min-width:0}
 .rebuild-page .pg-h1{max-width:28ch;margin-top:0;text-wrap:balance}
-.rebuild-page .pg-sub{max-width:70ch;margin-top:10px;font-size:clamp(16px,1.4vw,18px);line-height:1.5;text-wrap:pretty}
-.rebuild-page .pg-ctarow{margin-top:16px}
+.rebuild-page .pg-sub{max-width:70ch;margin-top:12px;font-size:clamp(17px,1.5vw,20px);line-height:1.55;text-wrap:pretty}
+.rebuild-page .pg-ctarow{margin-top:20px}
 .rebuild-page [data-prose]{text-wrap:pretty}
 .rebuild-page .pgband:not(.pg-hero){padding:clamp(72px,9.5vw,120px) 0}
 /* Section headers lead their chapter — give them air above the body so a
    proportionate heading does not read as crammed against the prose. Vertical
    margin only: it changes no horizontal geometry, so page fingerprints hold. */
 .rebuild-page .pgband:not(.pg-hero) h2{margin-top:0;margin-bottom:clamp(18px,2.1vw,30px)}
-.rebuild-page .pg-eyebrow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:var(--text-xs);
-  line-height:1.3;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:0 0 13px}
+.rebuild-page .pg-eyebrow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:13.5px;
+  line-height:1.3;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:0 0 13px;font-weight:600}
 .rebuild-page .dark .pg-h1{color:#fff}
-.rebuild-page .pgband [data-prose]{font-size:clamp(14px,1.05vw,15.5px);line-height:1.72}
-.rebuild-page .pg-sub[data-prose]{font-size:clamp(15px,1.18vw,16px);line-height:1.54}
+.rebuild-page .pgband [data-prose]{font-size:clamp(15.5px,1.2vw,17.5px);line-height:1.75}
+.rebuild-page .pg-sub[data-prose]{font-size:clamp(16.5px,1.3vw,19px);line-height:1.6}
 
 /* R1 — statement + four-step walkthrough. */
 .pg-walkthrough{border-bottom:1px solid var(--rule)}
@@ -6037,7 +6045,7 @@ body.reg-coach .rail button.on{font-weight:600}
   .rebuild-page .pg-hero-title,.rebuild-page .pg-hero-copy{padding-top:0!important}
   .rebuild-page .pg-h1{font-size:clamp(30px,4.2vw,34px)!important;line-height:1.03;max-width:none!important}
   .rebuild-page .pg-eyebrow{margin-bottom:7px}
-  .rebuild-page .pg-sub[data-prose]{font-size:14.5px;line-height:1.4;margin-top:4px;max-width:72ch}
+  .rebuild-page .pg-sub[data-prose]{font-size:16px;line-height:1.45;margin-top:6px;max-width:72ch}
   .rebuild-page .pg-ctarow{margin-top:8px}
   .rebuild-page .pg-cta{height:44px}
 }
@@ -6047,7 +6055,7 @@ body.reg-coach .rail button.on{font-weight:600}
   .rebuild-page .pg-hero-title,.rebuild-page .pg-hero-copy{padding-top:0!important}
   .rebuild-page .pg-h1{font-size:clamp(28px,7.7vw,32px);line-height:1.02;max-width:none!important}
   .rebuild-page .pg-eyebrow{margin-bottom:7px}
-  .rebuild-page .pg-sub[data-prose]{font-size:13px;line-height:1.4;margin-top:4px}
+  .rebuild-page .pg-sub[data-prose]{font-size:15px;line-height:1.45;margin-top:6px}
   .rebuild-page .pg-ctarow{margin-top:8px}
   .rebuild-page .pg-cta{height:44px}
   .pg-walk-step{grid-template-columns:1fr}.pg-walk-step p{grid-column:auto}
@@ -10257,6 +10265,7 @@ function aiDockHTML(){
   const colMode=open&&!S.aiCollapsed&&!S.aiMax&&(typeof window!=="undefined"&&window.innerWidth>=1280);
   const surface=showThread||colMode;
   return `${open?`<div class="aipill${colMode?" aidock-col":""}"><section class="aidock-panel${surface?" talking":""}" role="dialog" aria-label="Sporv AI helper">
+      ${colMode?`<div class="aidock-resizer" id="aiResizer" title="Drag left or right to resize · Double-click to reset" aria-label="Resize AI panel"></div>`:""}
       ${/* Reference header on the docked column (owner 2026-08-25): the panel
            name plus new-chat / expand / close, 48px, hairline below. Expand
            goes STRAIGHT to the fullscreen surface (data-aigofull), the way the
@@ -11930,11 +11939,11 @@ function coachQueuePage(){
         </div>`).join("")}
       </div></div>`:(S.findLoaded?`<div class="panel" style="margin-top:14px"><h3>What the agent noticed</h3>
       <p style="color:var(--muted);font-size:var(--text-sm);margin-top:4px">Nothing flagged — dues, documents, credentials and rosters are all current.</p></div>`:"")}
-    <div class="panel">
-      <h3>Forward something to turn it into work</h3>
-      <p style="color:var(--muted);font-size:var(--text-sm);margin-top:4px">Paste a tournament email, a gym's schedule text, a registration deadline — Sporv drafts the fee, deadline, waiver check or message. (Demo parse; the real per-file read runs on the ingest backend.)</p>
-      <textarea id="obligIn" rows="3" style="width:100%;margin-top:10px;resize:vertical" placeholder="Fwd: Fall Classic — $150 entry per player, deadline Sept 12, waivers required at check-in..."></textarea>
-      <div class="imp-addrow" style="margin-top:8px"><button class="btn sm" data-oblig-parse="1">Turn into drafts</button></div>
+    <div class="panel" style="padding:22px 24px;border-radius:var(--r-card)">
+      <div class="k" style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:8px">FORWARD SOMETHING TO TURN IT INTO WORK</div>
+      <p style="color:var(--muted);font-size:var(--text-sm);line-height:1.55;margin:0 0 14px">Paste a tournament email, a gym's schedule text, a registration deadline — Sporv drafts the fee, deadline, waiver check or message. (Demo parse; the real per-file read runs on the ingest backend.)</p>
+      <textarea id="obligIn" rows="3" style="width:100%;resize:vertical;min-height:92px;padding:14px 16px;border-radius:var(--r-ctl);font-size:15px;line-height:1.6;background:var(--raise);color:var(--ink);border:1px solid var(--rule-strong)" placeholder="Fwd: Fall Classic — $150 entry per player, deadline Sept 12, waivers required at check-in..."></textarea>
+      <div class="imp-addrow" style="margin-top:12px"><button class="btn" style="height:42px;padding:0 20px;font-size:var(--text-sm)" data-oblig-parse="1">Turn into drafts</button></div>
     </div>
     <div style="margin-top:18px">
       <div class="sec-head" style="margin:0"><h3>Waiting for you${drafts.length?` · ${drafts.length}`:""}</h3></div>
@@ -12183,11 +12192,14 @@ function coachBody(t){
     return head+`<div class="msg-wrap">
         <div class="msg-list">
           ${shown.map(c=>`<button class="msg-item ${c.id===active.id?"on":""}" data-cconv="${esc(c.id)}">
-            <span class="avatar">${esc(initials(title(c)))}</span>
-            <span style="min-width:0;text-align:left">
-              <b style="display:block;font-size:var(--t-small)">${esc(title(c))}</b>
-              <span class="msg-sub" style="display:block">${esc(c.last)}</span>
-            </span>${S.unread&&S.unread[c.id]?`<span class="rbadge">${S.unread[c.id]}</span>`:""}</button>`).join("")}
+            <span class="avatar" style="width:38px;height:38px;font-size:var(--text-sm);flex:none">${esc(initials(title(c)))}</span>
+            <span style="flex:1;min-width:0;text-align:left">
+              <span style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+                <b style="font-size:var(--text-base);font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(title(c))}</b>
+                ${c.at?`<span class="num" style="color:var(--faint);font-size:var(--text-xs);flex:none">${c.at.slice(5,10)}</span>`:""}
+              </span>
+              <span class="msg-sub" style="display:block;margin-top:2px">${esc(c.last||"No messages yet")}</span>
+            </span>${S.unread&&S.unread[c.id]?`<span class="rbadge" style="margin-left:4px">${S.unread[c.id]}</span>`:""}</button>`).join("")}
         </div>
         <div class="msg-thread">
           <div style="display:flex;gap:12px;align-items:center;padding:15px 17px;border-bottom:1px solid var(--rule)">
@@ -12231,20 +12243,22 @@ function coachBody(t){
       rebook_nudge:"Rebooking nudge"};
     const drafts=approvalDrafts();
     const sent=S.approvalSent||[];
-    const eb="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)";
+    const eb="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)";
     const demoRows=drafts.length?`
       <div class="sec-head" style="margin:0"><h3>Waiting for you</h3>
         <span class="pill warn">${drafts.length} draft${drafts.length===1?"":"s"}</span></div>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
-        ${drafts.map((d,i)=>`<div class="panel" style="display:flex;flex-direction:column;gap:7px">
-          <div class="k" style="${eb}">${esc(d.kind)}</div>
-          <div style="color:var(--muted);font-size:var(--text-sm)">${esc(d.to)}</div>
-          <div style="color:var(--faint);font-size:var(--text-xs)">✦ Drafted from: ${esc(d.src)}</div>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
+        ${drafts.map((d,i)=>`<div class="panel" style="display:flex;flex-direction:column;gap:10px;padding:20px 22px;border-radius:var(--r-card)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="k" style="${eb}">${esc(d.kind)}</div>
+            <div style="color:var(--faint);font-size:var(--text-xs)">✦ Drafted from: ${esc(d.src)}</div>
+          </div>
+          <div style="color:var(--ink);font-size:var(--text-base);font-weight:600">${esc(d.to)}</div>
           <div class="apv-body" contenteditable="true" spellcheck="false" id="apvBody${i}" role="textbox"
             aria-label="Draft message — editable">${esc(d.body)}</div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn sm" data-qapprove="${i}">Approve &amp; send</button>
-            <button class="btn ghost sm" data-qdismiss="${i}">Dismiss</button>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:4px">
+            <button class="btn" style="height:42px;padding:0 20px;font-size:var(--text-sm)" data-qapprove="${i}">Approve &amp; send</button>
+            <button class="btn ghost" style="height:42px;padding:0 18px;font-size:var(--text-sm)" data-qdismiss="${i}">Dismiss</button>
             <span style="margin-left:auto;color:var(--faint);font-size:var(--text-xs)">Editable — your edits are what sends.</span>
           </div>
         </div>`).join("")}
@@ -13673,30 +13687,43 @@ function aboutHTML(){
   </main>`;
 }
 
+function formatInfoBody(text){
+  let safe=esc(text).replace(/support@sporve?\.com/g,'<a href="mailto:support@sporv.com" style="color:var(--slate-ink);font-weight:600;text-decoration:underline">support@sporv.com</a>');
+  if(safe.includes(" • ")){
+    const parts=safe.split(" • ");
+    const intro=parts[0];
+    const items=parts.slice(1);
+    return `<p style="margin:0 0 14px 0;line-height:1.7;color:var(--ink-2)">${intro}</p>
+      <ul style="margin:0 0 8px 0;padding-left:22px;display:flex;flex-direction:column;gap:10px">
+        ${items.map(it=>`<li style="line-height:1.65;color:var(--ink-2)">${it}</li>`).join("")}
+      </ul>`;
+  }
+  return `<p style="line-height:1.7;color:var(--ink-2);margin:0">${safe}</p>`;
+}
+
 function infoHTML(key){
   const d=INFO[key]||INFO.help;
-  return `${subnavHTML()}<main class="shell" style="padding-bottom:70px">
-    <div class="sec-head"><h1>${esc(d.title)}</h1>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${Object.keys(INFO).map(k=>`<button class="btn ghost sm ${k===key?"on":""}" data-info="${k}"
-          ${k===key?'style="border-color:var(--slate);background:var(--slate-tint);color:var(--slate-ink)"':""}>${esc(INFO[k].title)}</button>`).join("")}
-      </div></div>
-    <div style="max-width:68ch;display:flex;flex-direction:column;gap:26px;padding-bottom:20px">
-      ${d.sections.map(s=>`<section>
-        <h3>${esc(s.h)}</h3>
-        <p style="color:var(--ink-2);margin-top:8px;line-height:1.62">${
-          esc(s.b).replace(/support@sporve\.com/,'<a href="mailto:support@sporv.com" style="color:var(--slate-ink);font-weight:700">support@sporv.com</a>')
-        }</p></section>`).join("")}
+  return `${subnavHTML()}<main class="shell" style="padding-bottom:80px">
+    <div class="sec-head" style="margin-top:20px"><h1>${esc(d.title)}</h1></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 36px">
+      ${Object.keys(INFO).map(k=>`<button class="btn ghost sm ${k===key?"on":""}" data-info="${k}"
+        style="height:38px;padding:0 16px;font-size:13.5px;border-radius:999px;font-weight:600;transition:all .14s;${k===key?'border-color:var(--slate);background:var(--slate);color:var(--slate-on)':''}">${esc(INFO[k].title)}</button>`).join("")}
     </div>
-    <div class="panel" style="max-width:68ch;background:var(--raise);border:0">
-      <div class="eyebrow">Contact</div>
-      <div style="display:flex;flex-wrap:wrap;gap:22px;margin-top:11px">
-        <div><div style="font-weight:700">Support</div>
-          <a href="mailto:support@sporv.com" style="color:var(--slate-ink);font-size:var(--text-base)">support@sporv.com</a></div>
-        <div><div style="font-weight:700">Safety team</div>
-          <a href="mailto:safety@sporve.com" style="color:var(--slate-ink);font-size:var(--text-base)">safety@sporve.com</a></div>
-        <div><div style="font-weight:700">Location</div>
-          <div style="color:var(--muted);font-size:var(--text-base)">Chicago, IL</div></div>
+    <div style="max-width:820px;display:flex;flex-direction:column;gap:32px;padding-bottom:32px">
+      ${d.sections.map((s,idx)=>`<section class="info-sec" style="border-bottom:1px solid var(--rule);padding-bottom:28px">
+        <h2 style="font-size:19px;font-weight:700;letter-spacing:-.015em;color:var(--ink);margin:0 0 14px">${esc(s.h)}</h2>
+        <div style="font-size:15.5px">${formatInfoBody(s.b)}</div>
+      </section>`).join("")}
+    </div>
+    <div class="panel" style="max-width:820px;background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-card);padding:24px 28px;box-shadow:var(--shadow-subtle)">
+      <div class="eyebrow" style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:12px">Contact &amp; Support</div>
+      <div style="display:flex;flex-wrap:wrap;gap:32px">
+        <div><div style="font-weight:700;font-size:14px;color:var(--ink)">General Support</div>
+          <a href="mailto:support@sporv.com" style="color:var(--slate-ink);font-size:15px;font-weight:600;text-decoration:underline">support@sporv.com</a></div>
+        <div><div style="font-weight:700;font-size:14px;color:var(--ink)">Safety Team</div>
+          <a href="mailto:safety@sporve.com" style="color:var(--slate-ink);font-size:15px;font-weight:600;text-decoration:underline">safety@sporve.com</a></div>
+        <div><div style="font-weight:700;font-size:14px;color:var(--ink)">Headquarters</div>
+          <div style="color:var(--muted);font-size:15px">Chicago, IL</div></div>
       </div>
     </div>
   </main>`;
@@ -15177,10 +15204,10 @@ function render(){
        state. Either state reserves the gutter so the page reflows beside it. */
     const colDock=S.portal==="coach"&&S.aiOpen!==false&&!S.aiCollapsed&&!S.aiMax&&!S.aiFull&&window.innerWidth>=1280;
     const maxDock=S.portal==="coach"&&S.aiOpen!==false&&S.aiMax&&!S.aiFull&&window.innerWidth>=1280;
-    /* 60-40 split (owner 2026-08-25): the chatbox column is 40% of the viewport,
-       the dashboard the remaining 60% — recomputed each render (render runs on
-       resize), clamped so it stays sane on very narrow/very wide screens. */
-    const colW=Math.max(420,Math.min(760,Math.round(window.innerWidth*0.40)));
+    /* 60-40 split (owner 2026-08-25) or user custom dragged width: */
+    const colW=S.aiCustomWidth
+      ? Math.max(280,Math.min(window.innerWidth-360,S.aiCustomWidth))
+      : Math.max(400,Math.min(760,Math.round(window.innerWidth*0.40)));
     document.documentElement.style.setProperty("--aidock-w",colDock?colW+"px":(maxDock?"412px":"0px"));
     /* The column starts BELOW the fixed coach chrome so it never covers the nav.
        Measured (heights, scroll-independent) rather than hardcoded. */
@@ -16735,6 +16762,41 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
   $("[data-aiattach]").forEach(b=>b.onclick=()=>toast("Attachments aren't wired up yet"));
   $("[data-aivoice]").forEach(b=>b.onclick=()=>toast("Voice input isn't wired up yet"));
   $("[data-aiclose]").forEach(b=>b.onclick=()=>{S.aiOpen=false;S.aiMax=false;S.aiFull=false;S.aiHistOpen=false;render();});
+
+  // Draggable slider / resizer for AI side panel
+  const resizer=document.getElementById("aiResizer");
+  if(resizer&&!resizer.dataset.wired){
+    resizer.dataset.wired="1";
+    const onMove=e=>{
+      const clientX=e.touches?e.touches[0].clientX:e.clientX;
+      const newW=window.innerWidth-clientX;
+      const clamped=Math.max(280,Math.min(window.innerWidth-360,newW));
+      S.aiCustomWidth=clamped;
+      document.documentElement.style.setProperty("--aidock-w",clamped+"px");
+    };
+    const onUp=()=>{
+      document.body.classList.remove("resizing-ai");
+      window.removeEventListener("mousemove",onMove);
+      window.removeEventListener("mouseup",onUp);
+      window.removeEventListener("touchmove",onMove);
+      window.removeEventListener("touchend",onUp);
+      render();
+    };
+    const onDown=e=>{
+      e.preventDefault();
+      document.body.classList.add("resizing-ai");
+      window.addEventListener("mousemove",onMove);
+      window.addEventListener("mouseup",onUp);
+      window.addEventListener("touchmove",onMove);
+      window.addEventListener("touchend",onUp);
+    };
+    resizer.addEventListener("mousedown",onDown);
+    resizer.addEventListener("touchstart",onDown,{passive:false});
+    resizer.addEventListener("dblclick",()=>{
+      S.aiCustomWidth=null;
+      render();
+    });
+  }
   $("[data-waitlist]").forEach(b=>b.onclick=()=>{
     const id=b.dataset.waitlist;
     requireAuth(()=>{S.modal={type:"waitlist",programId:id};render();});

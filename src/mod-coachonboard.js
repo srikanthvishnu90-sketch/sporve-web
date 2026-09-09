@@ -380,14 +380,14 @@ const CSS = `
 .cob-consent.on{border-color:var(--slate);background:var(--slate-tint)}
 .cob-consent input{width:18px;height:18px;margin:1px 0 0;flex:0 0 auto;accent-color:var(--slate)}
 .cob-consent span{font-size:var(--text-sm);color:var(--ink-2);line-height:1.5}
-.cob-plans{display:flex;flex-direction:column;gap:10px}
-.cob-plan{display:flex;gap:12px;align-items:flex-start;padding:15px;border:1.5px solid var(--rule);
-  border-radius:var(--r-m);cursor:pointer;transition:border-color .14s,background .14s}
+.cob-plans{display:flex;flex-direction:column;gap:12px}
+.cob-plan{display:flex;gap:14px;align-items:flex-start;padding:18px 20px;border:1.5px solid var(--rule);
+  border-radius:var(--r-card);cursor:pointer;transition:all .15s ease;background:var(--paper)}
 .cob-plan:hover{border-color:var(--rule-strong);background:var(--raise)}
-.cob-plan.on{border-color:var(--slate);background:var(--slate-tint)}
-.cob-plan input{width:18px;height:18px;margin:1px 0 0;flex:0 0 auto;accent-color:var(--slate)}
-.cob-plan b{display:block;font-size:var(--text-base);font-weight:600;letter-spacing:-.015em}
-.cob-plan span span{display:block;font-size:var(--text-sm);color:var(--muted);line-height:1.5;margin-top:2px}
+.cob-plan.on{border-color:var(--slate);background:var(--slate-tint);box-shadow:0 0 0 1px var(--slate)}
+.cob-plan input{width:20px;height:20px;margin:2px 0 0;flex:0 0 auto;accent-color:var(--slate)}
+.cob-plan b{display:block;font-size:16px;font-weight:700;letter-spacing:-.015em;color:var(--ink)}
+.cob-plan span span{display:block;font-size:14px;color:var(--muted);line-height:1.55;margin-top:4px}
 .cob-truth{border:1px solid var(--rule-strong);border-radius:var(--r-l);padding:18px 20px;background:var(--raise);margin-bottom:20px}
 .cob-truth h4{margin:0 0 4px;font-size:var(--text-base);letter-spacing:-.015em}
 .cob-truth p{font-size:var(--text-sm);color:var(--ink-2);line-height:1.58;margin-top:9px}

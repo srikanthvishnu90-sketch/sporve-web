@@ -420,23 +420,23 @@
       <div class="trust-reading-column" style="max-width:860px;margin:0 auto;font-family:var(--sans)">
         
         <header class="trust-header" style="border-bottom:1px solid #E9EDF3;padding-bottom:36px;margin-bottom:40px">
-          <p class="pg-eyebrow" style="font-family:var(--roboto-cond);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#5A6578;margin-bottom:8px">OPERATING STANDARDS &amp; SAFETY</p>
-          <h1 style="font-family:var(--roboto-cond);font-size:clamp(36px,5vw,56px);text-transform:uppercase;font-weight:700;line-height:1.05;letter-spacing:-.01em;margin:0 0 16px;color:#0B0B0C">TRUST</h1>
-          <p style="font-size:var(--text-lg);line-height:1.55;color:#3E4753;max-width:68ch;margin:0 0 24px">
+          <p class="pg-eyebrow" style="font-family:var(--roboto-cond);font-size:14px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#5A6578;margin-bottom:12px">OPERATING STANDARDS &amp; SAFETY</p>
+          <h1 style="font-family:var(--roboto-cond);font-size:clamp(52px,6.5vw,76px);text-transform:uppercase;font-weight:800;line-height:1.02;letter-spacing:-.015em;margin:0 0 20px;color:#0B0B0C">TRUST</h1>
+          <p style="font-size:clamp(17.5px,1.4vw,20px);line-height:1.6;color:#2B313B;max-width:68ch;margin:0 0 28px">
             Sporv is built on clear, verifiable records between families and coaches. Every claim on this page describes live product behavior or is explicitly labeled planned.
           </p>
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-            <button class="btn sm" data-sf-open="report">Report a concern</button>
-            <button class="btn ghost sm" data-sf-open="refund">Request a refund</button>
-            <button class="btn ghost sm" data-sf-open="privacy">Data request</button>
-            <span style="font-family:var(--mono);font-size:13px;color:#5A6578;margin-left:auto">${left} of ${REPORT_DAILY_QUOTA} reports remaining today</span>
+            <button class="btn" style="font-size:14.5px;padding:0 24px;height:46px" data-sf-open="report">Report a concern</button>
+            <button class="btn ghost" style="font-size:14.5px;padding:0 24px;height:46px" data-sf-open="refund">Request a refund</button>
+            <button class="btn ghost" style="font-size:14.5px;padding:0 24px;height:46px" data-sf-open="privacy">Data request</button>
+            <span style="font-family:var(--mono);font-size:14px;color:#5A6578;margin-left:auto">${left} of ${REPORT_DAILY_QUOTA} reports remaining today</span>
           </div>
         </header>
 
         <!-- SECTION 1: BACKGROUND CHECKS -->
         <section class="trust-section" style="border-bottom:1px solid #E9EDF3;padding:36px 0">
-          <h2 style="font-size:17px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 14px;font-family:var(--sans)">Background checks</h2>
-          <div style="max-width:68ch;font-size:var(--text-base);line-height:1.6;color:#2B313B">
+          <h2 style="font-size:19px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 14px;font-family:var(--sans)">Background checks</h2>
+          <div style="max-width:68ch;font-size:var(--text-base);line-height:1.65;color:#2B313B">
             <p style="margin-bottom:14px">
               Every person who can accept a booking on Sporv must clear their own background check. An organization or academy cannot lend its standing to unverified staff. Checks are performed by an independent, accredited consumer reporting agency.
             </p>
@@ -451,8 +451,8 @@
 
         <!-- SECTION 2: VERIFICATION BADGE -->
         <section class="trust-section" style="border-bottom:1px solid #E9EDF3;padding:36px 0">
-          <h2 style="font-size:17px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 14px;font-family:var(--sans)">Verification badge</h2>
-          <div style="max-width:68ch;font-size:var(--text-base);line-height:1.6;color:#2B313B">
+          <h2 style="font-size:19px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 14px;font-family:var(--sans)">Verification badge</h2>
+          <div style="max-width:68ch;font-size:var(--text-base);line-height:1.65;color:#2B313B">
             <p style="margin-bottom:14px">
               The verification badge indicates that a named coach has an active, dated background clearance stored in the database. It cannot be self-attested, purchased, or toggled by an administrator.
             </p>
@@ -464,8 +464,8 @@
 
         <!-- SECTION 3: PAYMENTS -->
         <section class="trust-section" style="border-bottom:1px solid #E9EDF3;padding:36px 0">
-          <h2 style="font-size:17px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 14px;font-family:var(--sans)">Payments</h2>
-          <div style="max-width:68ch;font-size:var(--text-base);line-height:1.6;color:#2B313B">
+          <h2 style="font-size:19px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 14px;font-family:var(--sans)">Payments</h2>
+          <div style="max-width:68ch;font-size:var(--text-base);line-height:1.65;color:#2B313B">
             <p style="margin-bottom:14px">
               Families pay the coach's published price. Sporv adds zero hidden family booking fees at checkout. The platform fee is itemized as its own transparent line ($0.00 on individual bookings), and coaches keep 100% of their booking revenue.
             </p>
@@ -477,8 +477,8 @@
 
         <!-- SECTION 4: DATA -->
         <section class="trust-section" style="border-bottom:1px solid #E9EDF3;padding:36px 0">
-          <h2 style="font-size:17px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 14px;font-family:var(--sans)">Data</h2>
-          <div style="max-width:68ch;font-size:var(--text-base);line-height:1.6;color:#2B313B">
+          <h2 style="font-size:19px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 14px;font-family:var(--sans)">Data</h2>
+          <div style="max-width:68ch;font-size:var(--text-base);line-height:1.65;color:#2B313B">
             <p style="margin-bottom:14px">
               Sporv stores only the operational details needed to match and deliver training: the athlete's first name, age band, parent consent record, and session notes. We never sell family data or use athlete profiles for public targeting.
             </p>
@@ -490,8 +490,8 @@
 
         <!-- SECTION 5: REPORTING -->
         <section class="trust-section" style="border-bottom:1px solid #E9EDF3;padding:36px 0">
-          <h2 style="font-size:17px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 14px;font-family:var(--sans)">Reporting</h2>
-          <div style="max-width:68ch;font-size:var(--text-base);line-height:1.6;color:#2B313B">
+          <h2 style="font-size:19px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 14px;font-family:var(--sans)">Reporting</h2>
+          <div style="max-width:68ch;font-size:var(--text-base);line-height:1.65;color:#2B313B">
             <p style="margin-bottom:14px">
               If anyone is in immediate physical danger, contact local emergency services (911) first.
             </p>
@@ -506,7 +506,7 @@
 
         <!-- ACCOUNT ACTIVITY & LEDGER -->
         <section class="trust-records" style="padding-top:40px">
-          <h2 style="font-size:17px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 20px;font-family:var(--sans)">Your tracked requests</h2>
+          <h2 style="font-size:19px;font-variant:small-caps;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:#0B0B0C;margin:0 0 20px;font-family:var(--sans)">Your tracked requests</h2>
 
           <div class="sf-block" style="margin-bottom:28px">
             <div class="sf-sec" style="display:flex;justify-content:space-between;margin-bottom:10px">
