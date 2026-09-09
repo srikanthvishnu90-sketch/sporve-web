@@ -46,6 +46,9 @@ jobs:
           - name: trigger grants
             database: sporv_trigger_grants_test
             file: 2026-09-06-trigger-function-grants.test.sql
+          - name: approved email dispatch
+            database: sporv_parent_send_test
+            file: 2026-09-09-lifecycle-email-delivery.test.sql
     # Each matrix job gets its own disposable cluster and role catalog.
     # This credential is only for that local service; no production secrets are used.
     services:
