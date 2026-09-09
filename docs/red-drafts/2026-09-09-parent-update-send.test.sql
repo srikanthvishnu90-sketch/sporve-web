@@ -38,7 +38,7 @@ create table public.guardians(id uuid primary key,provider_id uuid not null,user
 \ir 2026-09-09-lifecycle-approval.sql
 \ir 2026-09-09-lifecycle-inbox-delivery.sql
 
-insert into public.plan_entitlements values('free','free',0,false,20,true),('solo','individual',1,true,500,false),('organization','enterprise',2,true,-1,false);
+insert into public.plan_entitlements values('free','free',0,false,20,true),('solo','solo',1,true,-1,false),('organization','organization',2,true,-1,false);
 insert into public.providers values('00000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001'),
   ('00000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002');
 insert into public.provider_entitlement_assignments select id,'free' from public.providers;
@@ -96,15 +96,30 @@ do $$ declare v_id uuid:=public.fixture_update(); detail text; begin
   begin perform public.fixture_send(v_id); raise exception 'Expected quota denial';
   exception when sqlstate 'PT402' then
     get stacked diagnostics detail=pg_exception_detail;
-    assert detail::jsonb='{"reason":"send_quota_month","current_plan":"free","upgrade_to":"individual","limit":20,"current":20}'::jsonb;
+    assert detail::jsonb='{"reason":"send_quota_month","current_plan":"free","upgrade_to":"solo","limit":20,"current":20}'::jsonb;
   end;
   assert (select status='approved' from public.parent_updates where id=v_id);
   assert (select count(*)=1 from public.inbox_send_receipts);
   update public.provider_entitlement_assignments set plan_key='organization' where provider_id='00000000-0000-0000-0000-000000000001';
   assert public.fixture_send(v_id)->>'kind'='sent';
   assert (select message not like '%Sent via Sporv' from public.notifications where id=(select notification_id from public.inbox_send_receipts where parent_update_id=v_id));
-  raise notice 'PASS exact402, legacy usage, enterprise unlimited and paid branding';
+  raise notice 'PASS exact402, legacy usage, Organization unlimited and paid branding';
 end $$;
+
+-- The constitution supersedes the older paid 500-send cap. Verify Solo also
+-- sends beyond that old limit, without changing the state of later fixtures.
+begin;
+update public.provider_entitlement_assignments set plan_key='solo'
+  where provider_id='00000000-0000-0000-0000-000000000001';
+insert into public.outbound_messages(provider_id,sent_at)
+select '00000000-0000-0000-0000-000000000001',clock_timestamp() from generate_series(1,501);
+do $$ declare v_id uuid:=public.fixture_update(); begin
+  assert public.fixture_send(v_id)->>'kind'='sent';
+  assert (select message not like '%Sent via Sporv' from public.notifications
+    where id=(select notification_id from public.inbox_send_receipts where parent_update_id=v_id));
+  raise notice 'PASS Solo has no monthly send cap beyond 500 and no Free footer';
+end $$;
+rollback;
 
 -- A roster member needs no booking or team assignment; a named invalid booking
 -- cannot borrow that relationship, and another organization's roster is denied.
