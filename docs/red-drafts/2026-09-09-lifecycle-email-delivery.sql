@@ -101,6 +101,7 @@ declare
   g public.guardians%rowtype; v_owner uuid; v_guardian uuid; v_branding boolean;
   v_claim uuid; v_attempt uuid:=gen_random_uuid(); v_wire text; v_text text;
   v_rows integer; v_now timestamptz:=clock_timestamp(); v_receipt jsonb;
+  v_key text; v_ordinal integer;
 begin
   if p_message is null or p_provider is null or p_actor is null or p_approved_at is null then
     raise exception using errcode='PT409',message='Existing human approval required';
@@ -171,16 +172,25 @@ begin
     if d.wire_body<>v_wire or d.quota_claim_id<>v_claim or d.guardian_id<>v_guardian then
       raise exception using errcode='PT409',message='Retry envelope or entitlement changed; human review required';
     end if;
+    v_key:=d.idempotency_key; v_ordinal:=d.attempt_count+1;
     update public.outbound_email_dispatches set state='dispatching',active_attempt=v_attempt,
       attempt_count=attempt_count+1,retry_after=null where id=d.id and state='retry_wait' returning * into d;
   else
+    v_key:='sporv/email/'||gen_random_uuid()::text; v_ordinal:=1;
     insert into public.outbound_email_dispatches(message_id,provider_id,actor_id,approved_at,approved_content,
       guardian_id,recipient,quota_claim_id,branding_footer,wire_body,wire_sha256,idempotency_key,state,active_attempt,attempt_count)
     values(p_message,p_provider,p_actor,p_approved_at,p_expected_content,v_guardian,p_recipient,v_claim,v_branding,
-      v_wire,encode(sha256(convert_to(v_wire,'UTF8')),'hex'),'sporv/email/'||gen_random_uuid()::text,'dispatching',v_attempt,1)
+      v_wire,encode(sha256(convert_to(v_wire,'UTF8')),'hex'),v_key,'dispatching',v_attempt,v_ordinal)
     returning * into d;
   end if;
-  if d.id is null or d.active_attempt<>v_attempt or d.state<>'dispatching' then
+  if d.id is null or d.active_attempt is distinct from v_attempt or d.state is distinct from 'dispatching'
+    or d.message_id is distinct from p_message or d.provider_id is distinct from p_provider
+    or d.actor_id is distinct from p_actor or d.approved_at is distinct from p_approved_at
+    or d.approved_content is distinct from p_expected_content or d.guardian_id is distinct from v_guardian
+    or d.recipient is distinct from p_recipient or d.quota_claim_id is distinct from v_claim
+    or d.wire_body is distinct from v_wire or d.wire_sha256 is distinct from encode(sha256(convert_to(v_wire,'UTF8')),'hex')
+    or d.branding_footer is distinct from v_branding or d.idempotency_key is distinct from v_key
+    or d.attempt_count is distinct from v_ordinal or d.retry_after is not null then
     raise exception using errcode='PT503',message='Email dispatch did not persist';
   end if;
   insert into public.outbound_email_attempts(id,dispatch_id,ordinal) values(v_attempt,d.id,d.attempt_count);
@@ -245,9 +255,13 @@ begin
     or (p_retry_after is not null and (p_retry_after<v_now+interval '30 seconds' or p_retry_after>v_now+interval '7 days')) then
     raise exception using errcode='PT422',message='Invalid provider receipt or retry deadline';
   end if;
-  insert into public.outbound_email_results(attempt_id,dispatch_id,outcome,provider_message_id,retry_after)
-    values(p_attempt,d.id,p_outcome,p_provider_message_id,p_retry_after) returning * into r;
-  if r.id is null then raise exception using errcode='PT503',message='Email result did not persist'; end if;
+  insert into public.outbound_email_results(attempt_id,dispatch_id,outcome,provider_message_id,retry_after,created_at)
+    values(p_attempt,d.id,p_outcome,p_provider_message_id,p_retry_after,v_now) returning * into r;
+  if r.id is null or r.attempt_id is distinct from p_attempt or r.dispatch_id is distinct from d.id
+    or r.outcome is distinct from p_outcome or r.provider_message_id is distinct from p_provider_message_id
+    or r.retry_after is distinct from p_retry_after or r.created_at is distinct from v_now then
+    raise exception using errcode='PT503',message='Email result did not persist exactly';
+  end if;
   if p_outcome='accepted' then
     -- Acceptance is historical fact even if the subscription changed in flight.
     -- Never re-deny it or consume a second quota slot after the provider accepted.
@@ -282,4 +296,25 @@ begin
 end $$;
 revoke all on function public.record_lifecycle_email_result(uuid,uuid,uuid,text,text,text,timestamptz) from public,anon,authenticated;
 grant execute on function public.record_lifecycle_email_result(uuid,uuid,uuid,text,text,text,timestamptz) to service_role;
+
+-- Blocks direct sent-state bypass, including a service client falling back to
+-- the former independent UPDATE. Existing historical rows are not rewritten.
+create function public.guard_email_sent_projection() returns trigger language plpgsql set search_path='' as $$
+begin
+  if new.provider='resend' and new.sent_at is not null and (tg_op='INSERT' or
+    (new.status,new.sent_at,new.provider,new.provider_message_id,new.approved_by,new.approved_at,new.content,new.provider_id)
+      is distinct from (old.status,old.sent_at,old.provider,old.provider_message_id,old.approved_by,old.approved_at,old.content,old.provider_id)) then
+    if not exists(select 1 from public.outbound_email_results r join public.outbound_email_dispatches d on d.id=r.dispatch_id
+      where d.message_id=new.id and d.provider_id=new.provider_id and d.actor_id=new.approved_by
+        and d.approved_at=new.approved_at and d.approved_content=new.content
+        and r.outcome='accepted' and r.provider_message_id=new.provider_message_id
+        and r.created_at=new.sent_at and new.status='sent') then
+      raise exception using errcode='42501',message='Durable approved email acceptance receipt required';
+    end if;
+  end if;
+  return new;
+end $$;
+revoke all on function public.guard_email_sent_projection() from public,anon,authenticated,service_role;
+create trigger outbound_email_sent_receipt before insert or update on public.outbound_messages
+  for each row execute function public.guard_email_sent_projection();
 commit;
