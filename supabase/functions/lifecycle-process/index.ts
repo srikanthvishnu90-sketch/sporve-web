@@ -106,6 +106,16 @@ async function holdForReview(admin: Admin, row: { id: string; provider_id: strin
 type ApprovedEmail = {
   id: string; provider_id: string; approved_by: string; approved_at: string; content: unknown;
 };
+// PostgREST timestamps may use +00:00 and six fractional digits while JS uses
+// Z and three. Compare the instant without rounding away PostgreSQL microseconds.
+function emailInstantKey(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const m = value.match(/^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}:\d{2})$/);
+  if (!m) return null;
+  const seconds = Date.parse(m[1] + m[3]);
+  return Number.isFinite(seconds) ? `${seconds}:${(m[2] ?? "").padEnd(6, "0")}` : null;
+}
+const sameEmailInstant = (a: unknown, b: unknown) => emailInstantKey(a) !== null && emailInstantKey(a) === emailInstantKey(b);
 // Preconditions: exact human-approved snapshot and exclusive processing claim.
 // Receipt: returned persisted row matches every written field and that snapshot.
 // Inverse: an accepted email cannot be unsent; ambiguous acceptance requires
@@ -123,9 +133,11 @@ async function recordEmailTransition(admin: Admin, row: ApprovedEmail, patch: {
     .abortSignal(signal).maybeSingle());
   const persisted: Record<string, unknown> = data ?? {};
   if (error || data?.id !== row.id || data?.provider_id !== row.provider_id ||
-    data?.approved_by !== row.approved_by || Date.parse(data?.approved_at) !== Date.parse(row.approved_at) ||
-    !sameJson(data?.content, row.content) || data?.sent_at !== (patch.sent_at ?? null) ||
-    !Object.entries(patch).every(([key, value]) => sameJson(persisted[key], value))) {
+    data?.approved_by !== row.approved_by || !sameEmailInstant(data?.approved_at, row.approved_at) ||
+    !sameJson(data?.content, row.content) ||
+    (patch.sent_at ? !sameEmailInstant(data?.sent_at, patch.sent_at) : data?.sent_at !== null) ||
+    !Object.entries(patch).every(([key, value]) => key === "sent_at" || key === "send_after"
+      ? sameEmailInstant(persisted[key], value) : sameJson(persisted[key], value))) {
     throw new Error("Email transition receipt unavailable.");
   }
 }
@@ -510,7 +522,7 @@ Deno.serve(async (req) => {
             .eq("content", JSON.stringify(er.content)).is("sent_at", null)
             .select("id, provider_id, content, approved_by, approved_at, status, sent_at").abortSignal(signal).maybeSingle());
           if (claimError || claimed?.id !== er.id || claimed?.provider_id !== er.provider_id ||
-            claimed?.approved_by !== er.approved_by || Date.parse(claimed?.approved_at) !== Date.parse(er.approved_at) ||
+            claimed?.approved_by !== er.approved_by || !sameEmailInstant(claimed?.approved_at, er.approved_at) ||
             !sameJson(claimed?.content, er.content) || claimed?.status !== "processing" || claimed?.sent_at !== null) {
             throw new Error("Email claim receipt unavailable.");
           }
