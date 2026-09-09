@@ -8,6 +8,7 @@ on:
       - 'supabase/migrations/20260907_001034_trigger_function_grants.sql'
       - '.github/workflows/sql-fixtures.yml'
       - 'scripts/test-inbox-concurrency.mjs'
+      - 'scripts/test-email-concurrency.mjs'
   workflow_dispatch:
 
 permissions:
@@ -91,3 +92,8 @@ jobs:
         env:
           PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: node scripts/test-inbox-concurrency.mjs
+      - name: Prove email and mixed-channel concurrency
+        if: matrix.name == 'approved email dispatch'
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: node scripts/test-email-concurrency.mjs
