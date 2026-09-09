@@ -7,6 +7,9 @@ alter table public.outbound_messages add column attempt_count integer not null d
 alter table public.outbound_messages add column last_error text;
 alter table public.outbound_messages add column provider_message_id text;
 create table public.email_suppressions(email text primary key,reason text not null);
+-- The race helper reads its input snapshot as the service client; actual
+-- production authorization is still enforced inside the called delivery RPC.
+grant select on public.outbound_messages to service_role;
 \ir 2026-09-09-lifecycle-email-delivery.sql
 
 insert into public.providers values('00000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000003');
@@ -210,5 +213,15 @@ do $$ declare v_msg uuid:=public.fixture_email(); a jsonb; begin
   assert not exists(select 1 from public.outbound_email_results where dispatch_id=(a->>'dispatch_id')::uuid);
   assert (select state='reserved' from public.message_send_quota_claims where source_id=v_msg);
   raise notice 'PASS altered provider receipt cannot mark the email sent';
+end $$;
+rollback;
+
+begin;
+do $$ declare v_msg uuid:=public.fixture_email(); begin
+  begin update public.outbound_messages set status='sent',sent_at=clock_timestamp(),provider='resend',provider_message_id='forged-fixture'
+      where id=v_msg;
+    raise exception 'Expected direct sent-state bypass denial'; exception when insufficient_privilege then null; end;
+  assert (select status='approved' and sent_at is null from public.outbound_messages where id=v_msg);
+  raise notice 'PASS direct email sent-state bypass is denied without a durable receipt';
 end $$;
 rollback;
