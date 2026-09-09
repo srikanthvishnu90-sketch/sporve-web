@@ -25,6 +25,9 @@ separate from the SQL-only PR399.
   successful reads. Guardian unsubscribe-signing failure stops before claiming.
 - One organization's unverified delivery does not stop another organization's
   independent verified delivery. The batch returns503 if any result is uncertain.
+- Receipt comparison accepts equivalent PostgreSQL/JavaScript timestamp
+  formatting but preserves microsecond precision; a changed approval instant
+  cannot pass just because JavaScript rounds both values to one millisecond.
 
 The worker still requires a human approval. It does not create approval,
 auto-send preferences, charges, refunds, or a new AI tool. Policy-file edits
@@ -38,8 +41,12 @@ before: tests5 pass0 fail5 exit1
 The old worker returned200 when sent-state writes failed and after uncertain transport.
 
 node --test supabase/functions/lifecycle-process/security.test.mjs
-after: tests214 pass214 fail0 exit0
-Combined14-file billing/security regression: tests447 pass447 fail0 exit0
+after: tests222 pass222 fail0 exit0
+Combined14-file billing/security regression: tests455 pass455 fail0 exit0
+
+Timestamp-format regression before normalization: tests1 pass0 fail1 exit1
+Equivalent +00:00/six-digit response incorrectly returned503 instead of200.
+After: equivalent timestamp formatting passes; changed microseconds fail closed.
 
 deno check --no-config --node-modules-dir=none --cached-only supabase/functions/lifecycle-process/index.ts
 exit0

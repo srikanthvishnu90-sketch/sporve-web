@@ -284,6 +284,32 @@ test('one org email receipt failure cannot stop another organization from comple
   assert.equal(r.status,503); assert.equal(r.body.emailed,1); assert.equal(r.body.emailUnverified,1);
   assert.equal(r.external.filter(x=>x.kind==='email').length,2);
 });
+test('email receipts accept PostgreSQL timezone formatting without losing timestamp precision',async()=>{
+  const r=await invoke({override:c=>c.payload?.status==='sent'?{data:{...message,...c.payload,
+    approved_at:message.approved_at.replace('Z','+00:00'),sent_at:c.payload.sent_at.replace('Z','000+00:00')},error:null}:undefined});
+  assert.equal(r.status,200); assert.equal(r.body.emailed,1); assert.equal(r.body.emailUnverified,0);
+});
+for(const status of ['processing','sent']) test(`email ${status} cannot round away changed approval microseconds`,async()=>{
+  const r=await invoke({override:c=>c.payload?.status===status?{data:{...message,sent_at:null,...c.payload,
+    approved_at:'2026-09-09T12:00:00.000001+00:00'},error:null}:undefined});
+  assert.equal(r.status,503); assert.equal(r.body.emailUnverified,1); assert.equal(r.body.emailed,0);
+  assert.equal(r.external.filter(x=>x.kind==='email').length,status==='processing'?0:1);
+});
+test('email delayed retry accepts equivalent PostgreSQL timestamp formatting',async()=>{
+  const r=await invoke({emailReply:async()=>new Response('{}',{status:429}),override:c=>c.payload?.status==='approved'
+    ? {data:{...message,sent_at:null,...c.payload,send_after:c.payload.send_after.replace('Z','+00:00')},error:null}:undefined});
+  assert.equal(r.status,200); assert.equal(r.body.emailFailed,1); assert.equal(r.body.emailUnverified,0);
+});
+for(const value of [
+  {data:null,error:{message:'fixture outage'}},{data:null,error:null},
+  {data:{id:'org-a',owner_id:'another-owner',business_name:'Fixture'},error:null},
+]) test(`email provider identity lookup failure ${JSON.stringify(value)} stops before claiming`,async()=>{
+  reviewReceipt(await invoke({override:c=>c.table==='providers'?value:undefined}),'delivery_provider_unavailable');
+});
+test('email reply settings outage stops before claiming',async()=>{
+  reviewReceipt(await invoke({override:c=>c.table==='provider_settings'&&c.filters.some(f=>f[0]==='key'&&f[1]==='reply_to')
+    ? {data:null,error:{message:'fixture outage'}}:undefined}),'delivery_reply_settings_unavailable');
+});
 test('claimed guardian keeps the in-app path when email is unavailable',async()=>{
   const r=await invoke({noEmailKey:true,override:c=>c.table==='guardians'
     ? {data:{...guardian,user_id:'claimed-user',email:null,email_status:'unsubscribed'},error:null}:undefined});
