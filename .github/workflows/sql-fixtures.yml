@@ -7,6 +7,7 @@ on:
       - 'docs/red-drafts/**.sql'
       - 'supabase/migrations/20260907_001034_trigger_function_grants.sql'
       - '.github/workflows/sql-fixtures.yml'
+      - 'scripts/test-inbox-concurrency.mjs'
   workflow_dispatch:
 
 permissions:
@@ -57,7 +58,7 @@ jobs:
         ports:
           - 5432/tcp
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d postgres"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -66,6 +67,7 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: fixture-only-password
       PGDATABASE: ${{ matrix.database }}
+      PGOPTIONS: '-c plpgsql.check_asserts=on -c statement_timeout=15000 -c lock_timeout=10000'
       FIXTURE_FILE: ${{ matrix.file }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -81,3 +83,8 @@ jobs:
           createdb "$PGDATABASE"
           psql -X -v ON_ERROR_STOP=1 -c 'SELECT version(), current_database();'
           psql -X -v ON_ERROR_STOP=1 -f "docs/red-drafts/$FIXTURE_FILE"
+      - name: Prove inbox concurrency in independent database sessions
+        if: matrix.database == 'sporv_parent_send_test'
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: node scripts/test-inbox-concurrency.mjs
