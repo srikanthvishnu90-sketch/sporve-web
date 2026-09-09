@@ -63,12 +63,21 @@ begin
   if not found then raise exception using errcode='PT503',message='Send organization unavailable'; end if;
   perform 1 from public.provider_entitlement_assignments where provider_id=p_provider for share;
   perform pg_advisory_xact_lock(hashtextextended(p_provider::text,41204));
+  v_now:=clock_timestamp(); v_month:=date_trunc('month',v_now at time zone 'UTC')::date;
   select * into v_claim from public.message_send_quota_claims where source_kind=p_kind and source_id=p_source for update;
   if found then
     if v_claim.provider_id<>p_provider then raise exception using errcode='42501',message='Send quota identity mismatch'; end if;
-    return v_claim.id;
+    -- A durable acceptance is historical evidence, not a new send. Never
+    -- revoke or rewrite its receipt on cancellation, downgrade or month rollover.
+    if v_claim.state='accepted' then return v_claim.id; end if;
+    -- The current pool cannot prove whether an old reserved email was accepted
+    -- externally. Do not silently transfer or release that allowance or enable
+    -- a new dispatch beyond the provider's idempotency retention. A reviewed
+    -- delivery/reconciliation protocol must resolve it first; keep the row.
+    if v_claim.quota_month<>v_month then
+      raise exception using errcode='PT409',message='Prior-month send reservation requires reconciliation';
+    end if;
   end if;
-  v_now:=clock_timestamp(); v_month:=date_trunc('month',v_now at time zone 'UTC')::date;
   select e.public_slug,e.sort_order,e.send_quota_month into strict v_plan,v_order,v_limit
     from public.plan_entitlements e
     where e.plan=(public.resolve_provider_entitlements_internal(p_provider)->>'effective_plan') for share;
@@ -84,13 +93,17 @@ begin
         and o.sent_at<((v_month+interval '1 month') at time zone 'UTC')
         and not exists(select 1 from public.message_send_quota_claims q where q.source_kind='outbound' and q.source_id=o.id))
     into v_count;
-  if v_limit<>-1 and v_count>=v_limit then
+  -- Pending reservations are included in v_count already. Recheck the current
+  -- entitlement without counting this same logical message a second time.
+  -- This closes a downgrade/data-change bypass in the former early return.
+  if v_limit<>-1 and v_count+(case when v_claim.id is null then 1 else 0 end)>v_limit then
     select e.public_slug into v_upgrade from public.plan_entitlements e
       where e.purchasable and e.sort_order>v_order and (e.send_quota_month=-1 or e.send_quota_month>v_count)
       order by e.sort_order limit 1;
     raise exception using errcode='PT402',message='Send quota reached',detail=jsonb_build_object(
       'reason','send_quota_month','current_plan',v_plan,'upgrade_to',v_upgrade,'limit',v_limit,'current',v_count)::text;
   end if;
+  if v_claim.id is not null then return v_claim.id; end if;
   insert into public.message_send_quota_claims(provider_id,source_kind,source_id,quota_month,state,reserved_at)
     values(p_provider,p_kind,p_source,v_month,'reserved',v_now) returning * into v_claim;
   if v_claim.id is null then raise exception using errcode='PT503',message='Send quota reservation did not persist'; end if;
