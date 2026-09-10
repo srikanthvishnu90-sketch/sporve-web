@@ -137,10 +137,25 @@ None. Unverified work remains unchecked.
 - INIT03: executed structural check:6 prompt sections,69 unique acceptance IDs,
  69 matching unchecked state entries. Tracker structure only, not product proof.
 
+## P1.01 current work
+
+Status: IN PROGRESS, live check unavailable; not verified and not parked.
+
+Actual output from both fresh production reads:
+```text
+failed to refresh OAuth tokens for server supabase
+OAuth token refresh failed: Failed to parse server response
+```
+
+No rows were returned; no key/field coverage claim is made. Safe work continues
+in PR399: the staged catalog unconditionally adds connectors, while Robin's
+deployment record reports that column already installed. Compatibility fixture
+commit8b0104b50a1277c35f40f7b14366756052f01387 adds a separate existing-column case and retains
+all baseline jobs. Await actual CI before modifying the SQL.
+
 ## NEXT
 
-P1.01: inspect live plan_entitlements keys/required fields with a read-only
-query; compare the review SQL/fixtures and current callers. Fix missing catalog
-behavior in an isolated review branch and execute actual SQL checks. Do not
-apply a rename without compatible caller cutover and required review. Prior
-fixtures/commits do not automatically pass this live acceptance.
+P1.01: inspect the compatibility fixture CI output, fix the staged catalog to
+support the existing correctly typed connectors column, rerun actual SQL and
+capture key/non-null field results. Preserve the coordinated caller/review hold;
+live acceptance remains blocked until Supabase read access and release proof.
