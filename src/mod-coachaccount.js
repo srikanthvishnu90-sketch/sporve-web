@@ -773,7 +773,7 @@
     var active = ui.activeTab(tabs, "plan", "billingTab");
     var actions = active === "plan"
       ? available.filter(function (p) { return p.buyable && !(st.entitled && p.id === st.id); })
-        .map(function (p) { return ui.Button({ label:"Choose " + p.name, size:"lg", variant:"primary", attrs:'data-cb-buy="' + esc(p.id) + '"' }); })
+        .map(function (p, index) { return ui.Button({ label:"Choose " + p.name, size:"lg", variant:index === 0 ? "primary" : "secondary", attrs:'data-cb-buy="' + esc(p.id) + '"' }); })
       : [];
     var body = "";
     if (active === "plan") {

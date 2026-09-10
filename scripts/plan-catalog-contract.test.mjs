@@ -9,10 +9,10 @@ const row = (patch = {}) => ({
   purchasable: true, ask_quota_month: 17, admin_cap: 2, ...patch,
 });
 function fixture(initialRows = []) {
-  let rows = initialRows, failure = false, calls = [];
+  let rows = initialRows, failure = false, calls = [], buttons = [];
   const ui = {
     activeTab: (_tabs, initial) => initial,
-    Button: ({ label }) => label,
+    Button: (button) => { buttons.push(button); return button.label; },
     EmptyState: (title, message) => title + ": " + message,
     ListCard: (items) => JSON.stringify(items),
     Block: ({ title, body }) => title + body,
@@ -30,7 +30,7 @@ function fixture(initialRows = []) {
   };
   vm.runInNewContext(source, { window, console, esc: value => String(value).replace(/[<>&"]/g, "_") });
   return {
-    account: window.SporveCoach, view: () => window.MOD_COACHBILLING.views.billing(), calls,
+    account: window.SporveCoach, view: () => window.MOD_COACHBILLING.views.billing(), calls, buttons,
     setRows(next) { rows = next; }, fail() { failure = true; },
   };
 }
@@ -96,4 +96,12 @@ test("zero-price selection never opens checkout, regardless of key", async () =>
   const h = fixture([row({ price_usd_month: 0 })]);
   await assert.rejects(h.account.startCheckout("renamed-plan"), /not available for purchase/);
   assert.equal(h.calls.length, 0);
+});
+
+test("multiple catalog choices retain one primary action", async () => {
+  const h = fixture([row(), row({ plan: "another-paid-plan", price_usd_month: 199 })]);
+  await h.account.refreshPlans();
+  h.view();
+  assert.equal(h.buttons.filter(button => button.attrs?.startsWith("data-cb-buy=")).length, 2);
+  assert.equal(h.buttons.filter(button => button.variant === "primary").length, 1);
 });
