@@ -101,7 +101,10 @@ Deno.serve(async (req) => {
     const email = userData.user.email ?? undefined;
 
     const body = await req.json().catch(() => ({}));
-    const plan: string = typeof body?.plan === "string" ? body.plan : "";
+    const { plan } = body && typeof body === "object" ? body : {};
+    if (typeof plan !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(plan)) {
+      return json({ error: "Choose a valid plan." }, 400);
+    }
     const fallbackUrl = CHECKOUT_ORIGINS[0];
     const successUrl = checkoutRedirect(body?.successUrl, fallbackUrl);
     const cancelUrl = checkoutRedirect(body?.cancelUrl, fallbackUrl);
@@ -129,18 +132,18 @@ Deno.serve(async (req) => {
 
     const { data: ent, error: eErr } = await admin
       .from("plan_entitlements")
-      .select("plan, purchasable, price_usd_month")
+      .select("*")
       .eq("plan", plan)
       .maybeSingle();
-    if (eErr) return json({ error: eErr.message }, 400);
-    if (!ent || plan === "free") {
+    if (eErr) return json({ error: "Plan details could not be loaded. Try again." }, 503);
+    if (!ent) {
       return json({ error: "That plan can't be purchased." }, 400);
     }
-    if (!ent.purchasable) {
-      // Honest by design: enterprise stays unsellable until the multi-player
-      // workspace exists. The page may collect interest; money may not move.
+    if (ent.purchasable !== true) {
+      // Only a literal catalog permission authorizes selling this plan.
+      // A name or a truthy malformed field never grants purchase permission.
       return json(
-        { error: "Enterprise isn't open for self-serve checkout yet. Contact Sporve to join the early-access list." },
+        { error: "This plan is not available for self-serve checkout. Choose another plan." },
         409,
       );
     }
@@ -181,7 +184,10 @@ Deno.serve(async (req) => {
     const discounts = provider.founding_coach
       ? [{ coupon: await ensureFoundingCoupon() }]
       : undefined;
-    const planName = plan === "pro" ? "Sporve Pro" : "Sporve Enterprise";
+    // New catalogs supply display_name; older deployed catalogs expose only
+    // their key. Never assign a different plan's label as a fallback.
+    const planName = typeof ent.display_name === "string" && ent.display_name.trim()
+      ? ent.display_name.trim() : String(ent.plan);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
