@@ -11,6 +11,7 @@ import {withHttpDeadline as deadline, readBoundedJson} from '../_shared/http.ts'
 import {enforceMessageDraftGuardrail} from '../message-draft/guardrail.ts';
 import {entitlementLimitResponse} from '../_shared/entitlements.mjs';
 import {validateInboxDeliveryReceipt} from './inbox-delivery.mjs';
+import {validateEmailDispatch,validateEmailResult} from './email-delivery.mjs';
 
 const source = stripTypeScriptTypes((await readFile(new URL('./index.ts', import.meta.url), 'utf8'))
   .replace(/^import\s+[\s\S]*?;\n/gm, ''));
@@ -24,13 +25,41 @@ const booking={id:'fixture-booking',session_id:session.id,program_id:program.id,
   searcher_id:'fixture-parent',status:'completed',sessions:session,programs:program};
 
 async function invoke(options={}) {
-  const calls=[], external=[], models=[], deadlines=[];
+  const calls=[], external=[], models=[], deadlines=[], dispatches=new Map();
   const rows=structuredClone(options.rows ?? [message]);
   const pending=structuredClone(options.pending ?? []);
   const database={rpc(name,args) {
     const call={table:'rpc',name,args}; calls.push(call);
     const query={abortSignal(signal){call.signal=signal;return query;},then(resolve,reject){return Promise.resolve().then(async()=>{
       const custom=options.rpcOverride?.(call); if(custom!==undefined) return custom;
+
+      if(name==='prepare_approved_lifecycle_email') {
+        const wire={from:args.p_from,reply_to:args.p_reply_to,to:[args.p_recipient],subject:args.p_subject,
+          text:args.p_expected_content.body+(options.branding===false?'':'\n\nSent via Sporv')+
+            '\n\nUnsubscribe from these messages: '+args.p_unsubscribe_url,
+          headers:{'X-Sporv-Message-Id':args.p_message,'List-Unsubscribe':'<'+args.p_unsubscribe_url+'>',
+            'List-Unsubscribe-Post':'List-Unsubscribe=One-Click'}};
+        // Noncompact serialization proves the worker does not rebuild the JSON.
+        const wireBody=JSON.stringify(wire,null,1);
+        const receipt={kind:'ready',dispatch_id:'60000000-0000-4000-8000-000000000001',
+          attempt_id:'60000000-0000-4000-8000-000000000002',quota_claim_id:'60000000-0000-4000-8000-000000000003',
+          message_id:args.p_message,provider_id:args.p_provider,actor_id:args.p_actor,
+          approved_at:args.p_approved_at,approved_content:args.p_expected_content,attempt_count:1,
+          created_at:new Date().toISOString(),branding_footer:options.branding!==false,
+          wire_body:wireBody,wire_sha256:Buffer.from(await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(wireBody))).toString('hex'),
+          idempotency_key:'sporv/email/60000000-0000-4000-8000-000000000004',
+          state:'dispatching',retry_after:null,result_id:null,provider_message_id:null,accepted_at:null};
+        Object.assign(receipt,typeof options.preparePatch==='function'?await options.preparePatch(receipt):options.preparePatch);
+        dispatches.set(args.p_provider,receipt); call.receipt=receipt;
+        return {data:receipt,error:null};
+      }
+      if(name==='record_lifecycle_email_result') {
+        const receipt={kind:'recorded',result_id:'60000000-0000-4000-8000-000000000005',
+          dispatch_id:args.p_dispatch,attempt_id:args.p_attempt,outcome:args.p_outcome,
+          provider_message_id:args.p_provider_message_id,created_at:new Date().toISOString()};
+        Object.assign(receipt,typeof options.resultPatch==='function'?options.resultPatch(receipt):options.resultPatch);
+        return {data:receipt,error:null};
+      }
       if(name!=='deliver_approved_lifecycle_inbox') return {data:false,error:null};
       const hash=Buffer.from(await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(args.p_expected_content.body))).toString('hex');
       return {data:{kind:'sent',id:args.p_message,provider_id:args.p_provider,approved_by:args.p_actor,
@@ -80,7 +109,7 @@ async function invoke(options={}) {
     Response, TextEncoder, Uint8Array, crypto:webcrypto,
     console:{error(){}}, createClient:()=>database,
     resolveAction, modelForEvent, autoOrFallback, enforceLifecycleDraft,
-    entitlementLimitResponse, validateInboxDeliveryReceipt,
+    entitlementLimitResponse, validateInboxDeliveryReceipt, validateEmailDispatch, validateEmailResult,
     buildCoachVoiceProfile:options.voiceProfile ?? (async()=>[]),
     readBoundedJson,
     withHttpDeadline:(work,ms)=>{deadlines.push(ms);return deadline(work,options.deadlineMs ?? Math.min(ms,80));},
@@ -92,7 +121,7 @@ async function invoke(options={}) {
         return new Response(JSON.stringify({text:'Fixture draft for human review.',model:'fixture-model'}),{status:200});
       }
       assert.equal(url,'https://api.resend.com/emails');
-      external.push({kind:'email',payload:JSON.parse(init.body)});
+      external.push({kind:'email',payload:JSON.parse(init.body),wire:init.body,headers:init.headers});
       if(options.emailReply) return options.emailReply(init);
       return new Response(JSON.stringify({id:'resend-fixture'}),{status:200});
     },
@@ -185,120 +214,182 @@ test('successful approved email uses current guardian address, preserving delive
   assert.deepEqual(r.external[0].payload.to,['current@example.invalid']);
   assert.ok(r.calls.find(c=>c.table==='email_suppressions').filters.some(f=>f[0]==='email'&&f[1]==='current@example.invalid'));
 });
-for(const [name,result] of [
-  ['database error',{data:null,error:{message:'fixture database outage'}}],
-  ['silent no-op',{data:null,error:null}],
-  ['wrong tenant',{data:{...message,status:'sent',sent_at:'2026-09-09T12:01:00Z',provider:'resend',provider_message_id:'resend-fixture',provider_id:'org-b'},error:null}],
-]) test(`email provider acceptance with ${name} is not reported delivered or retried`,async()=>{
-  const r=await invoke({override:c=>c.table==='outbound_messages'&&c.payload?.status==='sent'?result:undefined});
-  assert.equal(r.status,503); assert.equal(r.body.emailed,0); assert.equal(r.body.emailUnverified,1);
-  assert.equal(r.external.filter(x=>x.kind==='email').length,1);
-  assert.equal(r.calls.filter(c=>c.payload?.status==='approved'||c.payload?.status==='failed').length,0);
+
+for(const [name,reply] of [
+  ['database error',{data:null,error:{message:'private outage'}}],['silent no-op',{data:null,error:null}],
+  ['wrong shape',{data:true,error:null}],
+]) for(const stage of ['prepare_approved_lifecycle_email','record_lifecycle_email_result']) {
+  test(`email ${stage} ${name} cannot grant delivery or a blind retry`,async()=>{
+    const r=await invoke({rpcOverride:c=>c.name===stage?reply:undefined});
+    assert.equal(r.status,503);assert.equal(r.body.emailed,0);assert.equal(r.body.emailUnverified,1);
+    assert.equal(r.external.length,stage==='prepare_approved_lifecycle_email'?0:1);
+    assert.equal(r.calls.some(c=>c.operation==='update'),false);
+    assert.doesNotMatch(JSON.stringify(r.body),/private/);
+  });
+}
+for(const patch of [
+  {message_id:'other-message'},{provider_id:'org-b'},{actor_id:'other-owner'},{approved_at:null},
+  {approved_at:'2026-09-09T12:00:00.000001+00:00'},{approved_content:{body:'changed'}},
+  {dispatch_id:null},{attempt_id:'invalid'},{quota_claim_id:null},{attempt_count:0},
+  {created_at:'invalid'},{created_at:'2020-01-01T00:00:00Z'},
+  {branding_footer:null},{state:'accepted'},{kind:'queued'},{retry_after:'2027-01-01T00:00:00Z'},
+  {result_id:'60000000-0000-4000-8000-000000000005'},{provider_message_id:'unexpected'},
+  {accepted_at:'2027-01-01T00:00:00Z'},{idempotency_key:'wrong'},
+  {wire_body:'{}'},{wire_sha256:'0'.repeat(64)},
+]) test(`email dispatch mismatch ${JSON.stringify(patch)} blocks provider access`,async()=>{
+  const r=await invoke({preparePatch:patch});
+  assert.equal(r.status,503);assert.equal(r.body.emailed,0);assert.deepEqual(r.external,[]);
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+  assert.equal(r.calls.some(c=>c.name==='record_lifecycle_email_result'),false);
 });
-test('uncertain email transport leaves a checked review state rather than blindly retrying',async()=>{
-  const r=await invoke({emailReply:async()=>{throw new Error('fixture timeout after possible acceptance');}});
-  assert.equal(r.status,503); assert.equal(r.body.emailed,0); assert.equal(r.body.emailUnverified,1);
-  assert.equal(r.calls.filter(c=>c.payload?.status==='approved').length,0);
-  assert.ok(r.calls.some(c=>c.payload?.status==='needs_review'&&c.payload?.last_error==='email_delivery_unconfirmed'));
+for(const field of ['to','from','reply_to','subject','text','headers','bcc']) {
+  test(`valid digest cannot authorize altered sealed ${field}`,async()=>{
+    const r=await invoke({preparePatch:async receipt=>{
+      const wire=JSON.parse(receipt.wire_body);
+      wire[field]=field==='to'||field==='bcc'?['attacker@example.invalid']:'changed';
+      const wire_body=JSON.stringify(wire);
+      return {wire_body,wire_sha256:Buffer.from(await webcrypto.subtle.digest('SHA-256',
+        new TextEncoder().encode(wire_body))).toString('hex')};
+    }});
+    assert.equal(r.status,503);assert.deepEqual(r.external,[]);
+  });
+}
+for(const patch of [
+  {result_id:null},{attempt_id:'other-attempt'},{dispatch_id:'other-dispatch'},
+  {outcome:'ambiguous'},{provider_message_id:'different-id'},{created_at:null},
+  {created_at:'2020-01-01T00:00:00Z'},{kind:'sent'},
+]) test(`email result mismatch ${JSON.stringify(patch)} cannot count acceptance`,async()=>{
+  const r=await invoke({resultPatch:patch});
+  assert.equal(r.status,503);assert.equal(r.body.emailUnverified,1);assert.equal(r.body.emailed,0);
+  assert.equal(r.external.length,1);assert.equal(r.calls.some(c=>c.operation==='update'),false);
 });
-test('email provider has a bounded request, refuses redirects and bounds the response body',async()=>{
+test('email sealed bytes, key, original approval and quota receipt travel through the actual handler',async()=>{
+  const r=await invoke();
+  assert.equal(r.status,200);assert.equal(r.body.emailed,1);
+  const prepare=r.calls.find(c=>c.name==='prepare_approved_lifecycle_email');
+  const record=r.calls.find(c=>c.name==='record_lifecycle_email_result');
+  assert.equal(prepare.args.p_actor,message.approved_by);
+  assert.equal(prepare.args.p_approved_at,message.approved_at);
+  assert.deepEqual(JSON.parse(JSON.stringify(prepare.args.p_expected_content)),message.content);
+  assert.equal(prepare.args.p_recipient,guardian.email);
+  assert.equal(r.external[0].wire,prepare.receipt.wire_body);
+  assert.equal(r.external[0].headers['Idempotency-Key'],prepare.receipt.idempotency_key);
+  assert.equal(record.args.p_dispatch,prepare.receipt.dispatch_id);
+  assert.equal(record.args.p_attempt,prepare.receipt.attempt_id);
+  assert.equal(record.args.p_wire_sha256,prepare.receipt.wire_sha256);
+  assert.equal(record.args.p_provider,message.provider_id);
+  assert.equal(record.args.p_outcome,'accepted');
+  assert.equal(record.args.p_provider_message_id,'resend-fixture');
+  assert.equal(record.args.p_retry_after,null);
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+});
+for(const branding of [true,false]) test(`email branding follows returned entitlement ${branding}`,async()=>{
+  const r=await invoke({branding});
+  assert.equal(r.status,200);assert.equal(r.body.emailed,1);
+  assert.equal(r.external[0].payload.text.includes('Sent via Sporv'),branding);
+  assert.equal(r.external[0].payload.from,'Fixture Club <fixture-club@mail.sporv.ai>');
+});
+for(const stage of ['prepare_approved_lifecycle_email','record_lifecycle_email_result']) {
+  test(`email ${stage} deadline leaves uncertain state held`,async()=>{
+    const r=await invoke({deadlineMs:15,rpcOverride:c=>c.name===stage?new Promise(()=>{}):undefined});
+    assert.equal(r.status,503);assert.equal(r.body.emailUnverified,1);
+    assert.equal(r.external.length,stage==='prepare_approved_lifecycle_email'?0:1);
+    assert.ok(r.calls.find(c=>c.name===stage).signal.aborted);
+    assert.equal(r.calls.some(c=>c.operation==='update'),false);
+  });
+}
+test('uncertain email transport records ambiguity and never resets approval',async()=>{
+  const r=await invoke({emailReply:async()=>{throw new Error('private timeout');}});
+  assert.equal(r.status,503);assert.equal(r.body.emailed,0);assert.equal(r.body.needsReview,1);
+  assert.ok(r.calls.some(c=>c.args?.p_outcome==='ambiguous'));
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+});
+test('email request and streaming response are bounded and refuse redirects',async()=>{
   let cancelled=false;
   const r=await invoke({deadlineMs:15,emailReply:async init=>{
-    assert.ok(init.signal instanceof AbortSignal); assert.equal(init.redirect,'error');
-    return new Response(new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('{"id":"'));},cancel(){cancelled=true;}}));
+    assert.ok(init.signal instanceof AbortSignal);assert.equal(init.redirect,'error');
+    return new Response(new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('{"id":"'));},
+      cancel(){cancelled=true;}}));
   }});
-  assert.equal(r.status,503); assert.equal(r.body.emailed,0); assert.equal(r.body.emailUnverified,1);
-  assert.ok(cancelled); assert.equal(r.calls.filter(c=>c.payload?.status==='approved').length,0);
-});
-for(const [name,result] of [
-  ['error',{data:null,error:{message:'fixture outage'}}],['no-op',{data:null,error:null}],
-  ['wrong owner',{data:{...message,status:'processing',sent_at:null,approved_by:'other-owner'},error:null}],
-  ['changed content',{data:{...message,status:'processing',sent_at:null,content:{body:'Changed'}},error:null}],
-  ['missing approval time',{data:{...message,status:'processing',sent_at:null,approved_at:null},error:null}],
-]) test(`email claim ${name} cannot authorize a provider request`,async()=>{
-  const r=await invoke({override:c=>c.payload?.status==='processing'?result:undefined});
-  assert.equal(r.status,503); assert.equal(r.body.emailUnverified,1); assert.equal(r.body.emailed,0);
-  assert.deepEqual(r.external,[]); assert.equal(r.calls.filter(c=>c.payload?.status==='approved').length,0);
-});
-for(const patch of [
-  {id:'different-message'},{approved_by:'other-owner'},{approved_at:null},{content:{body:'changed'}},
-  {status:'processing'},{sent_at:null},{provider:'other-provider'},{provider_message_id:'different-id'},{last_error:'stale error'},
-]) test(`email saved receipt mismatch ${JSON.stringify(patch)} is unverified`,async()=>{
-  const r=await invoke({override:c=>c.payload?.status==='sent'
-    ? {data:{...message,sent_at:null,...c.payload,...patch},error:null}:undefined});
-  assert.equal(r.status,503); assert.equal(r.body.emailUnverified,1); assert.equal(r.body.emailed,0);
-  assert.equal(r.external.filter(x=>x.kind==='email').length,1);
-  assert.equal(r.calls.filter(c=>c.payload?.status==='approved').length,0);
-});
-for(const status of ['processing','sent']) test(`email ${status} database deadline does not authorize a resend`,async()=>{
-  const r=await invoke({deadlineMs:15,override:c=>c.payload?.status===status?new Promise(()=>{}):undefined});
-  assert.equal(r.status,503); assert.equal(r.body.emailUnverified,1);
-  assert.equal(r.external.filter(x=>x.kind==='email').length,status==='processing'?0:1);
-  const call=r.calls.find(c=>c.payload?.status===status);
-  assert.ok(call.signal.aborted); assert.equal(r.calls.filter(c=>c.payload?.status==='approved').length,0);
+  assert.equal(r.status,503);assert.equal(r.body.emailed,0);assert.ok(cancelled);
+  assert.ok(r.calls.some(c=>c.args?.p_outcome==='ambiguous'));
 });
 for(const [name,status,body] of [
-  ['provider500',500,{message:'private provider error'}],['provider409',409,{message:'in progress'}],
+  ['provider500',500,{message:'private diagnostic'}],['provider409',409,{message:'in progress'}],
   ['missing id',200,{}],['blank id',200,{id:' '}],['object id',200,{id:{value:'wrong'}}],
-]) test(`email ${name} requires review and never automatically retries`,async()=>{
+]) test(`email ${name} is recorded as ambiguous without automatic retry`,async()=>{
   const r=await invoke({emailReply:async()=>new Response(JSON.stringify(body),{status})});
-  assert.equal(r.status,503); assert.equal(r.body.emailUnverified,1); assert.equal(r.body.emailed,0);
-  assert.equal(r.calls.filter(c=>c.payload?.status==='approved').length,0);
-  assert.ok(r.calls.some(c=>c.payload?.last_error==='email_delivery_unconfirmed'));
-  assert.ok(!JSON.stringify(r.body).includes('private provider error'));
+  assert.equal(r.status,503);assert.equal(r.body.emailUnverified,1);assert.equal(r.body.emailed,0);
+  assert.ok(r.calls.some(c=>c.args?.p_outcome==='ambiguous'));
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+  assert.doesNotMatch(JSON.stringify(r.body),/private/);
 });
-test('email response byte cap prevents a large provider body from becoming a receipt',async()=>{
+test('oversized provider response cannot become an acceptance receipt',async()=>{
   const r=await invoke({emailReply:async()=>new Response(JSON.stringify({id:'fixture',padding:'x'.repeat(9000)}))});
-  assert.equal(r.status,503); assert.equal(r.body.emailUnverified,1); assert.equal(r.body.emailed,0);
+  assert.equal(r.status,503);assert.equal(r.body.emailed,0);
+  assert.ok(r.calls.some(c=>c.args?.p_outcome==='ambiguous'));
 });
-test('email429 respects Retry-After and saves a checked delayed retry receipt',async()=>{
+test('email429 respects Retry-After and records a checked delayed retry',async()=>{
   const before=Date.now();
-  const r=await invoke({emailReply:async()=>new Response('{"message":"rate limited"}',{status:429,headers:{'Retry-After':'120'}})});
-  assert.equal(r.status,200); assert.equal(r.body.emailUnverified,0); assert.equal(r.body.emailFailed,1);
-  const retry=r.calls.find(c=>c.payload?.status==='approved');
-  assert.equal(retry.payload.attempt_count,1); assert.equal(retry.payload.last_error,'email_provider_rate_limited');
-  assert.ok(Date.parse(retry.payload.send_after)>=before+120000);
-  assert.ok(retry.filters.some(f=>f[0]==='provider_id'&&f[1]==='org-a'));
-  assert.ok(retry.filters.some(f=>f[0]==='content'&&f[1]===JSON.stringify(message.content)));
+  const r=await invoke({emailReply:async()=>new Response('{}',{status:429,headers:{'Retry-After':'120'}})});
+  assert.equal(r.status,200);assert.equal(r.body.emailFailed,1);assert.equal(r.body.emailUnverified,0);
+  const retry=r.calls.find(c=>c.args?.p_outcome==='retry_wait');
+  assert.ok(Date.parse(retry.args.p_retry_after)>=before+120000);
+  assert.equal(retry.args.p_provider,'org-a');assert.equal(retry.args.p_provider_message_id,null);
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
 });
-test('email429 retry-write no-op fails loudly and leaves its processing claim held',async()=>{
+test('email429 result no-op cannot claim a successful retry schedule',async()=>{
   const r=await invoke({emailReply:async()=>new Response('{}',{status:429}),
-    override:c=>c.payload?.status==='approved'?{data:null,error:null}:undefined});
-  assert.equal(r.status,503); assert.equal(r.body.emailFailed,0); assert.equal(r.body.emailUnverified,1);
+    rpcOverride:c=>c.name==='record_lifecycle_email_result'?{data:null,error:null}:undefined});
+  assert.equal(r.status,503);assert.equal(r.body.emailFailed,0);assert.equal(r.body.emailUnverified,1);
 });
-test('definite email rejection is visible without persisting raw provider details',async()=>{
-  const r=await invoke({emailReply:async()=>new Response('{"message":"sensitive diagnostic"}',{status:401})});
-  assert.equal(r.status,200); assert.equal(r.body.needsReview,1); assert.equal(r.body.emailed,0);
-  const review=r.calls.find(c=>c.payload?.status==='needs_review');
-  assert.equal(review.payload.last_error,'email_provider_rejected');
-  assert.equal(r.calls.filter(c=>c.payload?.status==='approved').length,0);
+for(const status of [400,401,403,404,422]) test(`definite rejection ${status} records no private diagnostics`,async()=>{
+  const r=await invoke({emailReply:async()=>new Response('{"message":"private diagnostic"}',{status})});
+  assert.equal(r.status,200);assert.equal(r.body.needsReview,1);assert.equal(r.body.emailed,0);
+  assert.ok(r.calls.some(c=>c.args?.p_outcome==='rejected'));
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+  assert.doesNotMatch(JSON.stringify(r.calls),/private diagnostic/);
 });
-test('one org email receipt failure cannot stop another organization from completing',async()=>{
+test('one org result failure cannot stop another org from completing',async()=>{
   const other={...message,id:'message-b',provider_id:'org-b',approved_by:'owner-b',content:{...message.content,guardian_id:'guardian-b'}};
   const r=await invoke({rows:[message,other],override:c=>{
     const p=c.filters.find(f=>f[0]==='provider_id')?.[1];
     if(c.table==='guardians') return {data:{...guardian,id:p==='org-b'?'guardian-b':'guardian-a',provider_id:p},error:null};
     if(c.table==='providers') {const id=c.filters.find(f=>f[0]==='id')?.[1];return {data:{id,business_name:'Fixture',owner_id:id==='org-b'?'owner-b':'owner-a'},error:null};}
-    if(c.payload?.status==='sent'&&p==='org-a') return {data:null,error:{message:'fixture write failure'}};
-  }});
-  assert.equal(r.status,503); assert.equal(r.body.emailed,1); assert.equal(r.body.emailUnverified,1);
-  assert.equal(r.external.filter(x=>x.kind==='email').length,2);
+  },rpcOverride:c=>c.name==='record_lifecycle_email_result'&&c.args.p_provider==='org-a'
+    ?{data:null,error:{message:'fixture outage'}}:undefined});
+  assert.equal(r.status,503);assert.equal(r.body.emailed,1);assert.equal(r.body.emailUnverified,1);
+  assert.equal(r.external.length,2);
 });
-test('email receipts accept PostgreSQL timezone formatting without losing timestamp precision',async()=>{
-  const r=await invoke({override:c=>c.payload?.status==='sent'?{data:{...message,...c.payload,
-    approved_at:message.approved_at.replace('Z','+00:00'),sent_at:c.payload.sent_at.replace('Z','000+00:00')},error:null}:undefined});
-  assert.equal(r.status,200); assert.equal(r.body.emailed,1); assert.equal(r.body.emailUnverified,0);
+test('email quota denial is explicit and no provider request or legacy write occurs',async()=>{
+  const limit={reason:'send_quota_month',current_plan:'free',upgrade_to:'solo',limit:20,current:20};
+  const r=await invoke({rpcOverride:c=>c.name==='prepare_approved_lifecycle_email'
+    ?{data:null,error:{code:'PT402',details:JSON.stringify(limit)}}:undefined});
+  assert.equal(r.status,200);assert.equal(r.body.sendQuotaBlocked,1);assert.equal(r.body.emailed,0);
+  assert.deepEqual(r.body.quotaDenials,[{messageId:message.id,error:limit}]);
+  assert.deepEqual(r.external,[]);assert.equal(r.calls.some(c=>c.operation==='update'),false);
 });
-for(const status of ['processing','sent']) test(`email ${status} cannot round away changed approval microseconds`,async()=>{
-  const r=await invoke({override:c=>c.payload?.status===status?{data:{...message,sent_at:null,...c.payload,
-    approved_at:'2026-09-09T12:00:00.000001+00:00'},error:null}:undefined});
-  assert.equal(r.status,503); assert.equal(r.body.emailUnverified,1); assert.equal(r.body.emailed,0);
-  assert.equal(r.external.filter(x=>x.kind==='email').length,status==='processing'?0:1);
+test('email malformed quota cannot become a successful no-op',async()=>{
+  const r=await invoke({rpcOverride:c=>c.name==='prepare_approved_lifecycle_email'
+    ?{data:null,error:{code:'PT402',details:'private malformed'}}:undefined});
+  assert.equal(r.status,503);assert.equal(r.body.sendQuotaBlocked,0);assert.deepEqual(r.external,[]);
 });
-test('email delayed retry accepts equivalent PostgreSQL timestamp formatting',async()=>{
-  const r=await invoke({emailReply:async()=>new Response('{}',{status:429}),override:c=>c.payload?.status==='approved'
-    ? {data:{...message,sent_at:null,...c.payload,send_after:c.payload.send_after.replace('Z','+00:00')},error:null}:undefined});
-  assert.equal(r.status,200); assert.equal(r.body.emailFailed,1); assert.equal(r.body.emailUnverified,0);
+for(const [kind,state] of [['held','dispatching'],['held','ambiguous'],['held','rejected'],['deferred','retry_wait'],
+  ['already_accepted','accepted']]) test(`email ${kind}/${state} never grants another external request`,async()=>{
+  const r=await invoke({preparePatch:v=>({kind,state,
+    ...(kind==='deferred'?{retry_after:new Date(Date.now()+60000).toISOString()}:{}),
+    ...(kind==='already_accepted'?{result_id:'60000000-0000-4000-8000-000000000005',
+      provider_message_id:'resend-original',accepted_at:v.created_at}:{})})});
+  assert.equal(r.status,kind==='held'?503:200);assert.equal(r.body.emailed,0);assert.deepEqual(r.external,[]);
+  assert.equal(r.calls.some(c=>c.name==='record_lifecycle_email_result'||c.operation==='update'),false);
+});
+test('email equivalent PostgreSQL approval formatting remains valid',async()=>{
+  const r=await invoke({preparePatch:{approved_at:'2026-09-09T12:00:00.000000+00:00'}});
+  assert.equal(r.status,200);assert.equal(r.body.emailed,1);
+});
+test('email immutable result replay does not request another provider send',async()=>{
+  const r=await invoke({resultPatch:{kind:'already_recorded'}});
+  assert.equal(r.status,200);assert.equal(r.body.emailed,1);assert.equal(r.external.length,1);
 });
 for(const value of [
   {data:null,error:{message:'fixture outage'}},{data:null,error:null},
@@ -404,11 +495,10 @@ test('one unverified inbox result does not abort processing another organization
   assert.equal(r.status,503); assert.equal(r.body.inboxUnverified,1); assert.equal(r.body.inApp,1);
   assert.equal(r.calls.filter(c=>c.name==='deliver_approved_lifecycle_inbox').length,2);
 });
-test('existing direct-email approved drafts still pass through suppression checks',async()=>{
+test('direct-email draft without verified guardian remains visible for review, never sent',async()=>{
   const r=await invoke({rows:[{...message,content:{body:'Fixture message',to_email:'direct@example.invalid'}}]});
-  assert.equal(r.status,200);assert.equal(r.body.emailed,1);
-  assert.deepEqual(r.external[0].payload.to,['direct@example.invalid']);
-  assert.ok(r.calls.find(c=>c.table==='email_suppressions').filters.some(f=>f[0]==='email'&&f[1]==='direct@example.invalid'));
+  reviewReceipt(r,'verified_guardian_required_for_email');
+  assert.equal(r.calls.some(c=>c.name==='prepare_approved_lifecycle_email'),false);
 });
 test('invalid approved content becomes visible review rather than an endless silent skip',async()=>{
   reviewReceipt(await invoke({rows:[{...message,content:{...message.content,body:' '}}]}),'delivery_content_invalid');

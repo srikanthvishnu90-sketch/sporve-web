@@ -64,7 +64,7 @@ inbox RPC is in `sql-fixtures-20260909.md` and PR399.
 
 1. Independently review and apply the coordinated SQL prerequisites from PR399
    before switching this inbox caller. No migration is applied by this PR.
-2. Email shared-quota integration is STILL INCOMPLETE. The email worker does
+2. Historical status before the September10 integration: email shared-quota integration was incomplete. See the dated update below; The email worker does
    not yet call the sealed dispatch/reservation protocol; approval-time quota
    is not enough. Current receipt checks harden the existing path, not replace
    that protocol or prove Free's monthly send cap end to end.
@@ -75,7 +75,7 @@ inbox RPC is in `sql-fixtures-20260909.md` and PR399.
 4. The new SQL recheck in PR399 blocks old-month reservations until they are
    reconciled; it does not implement automatic quota transfer/release. The
    existing pool cannot prove whether a reserved email was accepted externally.
-5. Direct-email drafts without a guardian retain their existing behavior and
+5. Historical status before the September10 integration: direct-email drafts without a guardian retained their existing behavior and
    lack a guardian unsubscribe token. Complete direct-recipient opt-out and
    entitlement-driven branding before calling the delivery gate closed.
 6. Real admin-role authorization, production schema compatibility, full browser
@@ -86,3 +86,53 @@ Provider contracts checked against [Resend errors](https://resend.com/docs/api-r
 and [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys).
 Resend's24-hour idempotency retention is why a late retry needs a durable
 payload and reconciliation; the current worker must not claim exactly-once.
+
+## September 10: sealed email caller integration (review draft)
+
+This dated section supersedes the legacy direct-update description above.
+The actual email caller now uses `prepare_approved_lifecycle_email` from PR399
+before any provider request and `record_lifecycle_email_result` afterward.
+Preparation validates the human approval, current guardian and shared quota,
+then returns the exact persisted wire bytes, SHA256, idempotency key and attempt.
+The worker validates both the hash and every envelope field against the
+requested recipient/body, sends the returned string unchanged, and counts
+acceptance only after validating the immutable result transaction receipt.
+
+- Free branding comes from the receipt's entitlement value. Paid mail does not
+  carry an unconditional "via Sporv" display name.
+- Held, deferred and already-accepted dispatches never authorize a provider call.
+  Stale idempotency windows fail closed; ambiguous acceptance never resets to
+  approved. No independent email sent-state UPDATE remains in this worker.
+- Quota denials appear explicitly in the cron's per-message `quotaDenials`
+  with the standard five-field payload. This authenticated batch endpoint keeps
+  processing other orgs; it is not the human send endpoint's HTTP402 proof.
+- The SQL contract requires a verified guardian. Direct-recipient-only drafts
+  now remain visible in needs_review with
+  `verified_guardian_required_for_email`; that delivery path is an OPEN
+  blocker, not deleted or presented as working.
+- SQL and caller must be independently reviewed and deployed together. PR399
+  does not apply its drafts, and this draft PR does not deploy an edge function.
+- Provider/webhook reconciliation, expired reservation handling, definite
+  rejection quota release, distinct-admin authorization and live
+  inbox/bounce/mail-tester acceptance remain OPEN.
+- Local shell is unavailable in this session. The owner authorized isolated
+  GitHub draft-PR edits and CI, with PR comments replacing local Clo hooks.
+  This is not evidence that uncommitted local work was inspected or released.
+
+### Before-fix evidence: actual worker, not a surrogate
+
+Commit: d3f7d87d0deec16bbb14e6c063d34ed74a226bf8.
+[PR checks run](https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34506505166),
+security job102969890767:
+
+```text
+2026-09-10T17:10:27.4975266Z tests 224
+2026-09-10T17:10:27.4975998Z pass 223
+2026-09-10T17:10:27.4976254Z fail 1
+2026-09-10T17:10:27.4980355Z AssertionError: the actual email handler must call the atomic prepare RPC
+2026-09-10T17:10:27.5034068Z Process completed with exit code 1
+```
+
+Browser smoke job102969891112 passed on that red regression commit.
+After-fix CI is required; syntax parsing alone is not test execution.
+No prompt or business gate is declared complete by this integration.
