@@ -53,7 +53,8 @@ try {
       S.onboard = JSON.parse(JSON.stringify(window.MOD_COACHONBOARD.state.onboard));
       S.onboard.step = 3;
       S.onboard.plan = "solo";
-      S.route = { name: "onboard", arg: null };
+      S.route = { name: "dashboard", arg: null };
+      S.coachTab = "onboard";
       render();
     });
     assert.equal(await page.locator("input[data-cob-plan]").count(), 3);
