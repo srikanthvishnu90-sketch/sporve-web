@@ -877,3 +877,13 @@ test('real message-draft remains functional without importing historical family 
   const prompt=modelRequests[0].messages[0].content[0].text;
   assert.match(prompt,/Could we find another time/);assert.doesNotMatch(prompt,/Tone anchors/);
 });
+
+test('email worker reserves sealed dispatch and shared quota before contacting Resend',async()=>{
+  const r=await invoke();
+  assert.ok(r.calls.some(c=>c.name==='prepare_approved_lifecycle_email'),
+    'the actual email handler must call the atomic prepare RPC');
+  assert.ok(r.calls.some(c=>c.name==='record_lifecycle_email_result'),
+    'provider acceptance must use the immutable result RPC');
+  assert.equal(r.calls.some(c=>c.operation==='update'),false,
+    'email delivery must not fall back to independent source updates');
+});
