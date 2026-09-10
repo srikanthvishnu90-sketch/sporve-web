@@ -1,9 +1,9 @@
 # Sporv launch state
 
 Updated:2026-09-10
-Active: Prompt1 / P1.01
-Progress:0/69 verified;0 parked;0/6 prompts DONE.
-Business-gate verdict: NOTHING MOVED; tracker setup is governance.
+Active: Prompt1 / P1.02
+Progress:0/69 verified;1 parked;0/6 prompts DONE.
+Business-gate verdict: NOTHING MOVED; isolated catalog checks support G1/G4 but do not close them.
 
 ## Execution contract
 
@@ -37,7 +37,7 @@ writes; fixtures never run against production.
 
 ## Prompt1 acceptance
 
-- [ ] P1.01: Exactly3 seeded live plan_entitlements rows; every required field populated.
+- [ ] P1.01 [PARKED, not green]: Exactly3 seeded live plan_entitlements rows; every required field populated.
 - [ ] P1.02: Plan/plan_key string-equality comparison grep returns zero in src/,api/,supabase/.
 - [ ] P1.03: Free16th member ->402 upgrade_to Solo; Gmail connect ->402; draft21 behavior and finding proven against the explicitly resolved specification; Ask26 ->402. All other listed server gates also tested with exact payloads.
 - [ ] P1.04: Solo Outlook ->402; Gmail connection succeeds.
@@ -124,7 +124,17 @@ writes; fixtures never run against production.
 
 ## PARKED
 
-None. Unverified work remains unchecked.
+P1.01 — live catalog verification and release.
+- Failure: three fresh Supabase reads failed during OAuth refresh; no live rows.
+- Safe work exhausted for this compatibility defect:11 SQL jobs pass, including
+  baseline, existing connectors and a wrong-type rollback check.
+- Dependency: restored production read access, independent critical-path review
+  of PR399, and compatible catalog/caller release. PR399 reviews returned[].
+- Resume: re-read live schema, review caller compatibility, apply only the
+  reviewed migration through the approved release path, then execute the
+  live three-row/non-null query and paste output.
+- ETA: dependent on those external conditions; not a shipping-risk acceptance.
+  Parked remains unchecked and does not make Prompt1 DONE.
 
 ## Evidence log
 
@@ -137,25 +147,33 @@ None. Unverified work remains unchecked.
 - INIT03: executed structural check:6 prompt sections,69 unique acceptance IDs,
  69 matching unchecked state entries. Tracker structure only, not product proof.
 
-## P1.01 current work
+## P1.01 evidence
 
-Status: IN PROGRESS, live check unavailable; not verified and not parked.
-
-Actual output from both fresh production reads:
+Actual production-read failure, repeated three times:
 ```text
 failed to refresh OAuth tokens for server supabase
 OAuth token refresh failed: Failed to parse server response
 ```
 
-No rows were returned; no key/field coverage claim is made. Safe work continues
-in PR399: the staged catalog unconditionally adds connectors, while Robin's
-deployment record reports that column already installed. Compatibility fixture
-commit8b0104b50a1277c35f40f7b14366756052f01387 adds a separate existing-column case and retains
-all baseline jobs. Await actual CI before modifying the SQL.
+P1.01 actual red/green evidence (isolated PostgreSQL only):
+- Red commit8b0104b50a1277c35f40f7b14366756052f01387, run34510661524, job102983675620: ERROR: column "connectors" of relation "plan_entitlements" already exists; exit3.
+- Fixed commitf0268060443f301639ab1b41c6a6c98451463001, run34510942820: all11 SQL jobs success; pr-checks34510942679 and secret-scan34510942783 success.
+- Baseline job102984613371 and existing-column job102984612741 actual output:
+catalog_rows | plan_keys | incomplete_rows
+3 | {free,organization,solo} | 0
+- Wrong-type job102984612834: ERROR: Existing plan_entitlements.connectors must be text[]; PASS: incompatible connector type rejected; three legacy rows, provider and schema unchanged.
+- Email job102984612943 retains actual independent-session concurrency checks: one ready/one held, one immutable receipt/acceptance, shared inbox/email allowance.
+Production acceptance remains unverified: three Supabase token-refresh failures; this PR has no submitted independent review. No migration applied, no deployment, no gate closed.
+
+
+SQL evidence URLs:
+- https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34510661524/job/102983675620
+- https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34510942820/job/102984613371
+- https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34510942820/job/102984612741
+- https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34510942820/job/102984612834
 
 ## NEXT
 
-P1.01: inspect the compatibility fixture CI output, fix the staged catalog to
-support the existing correctly typed connectors column, rerun actual SQL and
-capture key/non-null field results. Preserve the coordinated caller/review hold;
-live acceptance remains blocked until Supabase read access and release proof.
+P1.02: run the exact plan/plan_key string-equality scan against current source,
+capture actual matches, inspect each execution path, and replace plan-name
+authorization with entitlement values without weakening the detector.
