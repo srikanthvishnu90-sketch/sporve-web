@@ -28,7 +28,6 @@ jobs:
           --health-retries 10
     env:
       PGHOST: 127.0.0.1
-      PGPORT: ${{ job.services.postgres.ports[5432] }}
       PGUSER: postgres
       PGPASSWORD: fixture-only-password
       PGDATABASE: sporv_entitlement_guard_test
@@ -40,12 +39,16 @@ jobs:
         with:
           node-version: "24.16.0"
       - name: Initialize disposable guard and JWT fixture
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: |
           set -euo pipefail
           test "$PGHOST" = 127.0.0.1
           createdb "$PGDATABASE"
           psql -X -v ON_ERROR_STOP=1 -f docs/red-drafts/2026-09-10-entitlement-http.test.sql
       - name: Start pinned loopback-only API
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: |
           set -euo pipefail
           docker run --detach --name sporv-entitlement-api --network host \
@@ -64,6 +67,8 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:3007/ >/dev/null
       - name: Signed customer requests and concurrent final-slot writes
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: node scripts/test-entitlement-http.mjs
       - name: API diagnostics
         if: failure()
