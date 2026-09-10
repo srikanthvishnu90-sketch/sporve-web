@@ -29,6 +29,10 @@ jobs:
           - name: catalog with existing connectors
             database: sporv_entitlement_fixture
             file: 2026-09-10-plan-entitlements-existing-connectors.test.sql
+          - name: catalog rejects incompatible connector type
+            database: sporv_entitlement_fixture
+            file: 2026-09-10-plan-entitlements-invalid-connectors.test.sql
+            expected_error: 'Existing plan_entitlements.connectors must be text[]'
           - name: AI quota
             database: sporv_entitlement_fixture
             file: 2026-09-08-entitlement-ai-quota.test.sql
@@ -76,6 +80,7 @@ jobs:
       PGDATABASE: ${{ matrix.database }}
       PGOPTIONS: '-c plpgsql.check_asserts=on -c statement_timeout=15000 -c lock_timeout=10000'
       FIXTURE_FILE: ${{ matrix.file }}
+      EXPECTED_ERROR: ${{ matrix.expected_error }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -89,7 +94,18 @@ jobs:
           test "$PGHOST" = 127.0.0.1
           createdb "$PGDATABASE"
           psql -X -v ON_ERROR_STOP=1 -c 'SELECT version(), current_database();'
-          psql -X -v ON_ERROR_STOP=1 -f "docs/red-drafts/$FIXTURE_FILE"
+          if [ -n "$EXPECTED_ERROR" ]; then
+            if psql -X -v ON_ERROR_STOP=1 -f "docs/red-drafts/$FIXTURE_FILE" > fixture-output.log 2>&1; then
+              cat fixture-output.log
+              echo "FAIL: incompatible catalog migration unexpectedly succeeded"
+              exit 1
+            fi
+            cat fixture-output.log
+            grep -F -- "$EXPECTED_ERROR" fixture-output.log
+            psql -X -v ON_ERROR_STOP=1 -f docs/red-drafts/2026-09-10-plan-entitlements-rejection.assert.sql
+          else
+            psql -X -v ON_ERROR_STOP=1 -f "docs/red-drafts/$FIXTURE_FILE"
+          fi
       - name: Prove inbox concurrency in independent database sessions
         if: matrix.database == 'sporv_parent_send_test'
         env:

@@ -45,6 +45,9 @@ insert into public.providers values
 
 -- Optional compatibility case for the independently shipped connector column.
 -- The baseline job still starts without this column; no test is replaced.
+\if :{?invalid_connectors}
+alter table public.plan_entitlements add column connectors text not null default 'legacy-shape-sentinel';
+\else
 \if :{?existing_connectors}
 alter table public.plan_entitlements add column connectors text[] not null default '{}'::text[];
 update public.plan_entitlements set connectors=case plan
@@ -52,8 +55,16 @@ update public.plan_entitlements set connectors=case plan
   when 'pro' then array['website','csv','stripe','gmail','google_calendar','sms']
   else array['website','csv','stripe','gmail','google_calendar','sms','outlook'] end;
 \endif
+\endif
 
 \ir 2026-09-08-plan-entitlements.sql
+
+select count(*) as catalog_rows,array_agg(plan order by plan) as plan_keys,
+  count(*) filter(where member_cap is null or admin_cap is null or group_cap is null
+    or connectors is null or jobs is null or modules is null or scan_mode is null
+    or draft_quota_month is null or send_quota_month is null or ask_quota_month is null
+    or branding_footer is null) as incomplete_rows
+from public.plan_entitlements;
 
 begin;
 set local request.jwt.claim.role='service_role';
