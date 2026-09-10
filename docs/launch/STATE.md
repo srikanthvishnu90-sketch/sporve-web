@@ -172,8 +172,49 @@ SQL evidence URLs:
 - https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34510942820/job/102984612741
 - https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34510942820/job/102984612834
 
+## P1.02 current evidence
+
+Status: IN PROGRESS; source fixes pass isolated checks, final generated-head
+browser/smoke/release review still required. No acceptance checkbox yet.
+
+Actual source scan red, commit ec84de0e:
+run34511426762/job102986238718 returned10 matching lines and exit1.
+Nine name-based decision lines and one harmless typeof input check.
+No file excluded and no regex weakened.
+
+Actual handler red: run34511740336/job102987272531:
+```text
+tests 7
+pass 1
+fail 6
+```
+Catalog label, key-based purchase decision, malformed permission, invalid input
+and raw lookup error failures were corrected in the actual handler.
+
+Actual frontend red: run34512546263/job102989978819: tests8, pass0, fail8.
+Actual source5c50e4a run34512916205:
+```text
+PASS P1.02: zero matches across src/, api/, supabase/
+checkout handler: tests7, pass7, fail0
+frontend catalog: tests8, pass8, fail0
+built size: 2237040 bytes
+build stamp: e7bff9c12cfbe7da
+```
+Generated commit8ee8ae770b088f129b0a7f5f15482e13c3035e0e changes only
+index.html/vercel.json from the actual build.py run. Old source-head smoke
+correctly failed stale generated files; no waiver. Current PR415 head
+172961a1b55fab028d2e563943ff8ae309e937e1 contains the generated files and
+adds real Chromium390/1440px catalog/onboarding/error checks.
+The temporary draft-build write job has been removed.
+
+Independent review requested on PR415 and PR399. No review approval or live
+deployment claimed. Additional source/context in
+docs/review/entitlement-source-contract-20260910.md on PR415.
+Known separate checkout idempotency/customer persistence/coupon errors remain.
+
 ## NEXT
 
-P1.02: run the exact plan/plan_key string-equality scan against current source,
-capture actual matches, inspect each execution path, and replace plan-name
-authorization with entitlement values without weakening the detector.
+P1.02: collect final generated-head full smoke and real-browser results; fix
+any failures without bypasses, paste evidence, and coordinate Clo release.
+Keep P1.01 parked as non-green; proceed to P1.03 once P1.02 has a verified or
+explicit externally blocked disposition.
