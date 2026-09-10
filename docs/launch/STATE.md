@@ -1,8 +1,8 @@
 # Sporv launch state
 
 Updated:2026-09-10
-Active: Prompt1 / P1.02
-Progress:0/69 verified;1 parked;0/6 prompts DONE.
+Active: Prompt1 / P1.03
+Progress:0/69 accepted for release;2 parked;0/6 prompts DONE.
 Business-gate verdict: NOTHING MOVED; isolated catalog checks support G1/G4 but do not close them.
 
 ## Execution contract
@@ -38,7 +38,7 @@ writes; fixtures never run against production.
 ## Prompt1 acceptance
 
 - [ ] P1.01 [PARKED, not green]: Exactly3 seeded live plan_entitlements rows; every required field populated.
-- [ ] P1.02: Plan/plan_key string-equality comparison grep returns zero in src/,api/,supabase/.
+- [ ] P1.02 [PARKED, release pending]: Plan/plan_key string-equality comparison grep returns zero in src/,api/,supabase/.
 - [ ] P1.03: Free16th member ->402 upgrade_to Solo; Gmail connect ->402; draft21 behavior and finding proven against the explicitly resolved specification; Ask26 ->402. All other listed server gates also tested with exact payloads.
 - [ ] P1.04: Solo Outlook ->402; Gmail connection succeeds.
 - [ ] P1.05: Organization permits entitled actions within its purchased capacity; no decorative cap or accidental paid send limit. This supersedes the old unlimited Enterprise plan definition, not the requirement for enforcement.
@@ -136,6 +136,16 @@ P1.01 — live catalog verification and release.
 - ETA: dependent on those external conditions; not a shipping-risk acceptance.
   Parked remains unchecked and does not make Prompt1 DONE.
 
+P1.02 — isolated source/browser checks passed; independent review and release pending.
+- Failure: the earlier review request was rate-limited; a retry is now triggered
+  but no submitted approval or Clo release evidence exists.
+- Safe implementation and verification completed on PR415 head9a9b38e5.
+- Dependency: independent critical-path/Clo review; merge only intended files;
+  approved mirror/Vercel release and live build-marker verification.
+- Resume: address review findings, release through the approved path, verify
+  stamp573099944beae4ba (or the reviewed successor), then accept this criterion.
+- ETA: review/release dependent; not permission to ship without review.
+
 ## Evidence log
 
 - INIT01: first STATE.md fetch on main ->GitHub API404 Not Found.
@@ -172,49 +182,28 @@ SQL evidence URLs:
 - https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34510942820/job/102984612741
 - https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34510942820/job/102984612834
 
-## P1.02 current evidence
+## P1.02 final supporting evidence
 
-Status: IN PROGRESS; source fixes pass isolated checks, final generated-head
-browser/smoke/release review still required. No acceptance checkbox yet.
+Final P1.02 supporting evidence at9a9b38e5ca22a2daa250c4abe2daf40a7f2da7de:
+run34535312668/job103065432334: PASS P1.02: zero matches across src/, api/, supabase/
+job103065431977: tests9, pass9, fail0
+job103065432170: tests7, pass7, fail0
+job103065432276: PASS real Chromium at390px and1440px; PASS28 DOM assertions; mocked catalog only, no live billing acceptance
+run34535312648/job103065431876: build outputs in sync with sources; SMOKE PASSED
+secret-scan34535312655: success
+Six screenshots: artifact10175159063, run34535312668, SHA256f85e1e2503703877a71288c1ff6ef99154ce7c210ed8bc7baa5943810cd973bb.
+Build stamp573099944beae4ba. Reviewed diff contains only the intended11 files; new main2e7fe614 touches separate SQL files, no overlap.
+Independent CodeRabbit review was re-triggered (comment5626031178), but there is no submitted review yet. Clo review, merge, deployment and live verification are still pending; no business gate closed.
+Launch STATE parks P1.02 release, not its test results, so independent P1.03 API work can proceed without claiming this patch is live.
 
-Actual source scan red, commit ec84de0e:
-run34511426762/job102986238718 returned10 matching lines and exit1.
-Nine name-based decision lines and one harmless typeof input check.
-No file excluded and no regex weakened.
-
-Actual handler red: run34511740336/job102987272531:
-```text
-tests 7
-pass 1
-fail 6
-```
-Catalog label, key-based purchase decision, malformed permission, invalid input
-and raw lookup error failures were corrected in the actual handler.
-
-Actual frontend red: run34512546263/job102989978819: tests8, pass0, fail8.
-Actual source5c50e4a run34512916205:
-```text
-PASS P1.02: zero matches across src/, api/, supabase/
-checkout handler: tests7, pass7, fail0
-frontend catalog: tests8, pass8, fail0
-built size: 2237040 bytes
-build stamp: e7bff9c12cfbe7da
-```
-Generated commit8ee8ae770b088f129b0a7f5f15482e13c3035e0e changes only
-index.html/vercel.json from the actual build.py run. Old source-head smoke
-correctly failed stale generated files; no waiver. Current PR415 head
-172961a1b55fab028d2e563943ff8ae309e937e1 contains the generated files and
-adds real Chromium390/1440px catalog/onboarding/error checks.
-The temporary draft-build write job has been removed.
-
-Independent review requested on PR415 and PR399. No review approval or live
-deployment claimed. Additional source/context in
-docs/review/entitlement-source-contract-20260910.md on PR415.
-Known separate checkout idempotency/customer persistence/coupon errors remain.
+A fourth later Supabase read again failed OAuth refresh with the same error;
+P1.01 live verification remains parked. Current main STATE still returns404;
+the authoritative working record remains PR412's branch, not a claimed merge.
 
 ## NEXT
 
-P1.02: collect final generated-head full smoke and real-browser results; fix
-any failures without bypasses, paste evidence, and coordinate Clo release.
-Keep P1.01 parked as non-green; proceed to P1.03 once P1.02 has a verified or
-explicit externally blocked disposition.
+P1.03: inspect the actual API/SQL routes for Free member/admin/group/connector/
+draft/send/Ask/module limits, execute direct-request checks against isolated
+fixtures, and fix uncovered enforcement without blocking dues or exports.
+The draft-hard-stop versus visible-overflow conflict remains explicitly open.
+Watch PR415's independent review without treating its pending release as green.
