@@ -36,7 +36,7 @@ function limit(result, reason, upgrade, cap, count) {
 // The database controller only coordinates this disposable API's concurrency.
 // Customer operations below still execute via signed HTTP, never as postgres.
 assert.equal(process.env.PGHOST, "127.0.0.1");
-assert.equal(process.env.PGDATABASE, "sporv_entitlement_guard_test");
+assert.ok(["sporv_entitlement_guard_test","sporv_entitlement_fixture"].includes(process.env.PGDATABASE));
 const exec = promisify(execFile);
 const psqlArgs = ["-X", "-qAt", "-v", "ON_ERROR_STOP=1"];
 async function psql(sql) {
@@ -46,7 +46,7 @@ async function psql(sql) {
   });
   return result.stdout.trim();
 }
-assert.equal(await psql("SELECT current_database()"), "sporv_entitlement_guard_test");
+assert.equal(await psql("SELECT current_database()"), process.env.PGDATABASE);
 async function hold(sql) {
   const proc = spawn('psql', psqlArgs, {
     env: { ...process.env, PGAPPNAME: 'sporv_http_controller' }, stdio: ['pipe', 'pipe', 'pipe'],
@@ -73,16 +73,17 @@ async function hold(sql) {
   return async (commit = true) => { proc.stdin.end(commit ? 'COMMIT;\n' : 'ROLLBACK;\n'); await finished; };
 }
 
-async function waitBlocked() {
+async function waitBlocked(expected = 2, event = "advisory") {
+  assert.ok(["advisory","transactionid"].includes(event));
   const deadline = Date.now() + 7000;
   while (Date.now() < deadline) {
     const count = Number(await psql(`SELECT count(*) FROM pg_stat_activity
-      WHERE datname='sporv_entitlement_guard_test' AND usename='fixture_authenticator'
-        AND state='active' AND wait_event_type='Lock' AND wait_event='advisory'`));
-    if (count === 2) return;
+      WHERE datname=current_database() AND usename='fixture_authenticator'
+        AND state='active' AND wait_event_type='Lock' AND wait_event='${event}'`));
+    if (count === expected) return;
     await delay(30);
   }
-  throw new Error("Did not observe both HTTP inserts waiting on the provider capacity lock");
+  throw new Error("Did not observe " + expected + " HTTP database sessions waiting on " + event);
 }
 
 
@@ -135,8 +136,39 @@ limit([one,two].find(result => result.status === 402), "member_cap", "solo", 15,
 assert.equal((await request("/team_athletes?provider_id=eq." + id(4), owner(4))).body.length, 15);
 console.log("PASS two observed concurrent HTTP database sessions: final slot yields one201, one402, total15");
 
+
+if (process.env.PGDATABASE === "sporv_entitlement_fixture") {
+  const expired = await request("/rpc/get_provider_entitlements", owner(5), { p_provider: id(5) });
+  assert.equal(expired.status, 200);
+  assert.equal(expired.body.assigned_plan, "organization");
+  assert.equal(expired.body.effective_plan, "free");
+  assert.equal(expired.body.assignment_expired, true);
+  limit(await request("/team_athletes", owner(5), { provider_id: id(5), first_name: "expired-trial-sixteen" }),
+    "member_cap", "solo", 15, 15);
+  console.log("PASS actual catalog/resolver: expired Organization trial immediately resolves Free and blocks sixteenth member402 without a cron");
+
+  const active = await request("/rpc/get_provider_entitlements", owner(6), { p_provider: id(6) });
+  assert.equal(active.status, 200);
+  assert.equal(active.body.effective_plan, "organization");
+  assert.equal(active.body.entitlement_source, "trial");
+  assert.equal(active.body.assignment_expired, false);
+  assert.equal((await request("/team_athletes", owner(6), { provider_id: id(6), first_name: "active-trial-sixteen" })).status, 201);
+  assert.equal((await request("/rpc/get_provider_entitlements", owner(1), { p_provider: id(6) })).status, 403);
+  console.log("PASS actual no-card trial permits sixteenth member201; owner cannot read another organization's resolved entitlements");
+
+  const releaseDowngrade = await hold(`UPDATE public.provider_entitlement_assignments
+    SET plan_key='free',source='free',ends_at=null WHERE provider_id='${id(7)}'`);
+  const pending = request("/team_athletes", owner(7), { provider_id: id(7), first_name: "midflight-downgrade" });
+  pending.catch(() => {});
+  try { await waitBlocked(1, "transactionid"); }
+  finally { await releaseDowngrade(); }
+  limit(await pending, "member_cap", "solo", 15, 15);
+  assert.equal((await request("/team_athletes?provider_id=eq." + id(7), owner(7))).body.length, 15);
+  console.log("PASS actual assignment downgrade while HTTP insert is observed waiting: new Free cap402, stored members remain15");
+}
+
 // Do not hide PostgREST's standard error envelope. This proves a database
 // status and fields inside details, NOT the requested top-level app payload.
 assert.equal(capped.body.reason, undefined);
 console.log("KNOWN GAP: raw table endpoint wraps reason/current_plan/upgrade_to/limit/current in details; application endpoint top-level payload is not proven");
-console.log("SUPPORTING PASS: actual guard SQL + JWT HTTP + fixture-only owner RLS; not production or full P1.03 acceptance");
+console.log("SUPPORTING PASS: actual guard SQL + JWT HTTP + fixture-only owner RLS; database=" + process.env.PGDATABASE + "; not production or full P1.03 acceptance");
