@@ -43,6 +43,16 @@ create table public.organization_members(
 insert into public.providers values
   ('10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','pro');
 
+-- Optional compatibility case for the independently shipped connector column.
+-- The baseline job still starts without this column; no test is replaced.
+\if :{?existing_connectors}
+alter table public.plan_entitlements add column connectors text[] not null default '{}'::text[];
+update public.plan_entitlements set connectors=case plan
+  when 'free' then array['website','csv','stripe']
+  when 'pro' then array['website','csv','stripe','gmail','google_calendar','sms']
+  else array['website','csv','stripe','gmail','google_calendar','sms','outlook'] end;
+\endif
+
 \ir 2026-09-08-plan-entitlements.sql
 
 begin;
