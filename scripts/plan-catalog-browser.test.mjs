@@ -36,7 +36,9 @@ try {
       S.auth = { status: "verified", user: { id: "fixture-owner" } };
       S.portal = "coach";
       await window.SporveCoach.refreshPlans();
-      document.getElementById("app").innerHTML = window.MOD_COACHBILLING.views.billing();
+      S.route = { name: "dashboard", arg: null };
+      S.coachTab = "billing";
+      render();
     });
     const billing = await page.locator("#app").innerText();
     assert.match(billing, /Sporv Solo/);
@@ -51,7 +53,8 @@ try {
       S.onboard = JSON.parse(JSON.stringify(window.MOD_COACHONBOARD.state.onboard));
       S.onboard.step = 3;
       S.onboard.plan = "solo";
-      document.getElementById("app").innerHTML = window.MOD_COACHONBOARD.views.onboard();
+      S.route = { name: "onboard", arg: null };
+      render();
     });
     assert.equal(await page.locator("input[data-cob-plan]").count(), 3);
     assert.equal(await page.locator('input[data-cob-plan="solo"]').isChecked(), true);
@@ -63,7 +66,9 @@ try {
     await page.evaluate(async () => {
       window.SporveAPI.from = async () => { throw new Error("fixture network failure"); };
       await window.SporveCoach.refreshPlans().catch(() => {});
-      document.getElementById("app").innerHTML = window.MOD_COACHBILLING.views.billing();
+      S.route = { name: "dashboard", arg: null };
+      S.coachTab = "billing";
+      render();
     });
     assert.match(await page.locator("#app").innerText(), /Plan details unavailable/);
     assert.equal(await page.locator("[data-cb-refresh]").count(), 1);
