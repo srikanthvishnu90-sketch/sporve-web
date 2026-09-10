@@ -105,3 +105,43 @@ primary action at both widths; final whole-head CI is still required.
 Independent review was requested. CodeRabbit replied "Review rate limited"
 (comment5623348949); that is NOT approval. Clo review and the authorized
 production release/verification remain required.
+
+## Independent review corrections — supersedes earlier final evidence
+
+Review5172771792 on9a9b38e5 posted four actionable comments; it was COMMENTED,
+not approval. All four findings were verified against source and addressed.
+The production/Clo release gate remains open.
+
+- Unavailable persisted paid choice: actual V8 module evaluation before the fix
+  rendered1 checkout button and no unavailable label; after the fix it renders0
+  checkout buttons and the unavailable label, preserving the selected key.
+  Both unavailable and available submitted-state regressions now run in CI.
+- All four test checkouts disable persisted credentials; setup-node and
+  upload-artifact use full SHAs verified from their official repositories.
+- Browser dependencies are isolated under scripts/ci-browser, with a real
+  npm-generated lock and npm ci. Production package files are unchanged.
+- Artifact upload names only the eight intended screenshots.
+- Temporary draft-only generator produced47a2b206c2bc0425378a99a4904909776984ae30,
+  parent58f6d3789b7ce8d9ea5756f422ee99782902e8e2, changing only index.html,
+  vercel.json and the CI-only lock. The writer was then removed completely.
+  Build stamp3ea04337b8d34db3 comes from actual build.py output.
+
+Actual corrected head78e984634fed20e7ab2918b28b5c1532f6cb922e:
+```text
+run34537954736/job103073832941: PASS P1.02: zero matches across src/, api/, supabase/
+job103073832724: tests11, pass11, fail0
+job103073833051: tests7, pass7, fail0
+job103073832956: PASS real Chromium at390px and1440px
+job103073832956: PASS36 DOM assertions; mocked catalog only, no live billing acceptance
+run34537954813/job103073833565: build outputs in sync with sources; SMOKE PASSED
+run34537954813/job103073833178: security-regressions success
+secret-scan34537954799: success
+```
+
+The initial lock-bootstrap run34537423014 correctly failed npm ci before its
+parent commit contained a lock; its generator succeeded. This failure was not
+bypassed. The generated successor and read-only final workflow passed above.
+
+Thirteen intended files reviewed in PR415; no production merge, deployment or
+live marker verification is claimed. Earlier eleven-file/six-screenshot and
+stamp573099944beae4ba descriptions are historical, not current release targets.
