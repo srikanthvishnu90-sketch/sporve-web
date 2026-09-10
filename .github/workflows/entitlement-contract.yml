@@ -1,0 +1,32 @@
+name: Entitlement source contract
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  no-plan-name-comparisons:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: P1.02 exact source scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          # Every file under all three owner-specified paths is included.
+          # grep exit 1 means no matches; exit 2 is an error, never a pass.
+          if grep -rnE "plan\s*===\s*['\"]|plan_key\s*===\s*['\"]" src/ api/ supabase/; then
+            echo "FAIL P1.02: plan-name comparison matches above"
+            exit 1
+          else
+            scan_status=$?
+            if [ "$scan_status" -ne 1 ]; then
+              echo "FAIL P1.02: grep could not complete (exit $scan_status)"
+              exit "$scan_status"
+            fi
+          fi
+          echo "PASS P1.02: zero matches across src/, api/, supabase/"
