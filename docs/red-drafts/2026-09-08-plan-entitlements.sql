@@ -18,6 +18,13 @@ lock table public.plan_entitlements, public.providers in share row exclusive mod
 
 do $preflight$
 begin
+  -- Connector OAuth shipped this column before the full billing catalog.
+  -- Accept only the compatible array type; a same-name column is not proof.
+  if exists(select 1 from pg_catalog.pg_attribute
+    where attrelid='public.plan_entitlements'::regclass and attname='connectors'
+      and not attisdropped and atttypid<>'text[]'::regtype) then
+    raise exception 'Existing plan_entitlements.connectors must be text[]';
+  end if;
   if exists(select 1 from public.plan_entitlements where plan not in
       ('free','pro','enterprise','solo','organization'))
      or exists(select 1 from public.providers where plan not in
@@ -53,7 +60,7 @@ alter table public.plan_entitlements
   add column member_cap integer,
   add column admin_cap integer,
   add column group_cap integer,
-  add column connectors text[],
+  add column if not exists connectors text[],
   add column jobs text[],
   add column modules text[],
   add column scan_mode text,
