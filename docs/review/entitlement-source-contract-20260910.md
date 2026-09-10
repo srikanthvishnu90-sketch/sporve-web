@@ -66,3 +66,42 @@ Evidence:
 https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34512916205
 https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34511740336
 https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34512546263
+
+## Final source review and rebuild
+
+Actual routed browser run34513823073/job102994210145:
+```text
+PASS real Chromium at390px: catalog values, selected onboarding plan, no horizontal scroll, visible error/retry, no JavaScript errors
+PASS real Chromium at1440px: catalog values, selected onboarding plan, no horizontal scroll, visible error/retry, no JavaScript errors
+PASS26 DOM assertions; mocked catalog only, no live billing acceptance
+```
+Six screenshots are in artifact10166865514 (run34513823073).
+The initial desktop failure was a harness defect: injecting the inner view
+outside its dashboard produced left-32/right1472 at1440px. The test now uses
+the real router and coach tab; no width assertion or product CSS was weakened.
+
+Full smoke on generated172961a, run34513226526/job102992219645:
+```text
+build outputs in sync with sources
+SMOKE PASSED
+```
+
+Final review executed the source with two purchasable rows and found two
+primary buttons (expected1). The corrected source has primary1/choices2;
+the ninth catalog unit test preserves this design rule.
+Source6eb05338ef8b1badf00d640e5be90b39bcd2a070, run34535161420:
+- source scan zero (job103064960534);
+- catalog tests9/pass9/fail0 (job103064960538);
+- checkout tests7/pass7/fail0 (job103064960557).
+Build job103064960703:
+```text
+built size: 2237075 bytes
+build stamp: 573099944beae4ba
+```
+Generated29961286bb033685d27fe4d7d443acc5036b8a46 has parent6eb05338
+and only index.html/vercel.json changes. Latest browser test also checks one
+primary action at both widths; final whole-head CI is still required.
+
+Independent review was requested. CodeRabbit replied "Review rate limited"
+(comment5623348949); that is NOT approval. Clo review and the authorized
+production release/verification remain required.

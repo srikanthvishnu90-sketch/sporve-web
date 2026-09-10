@@ -31,7 +31,7 @@ try {
         { plan: "solo", display_name: "Sporv Solo", price_usd_month: 49, purchasable: true, ask_quota_month: 500, admin_cap: 1 },
         { plan: "organization", display_name: "Sporv Organization", price_usd_month: 199, purchasable: true, ask_quota_month: 2500, admin_cap: 5 },
       ];
-      window.SporveAPI.from = async () => rows;
+      window.SporveAPI.from = async table => table === "plan_entitlements" ? rows : [];
       window.SporveAuth.userId = () => "fixture-owner";
       S.auth = { status: "verified", user: { id: "fixture-owner" } };
       S.portal = "coach";
@@ -46,7 +46,8 @@ try {
     assert.match(billing, /2500 Ask messages a month, 5 admin seats/);
     assert.doesNotMatch(billing, /34\.99|Sporv Pro|Unlimited AI actions/);
     await noOverflow(page, "catalog viewport");
-    checks += 5;
+    assert.equal(await page.locator(".cui-header .cui-button--primary").count(), 1);
+    checks += 6;
     await page.screenshot({ path: "test-results/plan-catalog/billing-" + width + ".png", fullPage: true });
 
     await page.evaluate(() => {
