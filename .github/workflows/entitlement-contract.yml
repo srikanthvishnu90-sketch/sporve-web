@@ -41,3 +41,14 @@ jobs:
           node-version: "24.16.0"
       - name: Execute actual checkout handler against intercepted services
         run: node --test supabase/functions/billing-create-checkout/handler.test.mjs
+
+  frontend-catalog-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+      - name: Actual frontend catalog and checkout decisions
+        run: node --test scripts/plan-catalog-contract.test.mjs
