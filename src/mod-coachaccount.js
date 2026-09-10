@@ -97,61 +97,71 @@
     return out;
   }
 
-  /* THE PLANS — one declaration, read by the billing tab and by the onboarding
-     wizard's plan step (mod-coachonboard.js reads SporveCoach.plans()), so a
-     price can never disagree with itself across two files.
+  /* Catalog values drive both choices and purchase eligibility. No invented
+     price/quota survives a failed fetch; the screen exposes a retry instead. */
+  var PLANS = Object.create(null);
+  var plansSynced = false, plansPending = null, plansError = "";
 
-     `buyable` is the honesty flag. Enterprise has a price and no product: the
-     multi-player workspace it names is not built, billing-create-checkout
-     rejects it server-side, and nothing here may offer a way to pay for it. */
-  var PLANS = {
-    free: {
-      id: "free", name: "Free", price: "$0", per: "",
-      adds: "Three AI actions a month, one seat.", buyable: true,
-    },
-    pro: {
-      id: "pro", name: "Sporv Pro", price: "$34.99", per: "/mo",
-      adds: "Unlimited AI actions and up to three seats.", buyable: true,
-    },
-    enterprise: {
-      id: "enterprise", name: "Sporv Enterprise", price: "Custom", per: "",
-      adds: "Multi-player workspace — talk to us. In development.", buyable: false,
-    },
-  };
+  function catalogCount(row, preferred, legacy) {
+    var value = Object.prototype.hasOwnProperty.call(row, preferred) ? row[preferred] : row[legacy];
+    if (value === null || value === -1) return null;
+    if (!Number.isSafeInteger(value) || value < 0) throw new Error("Plan limits could not be read. Try again.");
+    return value;
+  }
 
-  /* A5: the numbers above are a FALLBACK. plan_entitlements (public-read in the
-     DB) is the single source the AI endpoint actually enforces, so drive the
-     displayed price / quota / seats from it and reconcile PLANS in place — a
-     price change in the DB then updates the page instead of drifting. The prose
-     is generated from the same numbers so no second hardcoded figure survives.
-     If the fetch fails the fallback stands, so the tab never breaks. */
-  var plansSynced = false;
-  function syncPlans() {
-    if (plansSynced) return Promise.resolve(PLANS);
-    return API.from("plan_entitlements",
-      "select=plan,ai_monthly_quota,seat_limit,workspace_enabled,purchasable,price_usd_month"
-    ).then(function (rows) {
-      (rows || []).forEach(function (r) {
-        var p = PLANS[r.plan]; if (!p) return;
-        var price = Number(r.price_usd_month);
-        // Enterprise is "Custom" (talk to us) — never overwrite it with the DB
-        // numeric price, so the billing tab agrees with the /pricing page.
-        if (isFinite(price) && r.plan !== "enterprise") { p.price = "$" + (price % 1 ? price.toFixed(2) : String(price)); p.per = price > 0 ? "/mo" : ""; }
-        p.buyable = !!r.purchasable;
-        var seats = r.seat_limit;
-        var seatTxt = seats == null ? "" : seats + (seats === 1 ? " seat" : " seats");
-        if (r.plan === "free") {
-          var q = r.ai_monthly_quota;
-          p.adds = (q == null ? "Unlimited AI actions" : q + (q === 1 ? " AI action a month" : " AI actions a month")) +
-            (seatTxt ? ", " + seatTxt : "") + ".";
-        } else if (r.plan === "pro") {
-          p.adds = "Unlimited AI actions" + (seatTxt ? " and up to " + seatTxt : "") + ".";
-        }
-        // enterprise keeps its "in development" prose while workspace_enabled is false.
+  function catalogPlan(row) {
+    if (!row || typeof row.plan !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(row.plan) ||
+        typeof row.purchasable !== "boolean" ||
+        !["number", "string"].includes(typeof row.price_usd_month) ||
+        String(row.price_usd_month).trim() === "") throw new Error("Plan details could not be read. Try again.");
+    var amount = Number(row.price_usd_month);
+    if (!Number.isFinite(amount) || amount < 0) throw new Error("Plan prices could not be read. Try again.");
+    var quota = catalogCount(row, "ask_quota_month", "ai_monthly_quota");
+    var seats = catalogCount(row, "admin_cap", "seat_limit");
+    var askText = quota === null ? "Ask without a monthly limit" : quota + " Ask messages a month";
+    var seatText = seats === null ? "unlimited admin seats" : seats + (seats === 1 ? " admin seat" : " admin seats");
+    return {
+      id: row.plan,
+      name: typeof row.display_name === "string" && row.display_name.trim() ? row.display_name.trim() : row.plan,
+      price: "$" + (amount % 1 ? amount.toFixed(2) : String(amount)),
+      per: amount > 0 ? "/mo" : "", amount: amount,
+      requiresPayment: amount > 0, buyable: row.purchasable && amount > 0,
+      adds: askText + ", " + seatText + ".",
+      order: Number.isFinite(row.sort_order) ? row.sort_order : amount,
+    };
+  }
+
+  function planRows() {
+    return Object.keys(PLANS).map(function (id) { return PLANS[id]; })
+      .sort(function (a, b) { return a.order - b.order || a.id.localeCompare(b.id); });
+  }
+
+  function noCardPlan() {
+    return planRows().find(function (p) { return !p.requiresPayment; }) || null;
+  }
+
+  function syncPlans(force) {
+    if (plansPending) return plansPending;
+    if (plansSynced && !force) return Promise.resolve(PLANS);
+    plansError = "";
+    plansPending = API.from("plan_entitlements", "select=*").then(function (rows) {
+      if (!Array.isArray(rows) || !rows.length) throw new Error("No plan details are available. Try again.");
+      var next = Object.create(null);
+      rows.forEach(function (row) {
+        var p = catalogPlan(row);
+        if (next[p.id]) throw new Error("Plan details are inconsistent. Try again.");
+        next[p.id] = p;
       });
+      PLANS = next;
       plansSynced = true;
       return PLANS;
-    }).catch(function () { return PLANS; });
+    }).catch(function (error) {
+      PLANS = Object.create(null);
+      plansSynced = false;
+      plansError = "Plan details could not be loaded. Retry to see current prices and limits.";
+      throw new Error(plansError);
+    }).finally(function () { plansPending = null; });
+    return plansPending;
   }
 
   /* The statuses that actually grant the paid plan. `canceled` and `incomplete`
@@ -193,7 +203,7 @@
        id: the session is the source of truth for who you are. */
     load: function () {
       if (!uid()) { provider = null; return Promise.resolve(null); }
-      syncPlans();  // A5: reconcile plan prices/quota/seats from the DB (non-blocking)
+      syncPlans().catch(function () {});  // The billing view exposes loading failures.
       /* plan / plan_status / plan_period_end are SERVER-COMPUTED: the Stripe
          webhook projects them onto this row and a trigger refuses a client
          write, so they are safe to read and pointless to send. They are
@@ -612,28 +622,33 @@
        UI gates on, `label` is what it prints. */
     plan: function () {
       var p = provider || {};
-      var id = PLANS[p.plan] ? p.plan : "free";
+      var selected = PLANS[p.plan] || null;
       var status = String(p.plan_status || "none");
       var ends = prettyDay(p.plan_period_end);
-      var paid = id !== "free";
-      var entitled = paid && ENTITLING.indexOf(status) >= 0;
-      var name = PLANS[id].name;
-      var label = "Free plan";
+      var entitled = !!selected && selected.requiresPayment && ENTITLING.indexOf(status) >= 0;
+      var base = noCardPlan();
+      var fallback = { id: "", name: "Plan unavailable", price: "—", per: "", adds: "Reload current plan details.", buyable: false };
+      var effective = entitled ? selected : (selected && !selected.requiresPayment ? selected : base);
+      var label = effective ? effective.name : fallback.name;
       if (entitled) {
-        if (status === "trialing") label = name + " — trial ends " + (ends || "soon");
-        else if (status === "past_due") label = name + " — payment failed" +
-          (ends ? "; access until " + ends : "");
-        else label = name + (ends ? " — renews " + ends : "");
-      } else if (paid && status === "canceled") {
-        label = "Free plan — " + name + " canceled" + (ends ? "; period ends " + ends : "");
-      } else if (paid && status === "incomplete") {
-        label = "Free plan — " + name + " checkout not finished";
+        if (status === "trialing") label += " — trial ends " + (ends || "soon");
+        else if (status === "past_due") label += " — payment failed" + (ends ? "; access until " + ends : "");
+        else if (ends) label += " — renews " + ends;
+      } else if (selected && selected.requiresPayment && status === "canceled") {
+        label += " — " + selected.name + " canceled" + (ends ? "; period ended " + ends : "");
+      } else if (selected && selected.requiresPayment && status === "incomplete") {
+        label += " — " + selected.name + " checkout not finished";
+      } else if (p.plan && !selected) {
+        label = "Current plan could not be matched. Reload plan details.";
       }
-      return { id: id, status: status, entitled: entitled, ends: ends,
-               label: label, plan: PLANS[id] };
+      return { id: selected ? selected.id : "", status: status, entitled: entitled,
+        ends: ends, label: label, plan: effective || fallback };
     },
 
     plans: function () { return PLANS; },
+    planOptions: function () { return planRows(); },
+    refreshPlans: function () { return syncPlans(true); },
+    catalogState: function () { return { loaded: plansSynced, loading: !!plansPending, error: plansError }; },
 
     /* BUY A PLAN. The function decides everything that matters — that the
        caller is a coach, that the plan is on sale, that they are not already
@@ -642,10 +657,9 @@
        why a purchase was refused. */
     startCheckout: function (planId) {
       var no = guard(); if (no) return no;
+      return syncPlans(true).then(function () {
       var p = PLANS[planId];
-      if (!p || !p.buyable || planId === "free") {
-        return Promise.reject(new Error("That plan isn't on sale yet."));
-      }
+      if (!p || !p.buyable) throw new Error("That plan is not available for purchase.");
       /* A SYNCHRONOUS throw here is the bug connectPayouts already shipped
          once: it happens before the promise exists, so the caller's .catch
          never runs and the button sits on "Opening Stripe…" forever. */
@@ -658,6 +672,7 @@
         if (!r || !r.checkoutUrl) throw new Error("Stripe did not return a checkout page.");
         window.location.href = r.checkoutUrl;
         return r;
+      });
       });
     },
 
@@ -749,27 +764,32 @@
     var ui = window.COACH_UI;
     if (!ui) return "";
     var st = ACCOUNT.plan();
-    var free = PLANS.free, pro = PLANS.pro, ent = PLANS.enterprise;
+    var available = planRows();
     var tabs = [
       { key:"plan", label:"Plan" },
       { key:"payment-method", label:"Payment method" },
       { key:"invoices", label:"Invoices" },
     ];
     var active = ui.activeTab(tabs, "plan", "billingTab");
-    var actions = active === "plan" && !st.entitled
-      ? [ui.Button({ label:"Go Pro", size:"lg", variant:"primary", attrs:'data-cb-buy="pro"' })]
+    var actions = active === "plan"
+      ? available.filter(function (p) { return p.buyable && !(st.entitled && p.id === st.id); })
+        .map(function (p) { return ui.Button({ label:"Choose " + p.name, size:"lg", variant:"primary", attrs:'data-cb-buy="' + esc(p.id) + '"' }); })
       : [];
     var body = "";
     if (active === "plan") {
       body = ui.Block({
         title:"Current plan",
         subtitle:"Plan state comes from the loaded provider record; a checkout redirect never changes it by itself.",
-        body:ui.ListCard([
-          { label:ui.html("<b>" + esc(st.label) + "</b><small>" + esc(st.entitled ? st.plan.adds : free.adds) + "</small>"), value:st.entitled ? esc(st.plan.price + st.plan.per) : esc(free.price), mono:true },
-          { label:ui.html("<b>" + esc(free.name) + "</b><small>" + esc(free.adds) + "</small>"), value:esc(free.price), mono:true },
-          { label:ui.html("<b>" + esc(pro.name) + "</b><small>" + esc(pro.adds) + "</small>"), value:esc(pro.price + pro.per), mono:true },
-          { label:ui.html("<b>" + esc(ent.name) + "</b><small>Multi-player workspace is not self-serve.</small>"), value:esc(ent.price + ent.per), mono:true },
-        ]),
+        body:!plansSynced
+          ? ui.EmptyState(plansError ? "Plan details unavailable" : "Loading plan details",
+              plansError || "Current prices and limits will appear here.")
+          : ui.ListCard([
+              { label:ui.html("<b>" + esc(st.label) + "</b><small>" + esc(st.plan.adds) + "</small>"),
+                value:esc(st.plan.price + st.plan.per), mono:true },
+            ].concat(available.map(function (p) {
+              return { label:ui.html("<b>" + esc(p.name) + "</b><small>" + esc(p.adds) + "</small>"),
+                value:esc(p.price + p.per), mono:true };
+            }))),
       });
     } else if (active === "payment-method") {
       body = ui.Block({
@@ -778,7 +798,7 @@
         action:st.entitled ? ui.Button({ label:"Manage in Stripe", size:"sm", variant:"secondary", attrs:'data-cb-portal="1"' }) : "",
         body:st.entitled
           ? ui.ListCard([{ label:ui.html("<b>Billing payment method</b><small>Card details stay in Stripe's hosted portal.</small>"), value:"Stripe-owned", mono:false }])
-          : ui.EmptyState("No subscription payment method","A payment method is collected only if you choose Pro from the Plan tab."),
+          : ui.EmptyState("No subscription payment method","A payment method is collected only if you choose a paid plan from the Plan tab."),
       });
     } else {
       body = ui.Block({
@@ -790,6 +810,7 @@
           : "The free plan has no subscription invoices."),
       });
     }
+    if (plansError) body += ui.Button({ label:"Retry plan details", size:"sm", variant:"secondary", attrs:'data-cb-refresh="1"' });
     body += '<p class="cui-error hide" data-cb-err role="alert"></p>';
     return ui.Page({
       page:"billing", eyebrow:"Business", h1:"Billing",
@@ -842,6 +863,16 @@
   function wireBilling() {
     if (typeof document === "undefined") return;
     readReturn();
+    if (!plansSynced && !plansPending && !plansError) {
+      syncPlans().then(function () { if (typeof render === "function") render(); })
+        .catch(function () { if (typeof render === "function") render(); });
+    }
+    document.querySelectorAll("[data-cb-refresh]").forEach(function (button) {
+      button.onclick = function () {
+        button.disabled = true;
+        syncPlans(true).catch(function () {}).then(function () { if (typeof render === "function") render(); });
+      };
+    });
     document.querySelectorAll("[data-cb-buy]").forEach(function (b) {
       b.onclick = function () {
         cbErr("");

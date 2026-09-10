@@ -16478,20 +16478,37 @@ document.querySelectorAll('.sig-ai-coach').forEach(sigAiCoachWire);
       setTimeout(()=>{el.textContent=next;el.classList.remove("swap");},120);
     });
   });
-  $("[data-planbuy]").forEach(b=>b.onclick=()=>{
-    const plan=b.dataset.planbuy;
-    const signedInCoach=window.SporveAuth&&window.SporveAuth.isSignedIn&&window.SporveAuth.isSignedIn()
-      &&S.coachProvider&&window.SporveCoach&&window.SporveCoach.startCheckout;
-    if(plan==="pro"&&signedInCoach){
-      window.SporveCoach.startCheckout("pro").catch(()=>toast("Couldn't start checkout — please try again"));
+  $("[data-planbuy]").forEach(b=>b.onclick=async()=>{
+    const selectedKey=b.dataset.planbuy;
+    const account=window.SporveCoach;
+    if(!account||!account.refreshPlans){
+      toast("Plan details could not be loaded. Open Account → Billing to retry.");
       return;
     }
-    if(plan==="grow"||plan==="max"||plan==="enterprise"){
-      /* Not in plan_entitlements — never a fake checkout. Honest "talk to us":
-         start a free coach account; our team sets up the bigger plans by hand. */
-      toast("That plan isn't self-serve yet — start free and our team will set you up");
+    b.disabled=true;
+    try{
+      const catalog=await account.refreshPlans();
+      const choice=catalog[selectedKey];
+      if(!choice){
+        toast("That plan is not in the current catalog. Open Account → Billing.");
+        return;
+      }
+      const signedInCoach=window.SporveAuth&&window.SporveAuth.isSignedIn&&window.SporveAuth.isSignedIn()
+        &&S.coachProvider&&account.startCheckout;
+      if(choice.buyable&&signedInCoach){
+        await account.startCheckout(choice.id);
+        return;
+      }
+      if(choice.requiresPayment&&!choice.buyable){
+        toast("This plan is not available for self-serve checkout.");
+        return;
+      }
+      S.signupRole="coach";S.pendingIntent={kind:"coachOnboard"};S.modal={type:"authsheet"};render();
+    }catch(error){
+      toast(error&&error.message?error.message:"Plan details could not be loaded. Try again.");
+    }finally{
+      b.disabled=false;
     }
-    S.signupRole="coach";S.pendingIntent={kind:"coachOnboard"};S.modal={type:"authsheet"};render();
   });
   /* Pricing Monthly/Yearly toggle — flips displayed prices only (no real annual
      checkout exists yet; the fine print says so). A full re-render is cheap and
