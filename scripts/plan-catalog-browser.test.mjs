@@ -7,6 +7,17 @@ import { mkdir } from "node:fs/promises";
 await mkdir("test-results/plan-catalog", { recursive: true });
 const browser = await chromium.launch();
 let checks = 0;
+async function noOverflow(page, label) {
+  const result = await page.evaluate(() => ({
+    width: innerWidth, scroll: document.documentElement.scrollWidth,
+    bodyClass: document.body.className,
+    overflow: [...document.querySelectorAll("body *")].map(el => ({
+      tag: el.tagName, classes: el.className,
+      left: el.getBoundingClientRect().left, right: el.getBoundingClientRect().right,
+    })).filter(x => x.right > innerWidth + 1).slice(0, 12),
+  }));
+  assert.ok(result.scroll <= result.width + 1, label + " " + JSON.stringify(result));
+}
 try {
   for (const width of [390, 1440]) {
     const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
@@ -32,7 +43,7 @@ try {
     assert.match(billing, /500 Ask messages a month, 1 admin seat/);
     assert.match(billing, /2500 Ask messages a month, 5 admin seats/);
     assert.doesNotMatch(billing, /34\.99|Sporv Pro|Unlimited AI actions/);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
+    await noOverflow(page, "catalog viewport");
     checks += 5;
     await page.screenshot({ path: "test-results/plan-catalog/billing-" + width + ".png", fullPage: true });
 
@@ -45,7 +56,7 @@ try {
     assert.equal(await page.locator("input[data-cob-plan]").count(), 3);
     assert.equal(await page.locator('input[data-cob-plan="solo"]').isChecked(), true);
     assert.equal(await page.locator('input[data-cob-plan="organization"]').isChecked(), false);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
+    await noOverflow(page, "catalog viewport");
     checks += 4;
     await page.screenshot({ path: "test-results/plan-catalog/onboarding-" + width + ".png", fullPage: true });
 
