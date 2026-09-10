@@ -136,3 +136,29 @@ security job102969890767:
 Browser smoke job102969891112 passed on that red regression commit.
 After-fix CI is required; syntax parsing alone is not test execution.
 No prompt or business gate is declared complete by this integration.
+
+### After-fix CI evidence
+
+Implementation commit: 84671636273b7dace90c95303b0ba4b0e8f2f882.
+[PR checks run](https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34507501536):
+security job102973190883 and browser-smoke job102973190657 both succeeded;
+secret-scan run34507501571 succeeded.
+
+```text
+2026-09-10T17:20:09.0378930Z PASS email sealed bytes, key, original approval and quota receipt travel through the actual handler
+2026-09-10T17:20:09.1274414Z PASS email quota denial is explicit and no provider request or legacy write occurs
+2026-09-10T17:20:09.5590825Z PASS email worker reserves sealed dispatch and shared quota before contacting Resend
+2026-09-10T17:20:09.5714030Z tests 262
+2026-09-10T17:20:09.5714669Z pass 262
+2026-09-10T17:20:09.5714894Z fail 0
+2026-09-10T17:20:07.7477967Z PASS no horizontal overflow at 390x844
+2026-09-10T17:20:08.0835677Z PASS every footer link resolves to a distinct page
+2026-09-10T17:20:11.0733999Z SMOKE PASSED
+```
+
+The262 total includes the policy test file alongside the real-handler suite.
+Later retry/window/result-replay regressions require their own green run;
+none of these doubles proves production schema compatibility or real delivery.
+The existing smoke also reports family-portal contrast at baseline4 and the
+agent detector verdict fail, average3.56/10; a green smoke does NOT close
+accessibility, agent quality or launch acceptance.
