@@ -12,6 +12,8 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       - name: P1.02 exact source scan
         shell: bash
         run: |
@@ -36,7 +38,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-node@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "24.16.0"
       - name: Execute actual checkout handler against intercepted services
@@ -47,7 +51,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-node@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "24.16.0"
       - name: Actual frontend catalog and checkout decisions
@@ -58,19 +64,76 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-node@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "24.16.0"
       - name: Install pinned browser harness
-        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+        run: npm ci --prefix scripts/ci-browser --ignore-scripts --no-audit --no-fund
       - name: Install browser
-        run: npx playwright install chromium
+        run: node scripts/ci-browser/node_modules/playwright/cli.js install chromium
       - name: Verify committed build in real Chromium
         run: node scripts/plan-catalog-browser.test.mjs
       - name: Preserve browser screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: plan-catalog-browser
-          path: test-results/plan-catalog/
+          path: |
+            test-results/plan-catalog/billing-390.png
+            test-results/plan-catalog/billing-1440.png
+            test-results/plan-catalog/onboarding-390.png
+            test-results/plan-catalog/onboarding-1440.png
+            test-results/plan-catalog/unavailable-390.png
+            test-results/plan-catalog/unavailable-1440.png
+            test-results/plan-catalog/error-390.png
+            test-results/plan-catalog/error-1440.png
           if-no-files-found: error
+
+  rebuild-reviewed-draft:
+    # Remote-only workspace: reproduce build.py outputs on this one draft
+    # branch, never main, another contributor's branch, or a fork.
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'srikanthvishnu90-sketch/sporve-web' &&
+      github.head_ref == 'codex/entitlement-source-contract-20260910'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.16.0"
+      - name: Generate CI-only browser dependency lock
+        run: npm install --prefix scripts/ci-browser --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Build committed sources without hand-editing generated files
+        run: python3 src/build.py
+      - name: Commit only generated output to the same draft head
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_ref=refs/heads/codex/entitlement-source-contract-20260910
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          remote_sha="$(git ls-remote origin "$target_ref" | cut -f1)"
+          test "$remote_sha" = "$EXPECTED_SOURCE_SHA"
+          unexpected="$(git diff --name-only -- . ':!index.html' ':!vercel.json' ':!scripts/ci-browser/package-lock.json')"
+          test -z "$unexpected"
+          if git diff --quiet -- index.html vercel.json && test -f scripts/ci-browser/package-lock.json && git ls-files --error-unmatch scripts/ci-browser/package-lock.json >/dev/null 2>&1; then
+            echo "PASS generated files already match build.py"
+            exit 0
+          fi
+          git add -- index.html vercel.json scripts/ci-browser/package-lock.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: generate browser dependency lock and page from reviewed draft" \
+            -m "Source: $EXPECTED_SOURCE_SHA. Executed python3 src/build.py; npm generated the CI-only lockfile; only that lockfile, index.html and vercel.json staged. No smoke or production acceptance claimed by this build commit."
+          git push origin "HEAD:$target_ref"
+          git rev-parse HEAD

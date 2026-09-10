@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { chromium } from "playwright";
+import { createRequire } from "node:module";
+const { chromium } = createRequire(new URL("./ci-browser/package.json", import.meta.url))("playwright");
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
@@ -64,6 +65,23 @@ try {
     await noOverflow(page, "catalog viewport");
     checks += 4;
     await page.screenshot({ path: "test-results/plan-catalog/onboarding-" + width + ".png", fullPage: true });
+
+
+    await page.evaluate(async () => {
+      window.SporveAPI.from = async table => table === "plan_entitlements" ? [
+        { plan: "solo", display_name: "Sporv Solo", price_usd_month: 49, purchasable: false, ask_quota_month: 500, admin_cap: 1 },
+      ] : [];
+      await window.SporveCoach.refreshPlans();
+      S.onboard.submittedAt = "2026-09-10T00:00:00Z";
+      S.onboard.businessName = "Fixture organization";
+      render();
+    });
+    assert.equal(await page.locator("[data-cob-buyplan]").count(), 0);
+    assert.match(await page.locator("#app").innerText(), /Sporv Solo — unavailable/);
+    assert.equal(await page.evaluate(() => S.onboard.plan), "solo");
+    await noOverflow(page, "unavailable submitted plan viewport");
+    checks += 4;
+    await page.screenshot({ path: "test-results/plan-catalog/unavailable-" + width + ".png", fullPage: true });
 
     await page.evaluate(async () => {
       window.SporveAPI.from = async () => { throw new Error("fixture network failure"); };

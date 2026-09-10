@@ -105,3 +105,22 @@ test("multiple catalog choices retain one primary action", async () => {
   assert.equal(h.buttons.filter(button => button.attrs?.startsWith("data-cb-buy=")).length, 2);
   assert.equal(h.buttons.filter(button => button.variant === "primary").length, 1);
 });
+
+const onboardSource = readFileSync(new URL("../src/mod-coachonboard.js", import.meta.url), "utf8");
+function submittedPlan(plan) {
+  const window = { SporveCoach: { plans: () => ({ "catalog-paid": plan }) } };
+  const S = { onboard: { plan: "catalog-paid", businessName: "Fixture", submittedAt: "2026-09-10T00:00:00Z" } };
+  vm.runInNewContext(onboardSource, { window, S, esc: String });
+  return { html: window.MOD_COACHONBOARD.views.onboard(), selection: S.onboard.plan };
+}
+test("submitted persisted unavailable paid plan has no checkout button and says unavailable", () => {
+  const result = submittedPlan({ id: "catalog-paid", name: "Fixture paid", requiresPayment: true, buyable: false, price: "$49", per: "/mo" });
+  assert.doesNotMatch(result.html, /data-cob-buyplan=/);
+  assert.match(result.html, /Fixture paid — unavailable/);
+  assert.equal(result.selection, "catalog-paid");
+});
+test("submitted buyable paid plan keeps its catalog-named checkout action", () => {
+  const result = submittedPlan({ id: "catalog-paid", name: "Fixture paid", requiresPayment: true, buyable: true, price: "$49", per: "/mo" });
+  assert.match(result.html, /data-cob-buyplan="catalog-paid"/);
+  assert.match(result.html, /Start Fixture paid/);
+});

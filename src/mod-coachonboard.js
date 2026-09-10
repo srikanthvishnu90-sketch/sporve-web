@@ -43,10 +43,15 @@ const planName = id => { const p = plans(); return p && p[id] ? p[id].name : "Pl
 const planOptions = () => Object.values(plans() || {});
 const selectedPlan = d => (plans() || {})[d.plan] || null;
 const noCardPlan = () => planOptions().find(p => !p.requiresPayment) || null;
-const paidSelection = d => !!selectedPlan(d) && selectedPlan(d).requiresPayment;
+const paidSelection = d => {
+  const p = selectedPlan(d);
+  return !!p && p.requiresPayment && p.buyable;
+};
 const planSummary = d => {
   const p = selectedPlan(d);
-  return p ? p.name + (p.requiresPayment ? " — " + p.price + p.per + ", not started yet" : " — no card")
+  return p ? p.name + (p.requiresPayment
+    ? (p.buyable ? " — " + p.price + p.per + ", not started yet" : " — unavailable")
+    : " — no card")
     : "Plan details unavailable. Review Billing after setup.";
 };
 
