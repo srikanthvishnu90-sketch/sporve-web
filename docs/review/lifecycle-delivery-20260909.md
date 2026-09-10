@@ -162,3 +162,70 @@ none of these doubles proves production schema compatibility or real delivery.
 The existing smoke also reports family-portal contrast at baseline4 and the
 agent detector verdict fail, average3.56/10; a green smoke does NOT close
 accessibility, agent quality or launch acceptance.
+
+### Compiler and latest regression evidence
+
+Head59c6a4cf7e311bd21de6f9348a796a4172f8fd1a was tested as GitHub's
+merge08b5ece70cf22b2b38ec98fe60da6cb73d3b654a against main74e846d.
+[All three PR-check jobs passed](https://github.com/srikanthvishnu90-sketch/sporve-web/actions/runs/34508202169);
+secret-scan run34508202048 also passed.
+
+```text
+lifecycle-typecheck job102975480774:
+2026-09-10T17:26:22.2490159Z Going to install stable version 2.9.6.
+2026-09-10T17:26:23.6414895Z deno check --no-config --node-modules-dir=none supabase/functions/lifecycle-process/index.ts
+2026-09-10T17:26:24.3607548Z Check supabase/functions/lifecycle-process/index.ts
+job conclusion: success
+
+security-regressions job102975481168:
+2026-09-10T17:26:56.4430377Z ℹ tests 267
+2026-09-10T17:26:56.4430969Z ℹ pass 267
+job conclusion: success
+
+smoke job102975481188: success
+secret-scan run34508202048: success
+```
+
+Deno2.9.6 and setup-deno2.0.5's commit are pinned using the
+[official setup action](https://github.com/denoland/setup-deno).
+The existing Supabase SDK import still resolves a major-version range; this
+run resolved2.116.0. Full dependency/edge-function pinning is NOT claimed.
+
+### Current production prerequisites: read-only check
+
+```text
+email_prepare_exists       false
+email_result_exists        false
+shared_quota_exists        false
+public_tables_without_rls  0
+```
+
+Both caller RPCs and shared quota storage are still absent: deploying this
+worker alone would fail delivery preparation. No production deployment or
+live email happened. A successful Vercel frontend deployment does not deploy
+these Supabase functions.
+
+Robin's newer ledger repair is now independently visible in production:
+one booking RPC overload; both booking and legacy billing function bodies have
+an event advisory lock and no ledger UPDATE. This is metadata/source inspection,
+not a live payment, payout, refund or duplicate-event execution test.
+Do not repeat the earlier claim that the old ledger UPDATE defect is still live.
+
+Additional known G4 blocker discovered while tracing this worker: the
+pre-existing outside-send-window branch updates `send_after` without a checked
+receipt and uses an organization-local Date as if it were UTC. This patch does
+not claim to repair that branch or to close every write path.
+
+## Six-prompt status at this checkpoint
+
+- [ ] Prompt1: delivery integration review-ready; billing/entitlement coordinated
+  release and Stripe acceptance remain incomplete.
+- [ ] Prompt2: full evidence-scored feature inventory not completed.
+- [ ] Prompt3: feature floor and5,000-org scale proof not completed.
+- [ ] Prompt4: full production security pass and all findings not closed.
+- [ ] Prompt5: complete paywall journeys not verified.
+- [ ] Prompt6: live email/payment gates, operations window and customer
+  onboarding acceptance not closed.
+
+Verdict: NOTHING MOVED on whole G1–G4 gates;0/6 prompts complete.
+Implementation/tests are supporting evidence, not authorization to merge.
