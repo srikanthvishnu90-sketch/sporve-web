@@ -977,3 +977,34 @@ test('email worker reserves sealed dispatch and shared quota before contacting R
   assert.equal(r.calls.some(c=>c.operation==='update'),false,
     'email delivery must not fall back to independent source updates');
 });
+
+test('email retry uses the same sealed key and bytes but a new durable attempt',async()=>{
+  const first=await invoke({emailReply:async()=>new Response('{}',{status:429})});
+  const prior=first.calls.find(c=>c.name==='prepare_approved_lifecycle_email').receipt;
+  const second=await invoke({preparePatch:v=>({...prior,
+    attempt_id:'60000000-0000-4000-8000-000000000006',attempt_count:2})});
+  assert.equal(first.body.emailFailed,1);assert.equal(second.body.emailed,1);
+  assert.equal(second.external[0].wire,first.external[0].wire);
+  assert.equal(second.external[0].headers['Idempotency-Key'],first.external[0].headers['Idempotency-Key']);
+  const record=second.calls.find(c=>c.name==='record_lifecycle_email_result');
+  assert.notEqual(record.args.p_attempt,prior.attempt_id);
+});
+test('ready dispatch outside the provider idempotency window never sends again',async()=>{
+  const r=await invoke({rows:[{...message,approved_at:new Date(Date.now()-30*60*60*1000).toISOString()}],
+    preparePatch:{created_at:new Date(Date.now()-24*60*60*1000).toISOString()}});
+  assert.equal(r.status,503);assert.deepEqual(r.external,[]);
+});
+test('future dispatch timestamp cannot grant provider access',async()=>{
+  const r=await invoke({preparePatch:{created_at:new Date(Date.now()+120000).toISOString()}});
+  assert.equal(r.status,503);assert.deepEqual(r.external,[]);
+});
+test('unknown per-row exception never performs an unchecked retry reset',async()=>{
+  const r=await invoke({override:c=>c.table==='provider_settings'&&c.filters.some(f=>f[0]==='key'&&f[1]==='send_window')
+    ?{data:{value:{start:{invalid:true}}},error:null}:undefined});
+  assert.equal(r.status,503);assert.equal(r.body.emailUnverified,1);assert.deepEqual(r.external,[]);
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+});
+test('result replay with changed provider id cannot claim delivery',async()=>{
+  const r=await invoke({resultPatch:{kind:'already_recorded',provider_message_id:'other-provider-id'}});
+  assert.equal(r.status,503);assert.equal(r.body.emailed,0);assert.equal(r.external.length,1);
+});
