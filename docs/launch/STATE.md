@@ -1,7 +1,7 @@
 # Sporv launch state
 
 Updated:2026-09-10
-Active: Prompt1 / P1.03
+Active: Prompt1 / P1.02 review follow-up (P1.03 supporting HTTP checks captured)
 Progress:0/69 accepted for release;2 parked;0/6 prompts DONE.
 Business-gate verdict: NOTHING MOVED; isolated catalog checks support G1/G4 but do not close them.
 
@@ -38,7 +38,7 @@ writes; fixtures never run against production.
 ## Prompt1 acceptance
 
 - [ ] P1.01 [PARKED, not green]: Exactly3 seeded live plan_entitlements rows; every required field populated.
-- [ ] P1.02 [PARKED, release pending]: Plan/plan_key string-equality comparison grep returns zero in src/,api/,supabase/.
+- [ ] P1.02 [PARKED, review corrections in progress]: Plan/plan_key string-equality comparison grep returns zero in src/,api/,supabase/.
 - [ ] P1.03: Free16th member ->402 upgrade_to Solo; Gmail connect ->402; draft21 behavior and finding proven against the explicitly resolved specification; Ask26 ->402. All other listed server gates also tested with exact payloads.
 - [ ] P1.04: Solo Outlook ->402; Gmail connection succeeds.
 - [ ] P1.05: Organization permits entitled actions within its purchased capacity; no decorative cap or accidental paid send limit. This supersedes the old unlimited Enterprise plan definition, not the requirement for enforcement.
@@ -137,8 +137,9 @@ P1.01 — live catalog verification and release.
   Parked remains unchecked and does not make Prompt1 DONE.
 
 P1.02 — isolated source/browser checks passed; independent review and release pending.
-- Failure: the earlier review request was rate-limited; a retry is now triggered
-  but no submitted approval or Clo release evidence exists.
+- Independent review arrived: CI credential persistence/action pinning/unlocked browser install,
+  plus an unavailable persisted-plan checkout button. Corrections are in progress;
+  no approval or Clo release evidence exists.
 - Safe implementation and verification completed on PR415 head9a9b38e5.
 - Dependency: independent critical-path/Clo review; merge only intended files;
   approved mirror/Vercel release and live build-marker verification.
@@ -200,10 +201,48 @@ A fourth later Supabase read again failed OAuth refresh with the same error;
 P1.01 live verification remains parked. Current main STATE still returns404;
 the authoritative working record remains PR412's branch, not a claimed merge.
 
+## P1.03 supporting signed-HTTP evidence
+
+Actual isolated run34536384825/job103068867105 at57312ce272a356448d83b1e1d38a0cccab0b3ea4:
+```text
+HTTP402 member_cap {"limit":15,"reason":"member_cap","current":15,"upgrade_to":"solo","current_plan":"free"}
+HTTP402 group_cap {"limit":1,"reason":"group_cap","current":1,"upgrade_to":"solo","current_plan":"free"}
+HTTP402 admin_cap {"limit":1,"reason":"admin_cap","current":1,"upgrade_to":"organization","current_plan":"free"}
+PASS owner JWT: three fixture table cross-org reads empty; cross-org insert403 without entitlement leakage
+PASS real JWT validation: invalid signature401; staff write403
+PASS other owner's entitled HTTP insert201 while both Free requests are observed blocked
+PASS two observed concurrent HTTP database sessions: final slot yields one201, one402, total15
+KNOWN GAP: raw table endpoint wraps reason/current_plan/upgrade_to/limit/current in details; application endpoint top-level payload is not proven
+```
+The API is pinned PostgREST14.18 against disposable PostgreSQL17.11, executing
+the unchanged entitlement guard draft; JWT signatures are actually verified.
+Owner-only fixture RLS is synthetic, not evidence for all production policies.
+The assignment resolver in this narrow fixture is simplified, so this does not
+prove the deployed trial resolver or a complete catalog/guard integration.
+The first workflow attempt34535833212 failed before any jobs due to a job-level
+service-port expression; moving it to step env enabled the actual HTTP run.
+No production data was touched; P1.03 remains unchecked (other gates and release
+still unverified).
+
+## P1.02 independent review follow-up
+
+Review comments3983952958/3983952963/3983952976/3983952982 were received and
+verified against9a9b38e5. The unavailable-choice defect was reproduced by
+executing the actual onboarding module in V8:
+```text
+Before: checkoutButtons=1, unavailable=false, selection=catalog-paid
+After: checkoutButtons=0, unavailable=true, selection=catalog-paid
+```
+Correction draft58f6d3789b7ce8d9ea5756f422ee99782902e8e2 adds two regression
+tests, a browser check, pinned actions, non-persisted test credentials, exact
+screenshot paths and a CI-only browser dependency manifest.
+A temporary same-draft generator must generate the dependency lock and
+build.py outputs, then be removed; full green CI and review are still required.
+No source or release acceptance is inferred from the earlier9a9b checks.
+
 ## NEXT
 
-P1.03: inspect the actual API/SQL routes for Free member/admin/group/connector/
-draft/send/Ask/module limits, execute direct-request checks against isolated
-fixtures, and fix uncovered enforcement without blocking dues or exports.
-The draft-hard-stop versus visible-overflow conflict remains explicitly open.
-Watch PR415's independent review without treating its pending release as green.
+Finish the received P1.02 review corrections: inspect actual generated lock and
+build outputs, remove the temporary write job, run all source/handler/browser/
+smoke/security checks, then return to P1.03 API payload and connector gates.
+Clo critical-path review and live release remain separate acceptance steps.
