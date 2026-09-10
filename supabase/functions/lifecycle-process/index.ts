@@ -29,6 +29,7 @@ import { buildCoachVoiceProfile } from "../_shared/coach_voice.ts";
 import { withHttpDeadline, readBoundedJson } from "../_shared/http.ts";
 import { entitlementLimitResponse } from "../_shared/entitlements.ts";
 import { validateInboxDeliveryReceipt } from "./inbox-delivery.mjs";
+import { validateEmailDispatch, validateEmailResult } from "./email-delivery.mjs";
 import {
   resolveAction,
   modelForEvent,
@@ -103,42 +104,19 @@ async function holdForReview(admin: Admin, row: { id: string; provider_id: strin
   }
 }
 
-type ApprovedEmail = {
-  id: string; provider_id: string; approved_by: string; approved_at: string; content: unknown;
-};
-// PostgREST timestamps may use +00:00 and six fractional digits while JS uses
-// Z and three. Compare the instant without rounding away PostgreSQL microseconds.
-function emailInstantKey(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const m = value.match(/^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}:\d{2})$/);
-  if (!m) return null;
-  const seconds = Date.parse(m[1] + m[3]);
-  return Number.isFinite(seconds) ? `${seconds}:${(m[2] ?? "").padEnd(6, "0")}` : null;
-}
-const sameEmailInstant = (a: unknown, b: unknown) => emailInstantKey(a) !== null && emailInstantKey(a) === emailInstantKey(b);
-// Preconditions: exact human-approved snapshot and exclusive processing claim.
-// Receipt: returned persisted row matches every written field and that snapshot.
-// Inverse: an accepted email cannot be unsent; ambiguous acceptance requires
-// reconciliation, never resetting it to approved for another provider request.
-async function recordEmailTransition(admin: Admin, row: ApprovedEmail, patch: {
-  status: "sent" | "approved" | "needs_review"; last_error: string | null;
-  sent_at?: string; provider?: string; provider_message_id?: string;
-  attempt_count?: number; send_after?: string;
-}) {
-  const { data, error } = await generationDb(signal => admin.from("outbound_messages")
-    .update(patch).eq("id", row.id).eq("provider_id", row.provider_id)
-    .eq("status", "processing").eq("approved_by", row.approved_by).eq("approved_at", row.approved_at)
-    .eq("content", JSON.stringify(row.content)).is("sent_at", null)
-    .select("id, provider_id, approved_by, approved_at, content, status, sent_at, provider, provider_message_id, last_error, attempt_count, send_after")
-    .abortSignal(signal).maybeSingle());
-  const persisted: Record<string, unknown> = data ?? {};
-  if (error || data?.id !== row.id || data?.provider_id !== row.provider_id ||
-    data?.approved_by !== row.approved_by || !sameEmailInstant(data?.approved_at, row.approved_at) ||
-    !sameJson(data?.content, row.content) ||
-    (patch.sent_at ? !sameEmailInstant(data?.sent_at, patch.sent_at) : data?.sent_at !== null) ||
-    !Object.entries(patch).every(([key, value]) => key === "sent_at" || key === "send_after"
-      ? sameEmailInstant(persisted[key], value) : sameJson(persisted[key], value))) {
-    throw new Error("Email transition receipt unavailable.");
+// The result transaction commits the immutable provider receipt, quota
+// acceptance and sent projection together. Never fall back to source UPDATE.
+async function recordEmailResult(admin: Admin, dispatch: {
+  dispatch_id: string; attempt_id: string; provider_id: string; wire_sha256: string; created_at: string;
+}, outcome: "accepted" | "retry_wait" | "ambiguous" | "rejected", providerId: string | null = null,
+retryAfter: string | null = null) {
+  const { data, error } = await generationDb(signal => admin.rpc("record_lifecycle_email_result", {
+    p_dispatch: dispatch.dispatch_id, p_attempt: dispatch.attempt_id, p_provider: dispatch.provider_id,
+    p_wire_sha256: dispatch.wire_sha256, p_outcome: outcome,
+    p_provider_message_id: providerId, p_retry_after: retryAfter,
+  }).abortSignal(signal));
+  if (error || !validateEmailResult(data, dispatch, outcome, providerId)) {
+    throw new Error("Email result receipt unavailable.");
   }
 }
 
@@ -459,6 +437,7 @@ Deno.serve(async (req) => {
           throw new DeliveryPreconditionError("guardian_email_not_deliverable");
         }
         if (!RESEND_API_KEY) throw new DeliveryPreconditionError("email_provider_not_configured");
+        if (!c.guardian_id) throw new DeliveryPreconditionError("verified_guardian_required_for_email");
         if (typeof gEmail !== "string" || !/^[^\s@<>,;:"\\]+@[^\s@<>,;:"\\]+\.[^\s@<>,;:"\\]+$/.test(gEmail)) {
           throw new DeliveryPreconditionError("recipient_email_invalid");
         }
@@ -512,44 +491,44 @@ Deno.serve(async (req) => {
             unsubUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/unsubscribe?g=${c.guardian_id}&t=${tok}`;
           } catch { throw new DeliveryPreconditionError("delivery_unsubscribe_unavailable"); }
         }
-        // A claim must preserve the exact owner approval and source snapshot.
-        // Missing/no-op/mismatched receipts never grant permission to contact a
-        // parent. All preparation above occurs before this exclusive claim.
+        const envelope = {
+          from: `${orgName} <${slug}@${MAIL_DOMAIN}>`, replyTo, recipient: gEmail,
+          subject: c.subject || `A message from ${orgName}`, unsubscribe: unsubUrl,
+        };
+        let dispatch;
         try {
-          const { data: claimed, error: claimError } = await generationDb(signal => admin.from("outbound_messages")
-            .update({ status: "processing" }).eq("id", er.id).eq("provider_id", er.provider_id)
-            .eq("status", "approved").eq("approved_by", er.approved_by).eq("approved_at", er.approved_at)
-            .eq("content", JSON.stringify(er.content)).is("sent_at", null)
-            .select("id, provider_id, content, approved_by, approved_at, status, sent_at").abortSignal(signal).maybeSingle());
-          if (claimError || claimed?.id !== er.id || claimed?.provider_id !== er.provider_id ||
-            claimed?.approved_by !== er.approved_by || !sameEmailInstant(claimed?.approved_at, er.approved_at) ||
-            !sameJson(claimed?.content, er.content) || claimed?.status !== "processing" || claimed?.sent_at !== null) {
-            throw new Error("Email claim receipt unavailable.");
+          const { data, error: prepareError } = await generationDb(signal => admin.rpc("prepare_approved_lifecycle_email", {
+            p_message: er.id, p_provider: er.provider_id, p_actor: er.approved_by,
+            p_approved_at: er.approved_at, p_expected_content: er.content,
+            p_recipient: envelope.recipient, p_from: envelope.from, p_reply_to: envelope.replyTo,
+            p_subject: envelope.subject, p_unsubscribe_url: envelope.unsubscribe,
+          }).abortSignal(signal));
+          if (prepareError) {
+            const denial = entitlementLimitResponse(prepareError);
+            if (denial && denial.body.reason === "send_quota_month") {
+              quotaDenials.push({ messageId: er.id, error: denial.body });
+              emailSummary.sendQuotaBlocked++;
+            } else emailSummary.emailUnverified++;
+            continue;
           }
+          dispatch = await validateEmailDispatch(data, er, envelope);
+          if (!dispatch) { emailSummary.emailUnverified++; continue; }
+          if (dispatch.kind === "already_accepted") { emailSummary.emailSkipped++; continue; }
+          if (dispatch.kind === "deferred") { emailSummary.windowDeferred++; continue; }
+          if (dispatch.kind === "held") { emailSummary.emailUnverified++; continue; }
         } catch { emailSummary.emailUnverified++; continue; }
 
-        const attempts = Number.isSafeInteger(er.attempt_count) && er.attempt_count >= 0 ? er.attempt_count + 1 : 1;
+        const attempts = dispatch.attempt_count;
         let providerReply: { ok: boolean; status: number; body: Record<string, unknown>; retryAfter: string | null };
         try {
           providerReply = await withHttpDeadline(async signal => {
           const resp = await fetch("https://api.resend.com/emails", {
             method: "POST",
             signal, redirect: "error",
-            headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              from: `${orgName} via Sporv <${slug}@${MAIL_DOMAIN}>`,
-              ...(replyTo ? { reply_to: replyTo } : {}),
-              to: [gEmail],
-              subject: c.subject || `A message from ${orgName}`,
-              text: c.body + (unsubUrl ? `\n\n—\nUnsubscribe from these messages: ${unsubUrl}` : ""),
-              headers: {
-                "X-Sporv-Message-Id": er.id,
-                ...(unsubUrl ? {
-                  "List-Unsubscribe": `<${unsubUrl}>`,
-                  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-                } : {}),
-              },
-            }),
+            headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json",
+              "Idempotency-Key": dispatch.idempotency_key },
+            // These are the exact persisted UTF-8 bytes, not JSON re-rendered here.
+            body: dispatch.wire_body,
           });
           const body = await readBoundedJson(resp, EMAIL_RESPONSE_BYTES, signal);
           signal.throwIfAborted();
@@ -560,8 +539,7 @@ Deno.serve(async (req) => {
           // state and do not automatically send the same message again.
           emailSummary.emailUnverified++;
           try {
-            await recordEmailTransition(admin, er, { status: "needs_review", attempt_count: attempts,
-              last_error: "email_delivery_unconfirmed" });
+            await recordEmailResult(admin, dispatch, "ambiguous");
             emailSummary.needsReview++;
           } catch { /* Processing claim remains held; response is503. */ }
           continue;
@@ -569,10 +547,7 @@ Deno.serve(async (req) => {
         const providerId = providerReply.body?.id;
         if (providerReply.ok && typeof providerId === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(providerId)) {
           try {
-            await recordEmailTransition(admin, er, {
-              status: "sent", sent_at: new Date().toISOString(),
-              provider: "resend", provider_message_id: providerId, last_error: null,
-            });
+            await recordEmailResult(admin, dispatch, "accepted", providerId);
             emailSummary.emailed++;
           } catch {
             // The receipt write might have committed despite a lost response.
@@ -587,16 +562,19 @@ Deno.serve(async (req) => {
           const backoffMs = Math.min(3_600_000, 60_000 * 2 ** Math.min(attempts - 1, 6));
           const waitMs = Math.max(backoffMs, Number.isFinite(requestedMs) ? requestedMs : 0);
           try {
-            await recordEmailTransition(admin, er, { status: "approved", attempt_count: attempts,
-              send_after: new Date(Date.now() + waitMs).toISOString(), last_error: "email_provider_rate_limited" });
+            if (waitMs > 7 * 24 * 60 * 60 * 1000) {
+              await recordEmailResult(admin, dispatch, "rejected");
+              emailSummary.needsReview++;
+              continue;
+            }
+            await recordEmailResult(admin, dispatch, "retry_wait", null, new Date(Date.now() + waitMs).toISOString());
             emailSummary.emailFailed++;
           } catch { emailSummary.emailUnverified++; }
         } else {
           const rejected = [400, 401, 403, 404, 422].includes(providerReply.status);
           if (!rejected) emailSummary.emailUnverified++;
           try {
-            await recordEmailTransition(admin, er, { status: "needs_review", attempt_count: attempts,
-              last_error: rejected ? "email_provider_rejected" : "email_delivery_unconfirmed" });
+            await recordEmailResult(admin, dispatch, rejected ? "rejected" : "ambiguous");
             emailSummary.needsReview++;
           } catch { if (rejected) emailSummary.emailUnverified++; }
         }
@@ -612,13 +590,9 @@ Deno.serve(async (req) => {
           emailSummary.needsReview++;
           continue;
         }
-        // isolation net for anything above: record, bounded-retry, move on.
-        const attempts = (er.attempt_count ?? 0) + 1;
-        await admin.from("outbound_messages").update({
-          status: attempts >= 3 ? "failed" : "approved",
-          attempt_count: attempts, last_error: String(rowErr).slice(0, 300),
-        }).eq("id", er.id).is("sent_at", null).then(() => {}, () => {});
-        emailSummary.emailFailed++;
+        // Unknown failures may follow a committed dispatch. Leave its state
+        // authoritative, redact diagnostics, and keep processing other orgs.
+        emailSummary.emailUnverified++;
        }
       }
     }
