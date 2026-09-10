@@ -25,7 +25,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta name="sporve-build" content="e7bff9c12cfbe7da">
+<meta name="sporve-build" content="573099944beae4ba">
 </head>
 <body>
 <noscript><h1>Sporv — Every sport. One app.</h1><p>Sporv connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -21410,7 +21410,7 @@ window.MOD_COACHUI = { css:CSS, wire:wire };
     var active = ui.activeTab(tabs, "plan", "billingTab");
     var actions = active === "plan"
       ? available.filter(function (p) { return p.buyable && !(st.entitled && p.id === st.id); })
-        .map(function (p) { return ui.Button({ label:"Choose " + p.name, size:"lg", variant:"primary", attrs:'data-cb-buy="' + esc(p.id) + '"' }); })
+        .map(function (p, index) { return ui.Button({ label:"Choose " + p.name, size:"lg", variant:index === 0 ? "primary" : "secondary", attrs:'data-cb-buy="' + esc(p.id) + '"' }); })
       : [];
     var body = "";
     if (active === "plan") {
