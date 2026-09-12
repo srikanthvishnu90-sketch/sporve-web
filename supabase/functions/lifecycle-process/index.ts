@@ -27,6 +27,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { deliverPush } from "../_shared/push.ts";
 import { buildCoachVoiceProfile } from "../_shared/coach_voice.ts";
 import { withHttpDeadline, readBoundedJson } from "../_shared/http.ts";
+import { entitlementLimitResponse } from "../_shared/entitlements.ts";
+import { validateInboxDeliveryReceipt } from "./inbox-delivery.mjs";
+import { validateEmailDispatch, validateEmailResult } from "./email-delivery.mjs";
 import {
   resolveAction,
   modelForEvent,
@@ -51,6 +54,8 @@ const BATCH = Number(Deno.env.get("LIFECYCLE_BATCH") ?? 25);
 const GENERATION_DB_MS = 8_000;
 const GENERATION_MODEL_MS = 20_000;
 const GENERATION_RESPONSE_BYTES = 64_000;
+const EMAIL_PROVIDER_MS = 10_000;
+const EMAIL_RESPONSE_BYTES = 8_192;
 
 const generationDb = <T>(work: (signal: AbortSignal) => PromiseLike<T>): Promise<T> =>
   withHttpDeadline(async signal => await work(signal), GENERATION_DB_MS);
@@ -73,7 +78,12 @@ const SYSTEM = [
   "- Tone anchors are the coach's OWN past writing — match warmth/voice ONLY, never copy their facts.",
 ].join("\n");
 
-type Admin = ReturnType<typeof createClient>;
+// Infer the concrete client's defaults, not ReturnType of the generic factory
+// (which turns table rows into never with the current Supabase SDK typings).
+const createAdmin = () => createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+type Admin = ReturnType<typeof createAdmin>;
 
 // A failed delivery precondition is not permission to use cached recipient
 // data. Keep the approved draft visible for human review, with a checked receipt.
@@ -91,6 +101,22 @@ async function holdForReview(admin: Admin, row: { id: string; provider_id: strin
     !data?.approved_by || data.approved_by !== row.approved_by || data?.sent_at !== null ||
     data?.status !== "needs_review" || data?.last_error !== reason) {
     throw new Error("Delivery review receipt unavailable.");
+  }
+}
+
+// The result transaction commits the immutable provider receipt, quota
+// acceptance and sent projection together. Never fall back to source UPDATE.
+async function recordEmailResult(admin: Admin, dispatch: {
+  dispatch_id: string; attempt_id: string; provider_id: string; wire_sha256: string; created_at: string;
+}, outcome: "accepted" | "retry_wait" | "ambiguous" | "rejected", providerId: string | null = null,
+retryAfter: string | null = null) {
+  const { data, error } = await generationDb(signal => admin.rpc("record_lifecycle_email_result", {
+    p_dispatch: dispatch.dispatch_id, p_attempt: dispatch.attempt_id, p_provider: dispatch.provider_id,
+    p_wire_sha256: dispatch.wire_sha256, p_outcome: outcome,
+    p_provider_message_id: providerId, p_retry_after: retryAfter,
+  }).abortSignal(signal));
+  if (error || !validateEmailResult(data, dispatch, outcome, providerId)) {
+    throw new Error("Email result receipt unavailable.");
   }
 }
 
@@ -277,9 +303,7 @@ Deno.serve(async (req) => {
     // never duplicated into an env var, so it cannot drift.
     const bearer = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
 
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const admin = createAdmin();
 
     let authorized = bearer.length > 0 && bearer === SERVICE_ROLE_KEY;
     if (!authorized && bearer.length > 0) {
@@ -298,11 +322,13 @@ Deno.serve(async (req) => {
     // Window -> send_after; bad address -> needs_review; 3 failures -> failed.
     // The processing claim limits overlapping ticks; it does NOT make provider
     // delivery and the database receipt atomic. Reconciliation remains required.
-    const emailSummary = { emailed: 0, emailSkipped: 0, emailFailed: 0, inApp: 0, windowDeferred: 0, needsReview: 0 };
+    const emailSummary = { emailed: 0, emailSkipped: 0, emailFailed: 0, inApp: 0, windowDeferred: 0, needsReview: 0,
+      inboxUnverified: 0, emailUnverified: 0, sendQuotaBlocked: 0 };
+    const quotaDenials: Array<{ messageId: string; error: Record<string, unknown> }> = [];
     {
       const nowIso = new Date().toISOString();
       const { data: eRows, error: approvedReadError } = await admin.from("outbound_messages")
-        .select("id, provider_id, content, approved_by, attempt_count, send_after")
+        .select("id, provider_id, content, approved_by, approved_at, attempt_count, send_after")
         .not("approved_by", "is", null)
         .is("sent_at", null)
         .in("status", ["approved"])
@@ -370,26 +396,38 @@ Deno.serve(async (req) => {
         }
 
         if (claimedUser) {
-          const { data: iClaim } = await admin.from("outbound_messages")
-            .update({ status: "processing" }).eq("id", er.id).eq("status", "approved").select("id").maybeSingle();
-          if (!iClaim) continue;
-          const { error: nErr } = await admin.from("notifications")
-            .insert([{ user_id: claimedUser, title: c.subject || "Message from your club", message: c.body.slice(0, 280) }]);
-          if (nErr) {
-            // bounded like the email path — a permanently failing insert
-            // (deleted user, constraint) must not retry every tick forever.
-            const nAttempts = (er.attempt_count ?? 0) + 1;
-            await admin.from("outbound_messages").update({
-              status: nAttempts >= 3 ? "failed" : "approved",
-              attempt_count: nAttempts, last_error: nErr.message.slice(0, 300),
-            }).eq("id", er.id);
-            emailSummary.emailFailed++;
-          } else {
-            await deliverPush(admin, claimedUser, c.subject || "Message from your club", c.body.slice(0, 280));
-            await admin.from("outbound_messages").update({
-              status: "sent", sent_at: new Date().toISOString(), provider: "in-app", last_error: null,
-            }).eq("id", er.id).is("sent_at", null);
-            emailSummary.inApp++;
+          if (typeof er.approved_at !== "string" || !Number.isFinite(Date.parse(er.approved_at))) {
+            throw new DeliveryPreconditionError("human_approval_unavailable");
+          }
+          // [CRITICAL-PATH] Delivery-only RPC: it requires the original human
+          // approval and commits quota, inbox row and receipt together. Never
+          // deploy this caller without the reviewed SQL; there is no fallback.
+          // Repeating an uncertain RPC replays its receipt, not a second inbox
+          // insert. The worker cannot turn an unapproved draft into a send.
+          try {
+            const { data, error: inboxError } = await generationDb(signal => admin.rpc("deliver_approved_lifecycle_inbox", {
+              p_message: er.id, p_provider: er.provider_id, p_actor: er.approved_by,
+              p_approved_at: er.approved_at, p_expected_content: er.content, p_recipient: claimedUser,
+            }).abortSignal(signal));
+            if (inboxError) {
+              const limit = entitlementLimitResponse(inboxError);
+              if (limit && limit.body.reason === "send_quota_month") {
+                emailSummary.sendQuotaBlocked++;
+                quotaDenials.push({ messageId: er.id, error: limit.body });
+              } else emailSummary.inboxUnverified++;
+              continue;
+            }
+            const receipt = await validateInboxDeliveryReceipt(data, er, claimedUser);
+            if (!receipt) { emailSummary.inboxUnverified++; continue; }
+            if (receipt.kind === "sent") {
+              emailSummary.inApp++;
+              try { await deliverPush(admin, receipt.recipientId, receipt.title, receipt.preview); }
+              catch { console.error("lifecycle-process: push unavailable after verified inbox acceptance"); }
+            }
+          } catch {
+            // No ambiguous response is rewritten as failed/approved/sent by
+            // this worker. Keep the transaction's authoritative state intact.
+            emailSummary.inboxUnverified++;
           }
           continue;
         }
@@ -399,6 +437,7 @@ Deno.serve(async (req) => {
           throw new DeliveryPreconditionError("guardian_email_not_deliverable");
         }
         if (!RESEND_API_KEY) throw new DeliveryPreconditionError("email_provider_not_configured");
+        if (!c.guardian_id) throw new DeliveryPreconditionError("verified_guardian_required_for_email");
         if (typeof gEmail !== "string" || !/^[^\s@<>,;:"\\]+@[^\s@<>,;:"\\]+\.[^\s@<>,;:"\\]+$/.test(gEmail)) {
           throw new DeliveryPreconditionError("recipient_email_invalid");
         }
@@ -412,11 +451,14 @@ Deno.serve(async (req) => {
           throw new DeliveryPreconditionError("recipient_email_suppressed");
         }
 
-        const { data: eClaimed } = await admin.from("outbound_messages")
-          .update({ status: "processing" }).eq("id", er.id).eq("status", "approved").select("id").maybeSingle();
-        if (!eClaimed) continue;
-        const { data: prov } = await admin.from("providers")
-          .select("business_name").eq("id", er.provider_id).maybeSingle();
+        if (typeof er.approved_at !== "string" || !Number.isFinite(Date.parse(er.approved_at))) {
+          throw new DeliveryPreconditionError("human_approval_unavailable");
+        }
+        const { data: prov, error: providerError } = await deliveryRead(admin.from("providers")
+          .select("id, owner_id, business_name").eq("id", er.provider_id).maybeSingle(), "delivery_provider_unavailable");
+        if (providerError || prov?.id !== er.provider_id || prov?.owner_id !== er.approved_by) {
+          throw new DeliveryPreconditionError("delivery_provider_unavailable");
+        }
         // business_name is TENANT input headed into an RFC 5322 From header.
         // Unsanitized it can smuggle a second angle-addr ("Chase <a@chase.com>")
         // or impersonate the platform; strip header-significant characters and
@@ -425,8 +467,9 @@ Deno.serve(async (req) => {
         let orgName = rawName.replace(/[<>@"\\,;:\r\n\x00-\x1f]/g, "").trim().slice(0, 64) || "Your club";
         if (/^sporv\b/i.test(orgName)) orgName = "Your club";
         const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "club";
-        const { data: replyRow } = await admin.from("provider_settings")
-          .select("value").eq("provider_id", er.provider_id).eq("key", "reply_to").maybeSingle();
+        const { data: replyRow, error: replyError } = await deliveryRead(admin.from("provider_settings")
+          .select("value").eq("provider_id", er.provider_id).eq("key", "reply_to").maybeSingle(), "delivery_reply_settings_unavailable");
+        if (replyError) throw new DeliveryPreconditionError("delivery_reply_settings_unavailable");
         // Org-level override wins; the platform default is Sporv support so a
         // parent's reply always lands somewhere staffed (owner 2026-09-01:
         // support@sporv.ai is the support address once sporv.ai is owned).
@@ -446,50 +489,94 @@ Deno.serve(async (req) => {
             const sig = await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(c.guardian_id));
             const tok = [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
             unsubUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/unsubscribe?g=${c.guardian_id}&t=${tok}`;
-          } catch { /* a missing link must never block the send */ }
+          } catch { throw new DeliveryPreconditionError("delivery_unsubscribe_unavailable"); }
         }
+        const envelope = {
+          from: `${orgName} <${slug}@${MAIL_DOMAIN}>`, replyTo, recipient: gEmail,
+          subject: c.subject || `A message from ${orgName}`, unsubscribe: unsubUrl,
+        };
+        let dispatch;
         try {
+          const { data, error: prepareError } = await generationDb(signal => admin.rpc("prepare_approved_lifecycle_email", {
+            p_message: er.id, p_provider: er.provider_id, p_actor: er.approved_by,
+            p_approved_at: er.approved_at, p_expected_content: er.content,
+            p_recipient: envelope.recipient, p_from: envelope.from, p_reply_to: envelope.replyTo,
+            p_subject: envelope.subject, p_unsubscribe_url: envelope.unsubscribe,
+          }).abortSignal(signal));
+          if (prepareError) {
+            const denial = entitlementLimitResponse(prepareError);
+            if (denial && denial.body.reason === "send_quota_month") {
+              quotaDenials.push({ messageId: er.id, error: denial.body });
+              emailSummary.sendQuotaBlocked++;
+            } else emailSummary.emailUnverified++;
+            continue;
+          }
+          dispatch = await validateEmailDispatch(data, er, envelope);
+          if (!dispatch) { emailSummary.emailUnverified++; continue; }
+          if (dispatch.kind === "already_accepted") { emailSummary.emailSkipped++; continue; }
+          if (dispatch.kind === "deferred") { emailSummary.windowDeferred++; continue; }
+          if (dispatch.kind === "held") { emailSummary.emailUnverified++; continue; }
+        } catch { emailSummary.emailUnverified++; continue; }
+
+        const attempts = dispatch.attempt_count;
+        let providerReply: { ok: boolean; status: number; body: Record<string, unknown>; retryAfter: string | null };
+        try {
+          providerReply = await withHttpDeadline(async signal => {
           const resp = await fetch("https://api.resend.com/emails", {
             method: "POST",
-            headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              from: `${orgName} via Sporv <${slug}@${MAIL_DOMAIN}>`,
-              ...(replyTo ? { reply_to: replyTo } : {}),
-              to: [gEmail],
-              subject: c.subject || `A message from ${orgName}`,
-              text: c.body + (unsubUrl ? `\n\n—\nUnsubscribe from these messages: ${unsubUrl}` : ""),
-              headers: {
-                "X-Sporv-Message-Id": er.id,
-                ...(unsubUrl ? {
-                  "List-Unsubscribe": `<${unsubUrl}>`,
-                  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-                } : {}),
-              },
-            }),
+            signal, redirect: "error",
+            headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json",
+              "Idempotency-Key": dispatch.idempotency_key },
+            // These are the exact persisted UTF-8 bytes, not JSON re-rendered here.
+            body: dispatch.wire_body,
           });
-          const rj = await resp.json().catch(() => ({}));
-          if (resp.ok && rj?.id) {
-            await admin.from("outbound_messages").update({
-              status: "sent", sent_at: new Date().toISOString(),
-              provider: "resend", provider_message_id: String(rj.id), last_error: null,
-            }).eq("id", er.id).is("sent_at", null);
+          const body = await readBoundedJson(resp, EMAIL_RESPONSE_BYTES, signal);
+          signal.throwIfAborted();
+          return { ok: resp.ok, status: resp.status, body, retryAfter: resp.headers.get("retry-after") };
+          }, EMAIL_PROVIDER_MS);
+        } catch {
+          // A timeout can follow provider acceptance. Keep a visible review
+          // state and do not automatically send the same message again.
+          emailSummary.emailUnverified++;
+          try {
+            await recordEmailResult(admin, dispatch, "ambiguous");
+            emailSummary.needsReview++;
+          } catch { /* Processing claim remains held; response is503. */ }
+          continue;
+        }
+        const providerId = providerReply.body?.id;
+        if (providerReply.ok && typeof providerId === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(providerId)) {
+          try {
+            await recordEmailResult(admin, dispatch, "accepted", providerId);
             emailSummary.emailed++;
-          } else {
-            const attempts = (er.attempt_count ?? 0) + 1;
-            await admin.from("outbound_messages").update({
-              status: attempts >= 3 ? "failed" : "approved",
-              attempt_count: attempts,
-              last_error: String(rj?.message ?? `resend ${resp.status}`).slice(0, 300),
-            }).eq("id", er.id);
-            emailSummary.emailFailed++;
+          } catch {
+            // The receipt write might have committed despite a lost response.
+            // Never turn this accepted request into an automatic resend.
+            emailSummary.emailUnverified++;
           }
-        } catch (sendErr) {
-          const attempts = (er.attempt_count ?? 0) + 1;
-          await admin.from("outbound_messages").update({
-            status: attempts >= 3 ? "failed" : "approved",
-            attempt_count: attempts, last_error: String(sendErr).slice(0, 300),
-          }).eq("id", er.id);
-          emailSummary.emailFailed++;
+        } else if (providerReply.status === 429) {
+          const raw = providerReply.retryAfter;
+          const seconds = raw && /^\d+$/.test(raw) ? Number(raw) : NaN;
+          const dateMs = raw && !Number.isFinite(seconds) ? Date.parse(raw) - Date.now() : NaN;
+          const requestedMs = Number.isFinite(seconds) ? seconds * 1000 : dateMs;
+          const backoffMs = Math.min(3_600_000, 60_000 * 2 ** Math.min(attempts - 1, 6));
+          const waitMs = Math.max(backoffMs, Number.isFinite(requestedMs) ? requestedMs : 0);
+          try {
+            if (waitMs > 7 * 24 * 60 * 60 * 1000) {
+              await recordEmailResult(admin, dispatch, "rejected");
+              emailSummary.needsReview++;
+              continue;
+            }
+            await recordEmailResult(admin, dispatch, "retry_wait", null, new Date(Date.now() + waitMs).toISOString());
+            emailSummary.emailFailed++;
+          } catch { emailSummary.emailUnverified++; }
+        } else {
+          const rejected = [400, 401, 403, 404, 422].includes(providerReply.status);
+          if (!rejected) emailSummary.emailUnverified++;
+          try {
+            await recordEmailResult(admin, dispatch, rejected ? "rejected" : "ambiguous");
+            emailSummary.needsReview++;
+          } catch { if (rejected) emailSummary.emailUnverified++; }
         }
        } catch (rowErr) {
         if (rowErr instanceof DeliveryPreconditionError) {
@@ -503,13 +590,9 @@ Deno.serve(async (req) => {
           emailSummary.needsReview++;
           continue;
         }
-        // isolation net for anything above: record, bounded-retry, move on.
-        const attempts = (er.attempt_count ?? 0) + 1;
-        await admin.from("outbound_messages").update({
-          status: attempts >= 3 ? "failed" : "approved",
-          attempt_count: attempts, last_error: String(rowErr).slice(0, 300),
-        }).eq("id", er.id).is("sent_at", null).then(() => {}, () => {});
-        emailSummary.emailFailed++;
+        // Unknown failures may follow a committed dispatch. Leave its state
+        // authoritative, redact diagnostics, and keep processing other orgs.
+        emailSummary.emailUnverified++;
        }
       }
     }
@@ -616,7 +699,10 @@ Deno.serve(async (req) => {
       summary.drafted++;
     }
 
-    return json({ ok: true, ...summary, ...emailSummary });
+    const deliveryUnverified = emailSummary.inboxUnverified + emailSummary.emailUnverified;
+    return json({ ok: deliveryUnverified === 0, ...summary, ...emailSummary, quotaDenials,
+      ...(deliveryUnverified ? { error: "Some deliveries could not be verified; reconcile provider and inbox receipts before resending." } : {}),
+    }, deliveryUnverified ? 503 : 200);
   } catch (e) {
     console.error("lifecycle-process error:", e);
     return json({ error: "Lifecycle processing failed." }, 500);

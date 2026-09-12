@@ -9,10 +9,13 @@ import vm from 'node:vm';
 import {resolveAction, modelForEvent, autoOrFallback, enforceLifecycleDraft} from './policy.ts';
 import {withHttpDeadline as deadline, readBoundedJson} from '../_shared/http.ts';
 import {enforceMessageDraftGuardrail} from '../message-draft/guardrail.ts';
+import {entitlementLimitResponse} from '../_shared/entitlements.mjs';
+import {validateInboxDeliveryReceipt} from './inbox-delivery.mjs';
+import {validateEmailDispatch,validateEmailResult} from './email-delivery.mjs';
 
 const source = stripTypeScriptTypes((await readFile(new URL('./index.ts', import.meta.url), 'utf8'))
   .replace(/^import\s+[\s\S]*?;\n/gm, ''));
-const message = {id:'message-fixture', provider_id:'org-a', approved_by:'owner-a', attempt_count:0,
+const message = {id:'message-fixture', provider_id:'org-a', approved_by:'owner-a', approved_at:'2026-09-09T12:00:00.000Z', attempt_count:0,
   content:{body:'Fixture message', guardian_id:'guardian-a', to_email:'stale@example.invalid'}};
 const guardian = {id:'guardian-a', provider_id:'org-a', email:'current@example.invalid', email_status:'ok', user_id:null};
 const program={id:'fixture-program',provider_id:'org-a'};
@@ -22,10 +25,50 @@ const booking={id:'fixture-booking',session_id:session.id,program_id:program.id,
   searcher_id:'fixture-parent',status:'completed',sessions:session,programs:program};
 
 async function invoke(options={}) {
-  const calls=[], external=[], models=[], deadlines=[];
+  const calls=[], external=[], models=[], deadlines=[], dispatches=new Map();
   const rows=structuredClone(options.rows ?? [message]);
   const pending=structuredClone(options.pending ?? []);
-  const database={rpc:async()=>({data:false,error:null}),from(table) {
+  const database={rpc(name,args) {
+    const call={table:'rpc',name,args}; calls.push(call);
+    const query={abortSignal(signal){call.signal=signal;return query;},then(resolve,reject){return Promise.resolve().then(async()=>{
+      const custom=options.rpcOverride?.(call); if(custom!==undefined) return custom;
+
+      if(name==='prepare_approved_lifecycle_email') {
+        const wire={from:args.p_from,reply_to:args.p_reply_to,to:[args.p_recipient],subject:args.p_subject,
+          text:args.p_expected_content.body+(options.branding===false?'':'\n\nSent via Sporv')+
+            '\n\nUnsubscribe from these messages: '+args.p_unsubscribe_url,
+          headers:{'X-Sporv-Message-Id':args.p_message,'List-Unsubscribe':'<'+args.p_unsubscribe_url+'>',
+            'List-Unsubscribe-Post':'List-Unsubscribe=One-Click'}};
+        // Noncompact serialization proves the worker does not rebuild the JSON.
+        const wireBody=JSON.stringify(wire,null,1);
+        const receipt={kind:'ready',dispatch_id:'60000000-0000-4000-8000-000000000001',
+          attempt_id:'60000000-0000-4000-8000-000000000002',quota_claim_id:'60000000-0000-4000-8000-000000000003',
+          message_id:args.p_message,provider_id:args.p_provider,actor_id:args.p_actor,
+          approved_at:args.p_approved_at,approved_content:args.p_expected_content,attempt_count:1,
+          created_at:new Date().toISOString(),branding_footer:options.branding!==false,
+          wire_body:wireBody,wire_sha256:Buffer.from(await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(wireBody))).toString('hex'),
+          idempotency_key:'sporv/email/60000000-0000-4000-8000-000000000004',
+          state:'dispatching',retry_after:null,result_id:null,provider_message_id:null,accepted_at:null};
+        Object.assign(receipt,typeof options.preparePatch==='function'?await options.preparePatch(receipt):options.preparePatch);
+        dispatches.set(args.p_provider,receipt); call.receipt=receipt;
+        return {data:receipt,error:null};
+      }
+      if(name==='record_lifecycle_email_result') {
+        const receipt={kind:'recorded',result_id:'60000000-0000-4000-8000-000000000005',
+          dispatch_id:args.p_dispatch,attempt_id:args.p_attempt,outcome:args.p_outcome,
+          provider_message_id:args.p_provider_message_id,created_at:new Date().toISOString()};
+        Object.assign(receipt,typeof options.resultPatch==='function'?options.resultPatch(receipt):options.resultPatch);
+        return {data:receipt,error:null};
+      }
+      if(name!=='deliver_approved_lifecycle_inbox') return {data:false,error:null};
+      const hash=Buffer.from(await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(args.p_expected_content.body))).toString('hex');
+      return {data:{kind:'sent',id:args.p_message,provider_id:args.p_provider,approved_by:args.p_actor,
+        approved_at:args.p_approved_at,body_sha256:hash,status:'sent',sent_at:'2026-09-09T12:01:00.000Z',
+        receipt_id:'70000000-0000-4000-8000-000000000001',notification_id:'80000000-0000-4000-8000-000000000001',
+        recipient_id:args.p_recipient,title:'Message from your club',preview:args.p_expected_content.body,
+        ...options.rpcPatch},error:null};
+    }).then(resolve,reject);}}; return query;
+  },from(table) {
     const call={table,operation:'select',filters:[],payload:null}; calls.push(call);
     const query={
       select(){return query;},
@@ -66,10 +109,11 @@ async function invoke(options={}) {
     Response, TextEncoder, Uint8Array, crypto:webcrypto,
     console:{error(){}}, createClient:()=>database,
     resolveAction, modelForEvent, autoOrFallback, enforceLifecycleDraft,
+    entitlementLimitResponse, validateInboxDeliveryReceipt, validateEmailDispatch, validateEmailResult,
     buildCoachVoiceProfile:options.voiceProfile ?? (async()=>[]),
     readBoundedJson,
     withHttpDeadline:(work,ms)=>{deadlines.push(ms);return deadline(work,options.deadlineMs ?? Math.min(ms,80));},
-    deliverPush:async()=>{external.push({kind:'push'});},
+    deliverPush:async()=>{if(options.pushFailure) throw new Error('fixture push outage'); external.push({kind:'push'});},
     fetch:async(url,init)=>{
       if(url==='https://fixture.invalid/functions/v1/ai-gateway') {
         models.push(JSON.parse(init.body));
@@ -77,7 +121,8 @@ async function invoke(options={}) {
         return new Response(JSON.stringify({text:'Fixture draft for human review.',model:'fixture-model'}),{status:200});
       }
       assert.equal(url,'https://api.resend.com/emails');
-      external.push({kind:'email',payload:JSON.parse(init.body)});
+      external.push({kind:'email',payload:JSON.parse(init.body),wire:init.body,headers:init.headers});
+      if(options.emailReply) return options.emailReply(init);
       return new Response(JSON.stringify({id:'resend-fixture'}),{status:200});
     },
     Deno:{serve:fn=>{handler=fn;},env:{get:key=>({
@@ -169,17 +214,291 @@ test('successful approved email uses current guardian address, preserving delive
   assert.deepEqual(r.external[0].payload.to,['current@example.invalid']);
   assert.ok(r.calls.find(c=>c.table==='email_suppressions').filters.some(f=>f[0]==='email'&&f[1]==='current@example.invalid'));
 });
+
+for(const [name,reply] of [
+  ['database error',{data:null,error:{message:'private outage'}}],['silent no-op',{data:null,error:null}],
+  ['wrong shape',{data:true,error:null}],
+]) for(const stage of ['prepare_approved_lifecycle_email','record_lifecycle_email_result']) {
+  test(`email ${stage} ${name} cannot grant delivery or a blind retry`,async()=>{
+    const r=await invoke({rpcOverride:c=>c.name===stage?reply:undefined});
+    assert.equal(r.status,503);assert.equal(r.body.emailed,0);assert.equal(r.body.emailUnverified,1);
+    assert.equal(r.external.length,stage==='prepare_approved_lifecycle_email'?0:1);
+    assert.equal(r.calls.some(c=>c.operation==='update'),false);
+    assert.doesNotMatch(JSON.stringify(r.body),/private/);
+  });
+}
+for(const patch of [
+  {message_id:'other-message'},{provider_id:'org-b'},{actor_id:'other-owner'},{approved_at:null},
+  {approved_at:'2026-09-09T12:00:00.000001+00:00'},{approved_content:{body:'changed'}},
+  {dispatch_id:null},{attempt_id:'invalid'},{quota_claim_id:null},{attempt_count:0},
+  {created_at:'invalid'},{created_at:'2020-01-01T00:00:00Z'},
+  {branding_footer:null},{state:'accepted'},{kind:'queued'},{retry_after:'2027-01-01T00:00:00Z'},
+  {result_id:'60000000-0000-4000-8000-000000000005'},{provider_message_id:'unexpected'},
+  {accepted_at:'2027-01-01T00:00:00Z'},{idempotency_key:'wrong'},
+  {wire_body:'{}'},{wire_sha256:'0'.repeat(64)},
+]) test(`email dispatch mismatch ${JSON.stringify(patch)} blocks provider access`,async()=>{
+  const r=await invoke({preparePatch:patch});
+  assert.equal(r.status,503);assert.equal(r.body.emailed,0);assert.deepEqual(r.external,[]);
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+  assert.equal(r.calls.some(c=>c.name==='record_lifecycle_email_result'),false);
+});
+for(const field of ['to','from','reply_to','subject','text','headers','bcc']) {
+  test(`valid digest cannot authorize altered sealed ${field}`,async()=>{
+    const r=await invoke({preparePatch:async receipt=>{
+      const wire=JSON.parse(receipt.wire_body);
+      wire[field]=field==='to'||field==='bcc'?['attacker@example.invalid']:'changed';
+      const wire_body=JSON.stringify(wire);
+      return {wire_body,wire_sha256:Buffer.from(await webcrypto.subtle.digest('SHA-256',
+        new TextEncoder().encode(wire_body))).toString('hex')};
+    }});
+    assert.equal(r.status,503);assert.deepEqual(r.external,[]);
+  });
+}
+for(const patch of [
+  {result_id:null},{attempt_id:'other-attempt'},{dispatch_id:'other-dispatch'},
+  {outcome:'ambiguous'},{provider_message_id:'different-id'},{created_at:null},
+  {created_at:'2020-01-01T00:00:00Z'},{kind:'sent'},
+]) test(`email result mismatch ${JSON.stringify(patch)} cannot count acceptance`,async()=>{
+  const r=await invoke({resultPatch:patch});
+  assert.equal(r.status,503);assert.equal(r.body.emailUnverified,1);assert.equal(r.body.emailed,0);
+  assert.equal(r.external.length,1);assert.equal(r.calls.some(c=>c.operation==='update'),false);
+});
+test('email sealed bytes, key, original approval and quota receipt travel through the actual handler',async()=>{
+  const r=await invoke();
+  assert.equal(r.status,200);assert.equal(r.body.emailed,1);
+  const prepare=r.calls.find(c=>c.name==='prepare_approved_lifecycle_email');
+  const record=r.calls.find(c=>c.name==='record_lifecycle_email_result');
+  assert.equal(prepare.args.p_actor,message.approved_by);
+  assert.equal(prepare.args.p_approved_at,message.approved_at);
+  assert.deepEqual(JSON.parse(JSON.stringify(prepare.args.p_expected_content)),message.content);
+  assert.equal(prepare.args.p_recipient,guardian.email);
+  assert.equal(r.external[0].wire,prepare.receipt.wire_body);
+  assert.equal(r.external[0].headers['Idempotency-Key'],prepare.receipt.idempotency_key);
+  assert.equal(record.args.p_dispatch,prepare.receipt.dispatch_id);
+  assert.equal(record.args.p_attempt,prepare.receipt.attempt_id);
+  assert.equal(record.args.p_wire_sha256,prepare.receipt.wire_sha256);
+  assert.equal(record.args.p_provider,message.provider_id);
+  assert.equal(record.args.p_outcome,'accepted');
+  assert.equal(record.args.p_provider_message_id,'resend-fixture');
+  assert.equal(record.args.p_retry_after,null);
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+});
+for(const branding of [true,false]) test(`email branding follows returned entitlement ${branding}`,async()=>{
+  const r=await invoke({branding});
+  assert.equal(r.status,200);assert.equal(r.body.emailed,1);
+  assert.equal(r.external[0].payload.text.includes('Sent via Sporv'),branding);
+  assert.equal(r.external[0].payload.from,'Fixture Club <fixture-club@mail.sporv.ai>');
+});
+for(const stage of ['prepare_approved_lifecycle_email','record_lifecycle_email_result']) {
+  test(`email ${stage} deadline leaves uncertain state held`,async()=>{
+    const r=await invoke({deadlineMs:15,rpcOverride:c=>c.name===stage?new Promise(()=>{}):undefined});
+    assert.equal(r.status,503);assert.equal(r.body.emailUnverified,1);
+    assert.equal(r.external.length,stage==='prepare_approved_lifecycle_email'?0:1);
+    assert.ok(r.calls.find(c=>c.name===stage).signal.aborted);
+    assert.equal(r.calls.some(c=>c.operation==='update'),false);
+  });
+}
+test('uncertain email transport records ambiguity and never resets approval',async()=>{
+  const r=await invoke({emailReply:async()=>{throw new Error('private timeout');}});
+  assert.equal(r.status,503);assert.equal(r.body.emailed,0);assert.equal(r.body.needsReview,1);
+  assert.ok(r.calls.some(c=>c.args?.p_outcome==='ambiguous'));
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+});
+test('email request and streaming response are bounded and refuse redirects',async()=>{
+  let cancelled=false;
+  const r=await invoke({deadlineMs:15,emailReply:async init=>{
+    assert.ok(init.signal instanceof AbortSignal);assert.equal(init.redirect,'error');
+    return new Response(new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('{"id":"'));},
+      cancel(){cancelled=true;}}));
+  }});
+  assert.equal(r.status,503);assert.equal(r.body.emailed,0);assert.ok(cancelled);
+  assert.ok(r.calls.some(c=>c.args?.p_outcome==='ambiguous'));
+});
+for(const [name,status,body] of [
+  ['provider500',500,{message:'private diagnostic'}],['provider409',409,{message:'in progress'}],
+  ['missing id',200,{}],['blank id',200,{id:' '}],['object id',200,{id:{value:'wrong'}}],
+]) test(`email ${name} is recorded as ambiguous without automatic retry`,async()=>{
+  const r=await invoke({emailReply:async()=>new Response(JSON.stringify(body),{status})});
+  assert.equal(r.status,503);assert.equal(r.body.emailUnverified,1);assert.equal(r.body.emailed,0);
+  assert.ok(r.calls.some(c=>c.args?.p_outcome==='ambiguous'));
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+  assert.doesNotMatch(JSON.stringify(r.body),/private/);
+});
+test('oversized provider response cannot become an acceptance receipt',async()=>{
+  const r=await invoke({emailReply:async()=>new Response(JSON.stringify({id:'fixture',padding:'x'.repeat(9000)}))});
+  assert.equal(r.status,503);assert.equal(r.body.emailed,0);
+  assert.ok(r.calls.some(c=>c.args?.p_outcome==='ambiguous'));
+});
+test('email429 respects Retry-After and records a checked delayed retry',async()=>{
+  const before=Date.now();
+  const r=await invoke({emailReply:async()=>new Response('{}',{status:429,headers:{'Retry-After':'120'}})});
+  assert.equal(r.status,200);assert.equal(r.body.emailFailed,1);assert.equal(r.body.emailUnverified,0);
+  const retry=r.calls.find(c=>c.args?.p_outcome==='retry_wait');
+  assert.ok(Date.parse(retry.args.p_retry_after)>=before+120000);
+  assert.equal(retry.args.p_provider,'org-a');assert.equal(retry.args.p_provider_message_id,null);
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+});
+test('email429 result no-op cannot claim a successful retry schedule',async()=>{
+  const r=await invoke({emailReply:async()=>new Response('{}',{status:429}),
+    rpcOverride:c=>c.name==='record_lifecycle_email_result'?{data:null,error:null}:undefined});
+  assert.equal(r.status,503);assert.equal(r.body.emailFailed,0);assert.equal(r.body.emailUnverified,1);
+});
+for(const status of [400,401,403,404,422]) test(`definite rejection ${status} records no private diagnostics`,async()=>{
+  const r=await invoke({emailReply:async()=>new Response('{"message":"private diagnostic"}',{status})});
+  assert.equal(r.status,200);assert.equal(r.body.needsReview,1);assert.equal(r.body.emailed,0);
+  assert.ok(r.calls.some(c=>c.args?.p_outcome==='rejected'));
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+  assert.doesNotMatch(JSON.stringify(r.calls),/private diagnostic/);
+});
+test('one org result failure cannot stop another org from completing',async()=>{
+  const other={...message,id:'message-b',provider_id:'org-b',approved_by:'owner-b',content:{...message.content,guardian_id:'guardian-b'}};
+  const r=await invoke({rows:[message,other],override:c=>{
+    const p=c.filters.find(f=>f[0]==='provider_id')?.[1];
+    if(c.table==='guardians') return {data:{...guardian,id:p==='org-b'?'guardian-b':'guardian-a',provider_id:p},error:null};
+    if(c.table==='providers') {const id=c.filters.find(f=>f[0]==='id')?.[1];return {data:{id,business_name:'Fixture',owner_id:id==='org-b'?'owner-b':'owner-a'},error:null};}
+  },rpcOverride:c=>c.name==='record_lifecycle_email_result'&&c.args.p_provider==='org-a'
+    ?{data:null,error:{message:'fixture outage'}}:undefined});
+  assert.equal(r.status,503);assert.equal(r.body.emailed,1);assert.equal(r.body.emailUnverified,1);
+  assert.equal(r.external.length,2);
+});
+test('email quota denial is explicit and no provider request or legacy write occurs',async()=>{
+  const limit={reason:'send_quota_month',current_plan:'free',upgrade_to:'solo',limit:20,current:20};
+  const r=await invoke({rpcOverride:c=>c.name==='prepare_approved_lifecycle_email'
+    ?{data:null,error:{code:'PT402',details:JSON.stringify(limit)}}:undefined});
+  assert.equal(r.status,200);assert.equal(r.body.sendQuotaBlocked,1);assert.equal(r.body.emailed,0);
+  assert.deepEqual(r.body.quotaDenials,[{messageId:message.id,error:limit}]);
+  assert.deepEqual(r.external,[]);assert.equal(r.calls.some(c=>c.operation==='update'),false);
+});
+test('email malformed quota cannot become a successful no-op',async()=>{
+  const r=await invoke({rpcOverride:c=>c.name==='prepare_approved_lifecycle_email'
+    ?{data:null,error:{code:'PT402',details:'private malformed'}}:undefined});
+  assert.equal(r.status,503);assert.equal(r.body.sendQuotaBlocked,0);assert.deepEqual(r.external,[]);
+});
+for(const [kind,state] of [['held','dispatching'],['held','ambiguous'],['held','rejected'],['deferred','retry_wait'],
+  ['already_accepted','accepted']]) test(`email ${kind}/${state} never grants another external request`,async()=>{
+  const r=await invoke({preparePatch:v=>({kind,state,
+    ...(kind==='deferred'?{retry_after:new Date(Date.now()+60000).toISOString()}:{}),
+    ...(kind==='already_accepted'?{result_id:'60000000-0000-4000-8000-000000000005',
+      provider_message_id:'resend-original',accepted_at:v.created_at}:{})})});
+  assert.equal(r.status,kind==='held'?503:200);assert.equal(r.body.emailed,0);assert.deepEqual(r.external,[]);
+  assert.equal(r.calls.some(c=>c.name==='record_lifecycle_email_result'||c.operation==='update'),false);
+});
+test('email equivalent PostgreSQL approval formatting remains valid',async()=>{
+  const r=await invoke({preparePatch:{approved_at:'2026-09-09T12:00:00.000000+00:00'}});
+  assert.equal(r.status,200);assert.equal(r.body.emailed,1);
+});
+test('email immutable result replay does not request another provider send',async()=>{
+  const r=await invoke({resultPatch:{kind:'already_recorded'}});
+  assert.equal(r.status,200);assert.equal(r.body.emailed,1);assert.equal(r.external.length,1);
+});
+for(const value of [
+  {data:null,error:{message:'fixture outage'}},{data:null,error:null},
+  {data:{id:'org-a',owner_id:'another-owner',business_name:'Fixture'},error:null},
+]) test(`email provider identity lookup failure ${JSON.stringify(value)} stops before claiming`,async()=>{
+  reviewReceipt(await invoke({override:c=>c.table==='providers'?value:undefined}),'delivery_provider_unavailable');
+});
+test('email reply settings outage stops before claiming',async()=>{
+  reviewReceipt(await invoke({override:c=>c.table==='provider_settings'&&c.filters.some(f=>f[0]==='key'&&f[1]==='reply_to')
+    ? {data:null,error:{message:'fixture outage'}}:undefined}),'delivery_reply_settings_unavailable');
+});
 test('claimed guardian keeps the in-app path when email is unavailable',async()=>{
   const r=await invoke({noEmailKey:true,override:c=>c.table==='guardians'
     ? {data:{...guardian,user_id:'claimed-user',email:null,email_status:'unsubscribed'},error:null}:undefined});
   assert.equal(r.status,200);assert.equal(r.body.inApp,1);
-  assert.deepEqual(r.external.map(e=>e.kind),['notification','push']);
+  assert.deepEqual(r.external.map(e=>e.kind),['push']);
+  assert.equal(r.calls.filter(c=>c.name==='deliver_approved_lifecycle_inbox').length,1);
+  assert.equal(r.calls.filter(c=>c.table==='notifications').length,0);
 });
-test('existing direct-email approved drafts still pass through suppression checks',async()=>{
+
+const claimedOptions={override:c=>c.table==='guardians'
+  ? {data:{...guardian,user_id:'claimed-user'},error:null}:undefined};
+test('inbox worker passes exact organization, approval and reviewed snapshot to the quota transaction',async()=>{
+  const r=await invoke(claimedOptions);
+  assert.equal(r.status,200); assert.equal(r.body.inApp,1); assert.equal(r.body.inboxUnverified,0);
+  const rpc=r.calls.find(c=>c.name==='deliver_approved_lifecycle_inbox');
+  assert.deepEqual(JSON.parse(JSON.stringify(rpc.args)),{
+    p_message:message.id,p_provider:message.provider_id,p_actor:message.approved_by,
+    p_approved_at:message.approved_at,p_expected_content:message.content,p_recipient:'claimed-user',
+  });
+  assert.ok(rpc.signal instanceof AbortSignal);
+  assert.equal(r.calls.filter(c=>c.operation==='update'||c.operation==='insert').length,0);
+});
+test('inbox replay never inserts, claims, marks sent or pushes a second time',async()=>{
+  const r=await invoke({...claimedOptions,rpcPatch:{kind:'already_sent'}});
+  assert.equal(r.status,200); assert.equal(r.body.inApp,0); assert.equal(r.body.inboxUnverified,0);
+  assert.deepEqual(r.external,[]);
+  assert.equal(r.calls.filter(c=>c.operation==='update'||c.operation==='insert').length,0);
+});
+for(const [name,reply] of [
+  ['RPC outage',{data:null,error:{code:'XX000',message:'private database detail'}}],
+  ['silent no-op',{data:null,error:null}],
+  ['wrong result type',{data:true,error:null}],
+  ['malformed quota',{data:null,error:{code:'PT402',details:'private malformed limit'}}],
+]) test(`inbox ${name} fails loudly without legacy writes or external delivery`,async()=>{
+  const r=await invoke({...claimedOptions,rpcOverride:()=>reply});
+  assert.equal(r.status,503); assert.equal(r.body.ok,false); assert.equal(r.body.inboxUnverified,1);
+  assert.equal(r.body.inApp,0); assert.equal(r.body.sendQuotaBlocked,0); assert.deepEqual(r.external,[]);
+  assert.equal(r.calls.filter(c=>c.operation==='update'||c.operation==='insert').length,0);
+  assert.doesNotMatch(JSON.stringify(r.body),/private/);
+});
+for(const patch of [
+  {id:'other-message'},{provider_id:'org-b'},{approved_by:'owner-b'},
+  {approved_at:null},{approved_at:'2026-09-09T12:00:01.000Z'},
+  {status:'approved'},{kind:'queued_email'},{recipient_id:'other-family'},
+  {receipt_id:null},{notification_id:'invalid'},
+  {sent_at:'not-a-date'},{sent_at:'2026-09-08T12:01:00.000Z'},
+  {body_sha256:'0'.repeat(64)},{body_sha256:null},{title:''},{preview:''},
+]) test(`inbox receipt mismatch ${JSON.stringify(patch)} never reports delivery or pushes`,async()=>{
+  const r=await invoke({...claimedOptions,rpcPatch:patch});
+  assert.equal(r.status,503); assert.equal(r.body.inboxUnverified,1); assert.equal(r.body.inApp,0);
+  assert.deepEqual(r.external,[]);
+  assert.equal(r.calls.filter(c=>c.operation==='update'||c.operation==='insert').length,0);
+});
+test('inbox transaction timeout aborts the request and leaves its uncertain state for receipt reconciliation',async()=>{
+  const r=await invoke({...claimedOptions,deadlineMs:15,rpcOverride:()=>new Promise(()=>{})});
+  assert.equal(r.status,503); assert.equal(r.body.inboxUnverified,1); assert.deepEqual(r.external,[]);
+  assert.equal(r.calls.find(c=>c.name==='deliver_approved_lifecycle_inbox').signal.aborted,true);
+  assert.equal(r.calls.filter(c=>c.operation==='update'||c.operation==='insert').length,0);
+});
+test('push outage after verified inbox receipt cannot erase or retry accepted delivery',async()=>{
+  const r=await invoke({...claimedOptions,pushFailure:true});
+  assert.equal(r.status,200); assert.equal(r.body.inApp,1); assert.equal(r.body.inboxUnverified,0);
+  assert.equal(r.calls.filter(c=>c.name==='deliver_approved_lifecycle_inbox').length,1);
+  assert.equal(r.calls.filter(c=>c.operation==='update'||c.operation==='insert').length,0);
+});
+for(const approved_at of [null,'invalid']) test(`inbox approval time ${approved_at} is not manufactured by cron`,async()=>{
+  const r=await invoke({...claimedOptions,rows:[{...message,approved_at}]});
+  reviewReceipt(r,'human_approval_unavailable');
+  assert.equal(r.calls.filter(c=>c.name==='deliver_approved_lifecycle_inbox').length,0);
+});
+test('one org quota denial is reported explicitly while a second org still delivers',async()=>{
+  const limit={reason:'send_quota_month',current_plan:'free',upgrade_to:'solo',limit:20,current:20};
+  const other={...message,id:'message-b',provider_id:'org-b',approved_by:'owner-b',
+    content:{...message.content,guardian_id:'guardian-b'}};
+  const r=await invoke({rows:[message,other],override:c=>c.table==='guardians'
+    ? {data:{...guardian,id:c.filters.find(f=>f[0]==='id')[1],provider_id:c.filters.find(f=>f[0]==='provider_id')[1],
+        user_id:c.filters.find(f=>f[0]==='provider_id')[1]==='org-a'?'claimed-user':'claimed-user-b'},error:null}:undefined,
+    rpcOverride:c=>c.args.p_provider==='org-a'
+      ? {data:null,error:{code:'PT402',details:JSON.stringify({...limit,private:'discarded'})}}:undefined});
+  assert.equal(r.status,200); assert.equal(r.body.inApp,1); assert.equal(r.body.sendQuotaBlocked,1);
+  assert.deepEqual(r.body.quotaDenials,[{messageId:message.id,error:limit}]);
+  assert.equal(r.calls.filter(c=>c.name==='deliver_approved_lifecycle_inbox').length,2);
+  assert.deepEqual(r.external.map(e=>e.kind),['push']);
+  assert.equal(r.calls.filter(c=>c.operation==='update'||c.operation==='insert').length,0);
+});
+test('one unverified inbox result does not abort processing another organization',async()=>{
+  const r=await invoke({rows:[message,{...message,id:'message-b',provider_id:'org-b',approved_by:'owner-b',
+      content:{...message.content,guardian_id:'guardian-b'}}],
+    override:c=>c.table==='guardians'?{data:{...guardian,id:c.filters.find(f=>f[0]==='id')[1],
+      provider_id:c.filters.find(f=>f[0]==='provider_id')[1],user_id:'claimed-user'},error:null}:undefined,
+    rpcOverride:c=>c.args.p_message===message.id?{data:null,error:null}:undefined});
+  assert.equal(r.status,503); assert.equal(r.body.inboxUnverified,1); assert.equal(r.body.inApp,1);
+  assert.equal(r.calls.filter(c=>c.name==='deliver_approved_lifecycle_inbox').length,2);
+});
+test('direct-email draft without verified guardian remains visible for review, never sent',async()=>{
   const r=await invoke({rows:[{...message,content:{body:'Fixture message',to_email:'direct@example.invalid'}}]});
-  assert.equal(r.status,200);assert.equal(r.body.emailed,1);
-  assert.deepEqual(r.external[0].payload.to,['direct@example.invalid']);
-  assert.ok(r.calls.find(c=>c.table==='email_suppressions').filters.some(f=>f[0]==='email'&&f[1]==='direct@example.invalid'));
+  reviewReceipt(r,'verified_guardian_required_for_email');
+  assert.equal(r.calls.some(c=>c.name==='prepare_approved_lifecycle_email'),false);
 });
 test('invalid approved content becomes visible review rather than an endless silent skip',async()=>{
   reviewReceipt(await invoke({rows:[{...message,content:{...message.content,body:' '}}]}),'delivery_content_invalid');
@@ -647,4 +966,45 @@ test('real message-draft remains functional without importing historical family 
   assert.deepEqual(calls,['providers']);assert.equal(modelRequests.length,1);
   const prompt=modelRequests[0].messages[0].content[0].text;
   assert.match(prompt,/Could we find another time/);assert.doesNotMatch(prompt,/Tone anchors/);
+});
+
+test('email worker reserves sealed dispatch and shared quota before contacting Resend',async()=>{
+  const r=await invoke();
+  assert.ok(r.calls.some(c=>c.name==='prepare_approved_lifecycle_email'),
+    'the actual email handler must call the atomic prepare RPC');
+  assert.ok(r.calls.some(c=>c.name==='record_lifecycle_email_result'),
+    'provider acceptance must use the immutable result RPC');
+  assert.equal(r.calls.some(c=>c.operation==='update'),false,
+    'email delivery must not fall back to independent source updates');
+});
+
+test('email retry uses the same sealed key and bytes but a new durable attempt',async()=>{
+  const first=await invoke({emailReply:async()=>new Response('{}',{status:429})});
+  const prior=first.calls.find(c=>c.name==='prepare_approved_lifecycle_email').receipt;
+  const second=await invoke({preparePatch:v=>({...prior,
+    attempt_id:'60000000-0000-4000-8000-000000000006',attempt_count:2})});
+  assert.equal(first.body.emailFailed,1);assert.equal(second.body.emailed,1);
+  assert.equal(second.external[0].wire,first.external[0].wire);
+  assert.equal(second.external[0].headers['Idempotency-Key'],first.external[0].headers['Idempotency-Key']);
+  const record=second.calls.find(c=>c.name==='record_lifecycle_email_result');
+  assert.notEqual(record.args.p_attempt,prior.attempt_id);
+});
+test('ready dispatch outside the provider idempotency window never sends again',async()=>{
+  const r=await invoke({rows:[{...message,approved_at:new Date(Date.now()-30*60*60*1000).toISOString()}],
+    preparePatch:{created_at:new Date(Date.now()-24*60*60*1000).toISOString()}});
+  assert.equal(r.status,503);assert.deepEqual(r.external,[]);
+});
+test('future dispatch timestamp cannot grant provider access',async()=>{
+  const r=await invoke({preparePatch:{created_at:new Date(Date.now()+120000).toISOString()}});
+  assert.equal(r.status,503);assert.deepEqual(r.external,[]);
+});
+test('unknown per-row exception never performs an unchecked retry reset',async()=>{
+  const r=await invoke({override:c=>c.table==='provider_settings'&&c.filters.some(f=>f[0]==='key'&&f[1]==='send_window')
+    ?{data:{value:{start:{invalid:true}}},error:null}:undefined});
+  assert.equal(r.status,503);assert.equal(r.body.emailUnverified,1);assert.deepEqual(r.external,[]);
+  assert.equal(r.calls.some(c=>c.operation==='update'),false);
+});
+test('result replay with changed provider id cannot claim delivery',async()=>{
+  const r=await invoke({resultPatch:{kind:'already_recorded',provider_message_id:'other-provider-id'}});
+  assert.equal(r.status,503);assert.equal(r.body.emailed,0);assert.equal(r.external.length,1);
 });
