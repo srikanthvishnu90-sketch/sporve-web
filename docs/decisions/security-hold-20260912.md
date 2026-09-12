@@ -119,3 +119,64 @@ Palette, choose Tasks: Manage Automatic Tasks, then Disallow Automatic Tasks.
 See [official automatic-task documentation](https://code.visualstudio.com/docs/debugtest/tasks#_control-automatic-task-execution).
 This does not terminate a process that might already have run; device and
 credential exposure assessment remains an external containment requirement.
+
+## Resume verification — 2026-09-12 21:55 UTC
+
+The owner asked to continue launch work after authorizing routine in-scope
+commands. That preference does not establish incident containment.
+
+Actual read-only GitHub tree results:
+```text
+source main = 88ac75f40390bc978109f87c751fc3122662c9c0
+source recursive tree: truncated=false; 455 entries; 370 blobs
+known incident path/blob matches = 3
+mirror main = 61d603edf1a716d003c41525eea5fed194a0fac5
+mirror recursive tree: truncated=false; 408 entries; 327 blobs
+known incident path matches = 0; known incident blob matches = 0
+path/blob comparison: identical=320; changed=7; source-only=43; mirror-only=0
+```
+
+Source still contains the exact task, settings and disguised-font hashes
+recorded above. The mirror result is stronger than the earlier single-path
+404, but is ONLY a negative check for these known indicators, not a complete
+security audit of the mirror, its dependencies, deployed artifacts or devices.
+No live deployment was inspected or changed in this follow-up.
+
+The source and mirror are not identical snapshots. The seven common paths
+with different blobs are:
+- .github/workflows/pr-checks.yml: source ca75fecbc71f3024a2e0d6ef88b6018ba30bed6e; mirror ef4d109f4c6f5b217a629ba7fcfc21d881f6b816
+- .gitignore: source 45f2aa9c1f15ec379cff6d190cfb468591001165; mirror e7409e7b50e7ca360e67ffb1af6e30a5af0ef249
+- docs/red-drafts/2026-09-08-invite-creates-guardian.sql: source c6b4e51ec1acaae88f4bfce93fcec0d9bc06f274; mirror 3dd3f315b01a295553f98987c6a7071a65b78fe7
+- src/smoke.sh: source fe07da77ab652101f5c54bf8c7b97287d2135e67; mirror cbf3856b7a04c50529d92e588f2887df65fe8f11
+- supabase/config.toml: source 7dec5a93fd3367f4ca4b428e4f6f06dc05633b9c; mirror b252b6663a414094e89124638cdb655cef1f71b9
+- tools/deploy-prod.sh: source b8aff1bd6887c1683a99497467364dc2e5249869; mirror 940e83d193d0699bf2ed6c7004fb96e15959f1c5
+- tools/strix-scan.sh: source 7f200fdf57ada1cf928df2aa364289de2310648b; mirror daeaf89a27a3f032c9f14119dd6ee1382fe526b6
+
+Source-only entries include both the incident files and apparently legitimate
+work, including the connector registry, gmail-scan, and migrations 001037–001046.
+This inventory does not approve that work or prove migrations were deployed.
+Do not replace source with the mirror wholesale: it would discard source-only
+work and would not establish account or device containment.
+
+The PR412 handoff was read in full (seven existing comments); it contains no
+subsequent containment receipt. No attribution, account compromise, token theft,
+or workstation execution is inferred from the absence of a receipt.
+
+### Precise handoff to Robin / repository administrator
+
+- Investigate the ref/account/app/session changes from a trusted device and
+  provide the resulting containment decision, actor/time evidence where
+  available, and any scoped credential or workstation follow-up.
+- Review the existing two-file containment object
+  17a5ea6035ca590eccfcb03faa1880a37920646c as an unapplied proposal, not a fix
+  already live; it does not remove the disguised payload.
+- Establish a reviewed clean successor preserving legitimate source-only work,
+  compare it with the preserved original test commits, then rerun checks on
+  that exact successor only after execution is safe.
+- Return non-secret evidence in this incident record / PR412. Do not paste
+  credentials, tokens, or raw malicious code into the handoff.
+
+Current access supports repository-content operations, not GitHub account
+administration or workstation incident response. No shell, build, install,
+test workflow, merge, deployment, money movement, or credential change was
+performed. No acceptance criterion was ticked and no prompt was completed.

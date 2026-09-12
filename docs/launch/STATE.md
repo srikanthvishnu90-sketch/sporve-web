@@ -270,6 +270,19 @@ must choose Tasks: Manage Automatic Tasks → Disallow Automatic Tasks from an
 empty editor window. The earlier boolean true does not prove execution.
 See the incident report for official sources and the complete limitation.
 
+
+## Latest resume check — 2026-09-12 21:55 UTC
+
+Actual complete Git tree reads confirm source main88ac75f4 is unchanged and
+still contains all three incident blobs. Mirror main61d603ed has zero known
+incident paths/blobs, but this is not a comprehensive clean-system verdict.
+The snapshots differ:320 identical blobs,7 changed paths,43 source-only paths,
+0 mirror-only paths. Legitimate source-only work must be preserved during
+reviewed cleanup; do not blindly copy the older mirror over source.
+No containment receipt appeared in the seven PR412 comments read this session.
+See the incident report's resume verification for exact SHAs and handoff.
+No shell/build/CI/deployment ran; all69 acceptance checks remain unchecked.
+
 ## NEXT
 
 Repository/account administrator investigates and contains the unauthorized
