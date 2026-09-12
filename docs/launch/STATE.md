@@ -257,6 +257,19 @@ and disguised payload. No affected branch was overwritten or reset.
 The original working evidence is preserved above, but its pending-review
 status is superseded by this security incident.
 
+## Shell execution pause and containment draft
+
+No shell commands, repository scripts, CI or deployment were run for this
+follow-up. Review-only commit17a5ea6035ca590eccfcb03faa1880a37920646c clears repository task definitions and
+disables the automatic-task setting, with static JSON validation:
+taskCount0 / automaticTasks off / embeddedTasks false / containsShellCommand false.
+Exactly two editor-config files change; this patch is not applied to main or
+the user's editor and does not clear the security hold.
+Current VS Code's automatic-task preference is application-level: the owner
+must choose Tasks: Manage Automatic Tasks → Disallow Automatic Tasks from an
+empty editor window. The earlier boolean true does not prove execution.
+See the incident report for official sources and the complete limitation.
+
 ## NEXT
 
 Repository/account administrator investigates and contains the unauthorized

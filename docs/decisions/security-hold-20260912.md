@@ -88,3 +88,34 @@ browser assertions at390px/1440px, with build stamp3ea04337b8d34db3.
 They remain supporting tests, not approved/current production evidence.
 
 All six launch prompts remain unfinished. COMPLETE.md must not be created.
+
+## Shell pause and review-only task containment
+
+No Bash/shell commands, repository scripts, CI runs or deployments were executed
+for this follow-up. Static JSON validation alone produced:
+```text
+taskCount=0
+automaticTasks=off
+embeddedTasks=false
+containsShellCommand=false
+```
+Review-only commit17a5ea6035ca590eccfcb03faa1880a37920646c, parent88ac75f40390bc978109f87c751fc3122662c9c0,
+changes exactly .vscode/tasks.json and .vscode/settings.json.
+It has NOT been applied to main, a working checkout, or a deployment; no branch
+ref or PR was created for it, preventing automatic CI from running.
+The disguised payload remains preserved, so the patch is only entry-point
+containment, not complete incident remediation.
+
+Important precision: the observed boolean true setting is invalid in current
+VS Code and does not establish that automatic tasks were enabled or ran.
+Current [VS Code source](https://github.com/microsoft/vscode/blob/main/src/vs/workbench/contrib/tasks/browser/task.contribution.ts)
+defines this as the application-level string on/off setting; repository settings
+alone cannot be relied on to change the user's automatic-task preference.
+The confirmed issue is the configured folder-open executable task and disguised
+JavaScript, not proof of execution on a device.
+
+Owner action without a shell: in an EMPTY VS Code window, open the Command
+Palette, choose Tasks: Manage Automatic Tasks, then Disallow Automatic Tasks.
+See [official automatic-task documentation](https://code.visualstudio.com/docs/debugtest/tasks#_control-automatic-task-execution).
+This does not terminate a process that might already have run; device and
+credential exposure assessment remains an external containment requirement.
