@@ -1,0 +1,105 @@
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+const { chromium } = createRequire(new URL("./ci-browser/package.json", import.meta.url))("playwright");
+import { pathToFileURL } from "node:url";
+import { resolve } from "node:path";
+import { mkdir } from "node:fs/promises";
+
+await mkdir("test-results/plan-catalog", { recursive: true });
+const browser = await chromium.launch();
+let checks = 0;
+async function noOverflow(page, label) {
+  const result = await page.evaluate(() => ({
+    width: innerWidth, scroll: document.documentElement.scrollWidth,
+    bodyClass: document.body.className,
+    overflow: [...document.querySelectorAll("body *")].map(el => ({
+      tag: el.tagName, classes: el.className,
+      left: el.getBoundingClientRect().left, right: el.getBoundingClientRect().right,
+    })).filter(x => x.right > innerWidth + 1).slice(0, 12),
+  }));
+  assert.ok(result.scroll <= result.width + 1, label + " " + JSON.stringify(result));
+}
+try {
+  for (const width of [390, 1440]) {
+    const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
+    const errors = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.route(/^https?:\/\//, route => route.abort());
+    await page.goto(pathToFileURL(resolve("index.html")).href);
+    await page.evaluate(async () => {
+      const rows = [
+        { plan: "free", display_name: "Sporv Free", price_usd_month: 0, purchasable: false, ask_quota_month: 25, admin_cap: 1 },
+        { plan: "solo", display_name: "Sporv Solo", price_usd_month: 49, purchasable: true, ask_quota_month: 500, admin_cap: 1 },
+        { plan: "organization", display_name: "Sporv Organization", price_usd_month: 199, purchasable: true, ask_quota_month: 2500, admin_cap: 5 },
+      ];
+      window.SporveAPI.from = async table => table === "plan_entitlements" ? rows : [];
+      window.SporveAuth.userId = () => "fixture-owner";
+      S.auth = { status: "verified", user: { id: "fixture-owner" } };
+      S.portal = "coach";
+      await window.SporveCoach.refreshPlans();
+      S.route = { name: "dashboard", arg: null };
+      S.coachTab = "billing";
+      render();
+    });
+    const billing = await page.locator("#app").innerText();
+    assert.match(billing, /Sporv Solo/);
+    assert.match(billing, /500 Ask messages a month, 1 admin seat/);
+    assert.match(billing, /2500 Ask messages a month, 5 admin seats/);
+    assert.doesNotMatch(billing, /34\.99|Sporv Pro|Unlimited AI actions/);
+    await noOverflow(page, "catalog viewport");
+    assert.equal(await page.locator(".cui-header .cui-button--primary").count(), 1);
+    checks += 6;
+    await page.screenshot({ path: "test-results/plan-catalog/billing-" + width + ".png", fullPage: true });
+
+    await page.evaluate(() => {
+      S.onboard = JSON.parse(JSON.stringify(window.MOD_COACHONBOARD.state.onboard));
+      S.onboard.step = 3;
+      S.onboard.plan = "solo";
+      S.route = { name: "dashboard", arg: null };
+      S.coachTab = "onboard";
+      render();
+    });
+    assert.equal(await page.locator("input[data-cob-plan]").count(), 3);
+    assert.equal(await page.locator('input[data-cob-plan="solo"]').isChecked(), true);
+    assert.equal(await page.locator('input[data-cob-plan="organization"]').isChecked(), false);
+    await noOverflow(page, "catalog viewport");
+    checks += 4;
+    await page.screenshot({ path: "test-results/plan-catalog/onboarding-" + width + ".png", fullPage: true });
+
+
+    await page.evaluate(async () => {
+      window.SporveAPI.from = async table => table === "plan_entitlements" ? [
+        { plan: "solo", display_name: "Sporv Solo", price_usd_month: 49, purchasable: false, ask_quota_month: 500, admin_cap: 1 },
+      ] : [];
+      await window.SporveCoach.refreshPlans();
+      S.onboard.submittedAt = "2026-09-10T00:00:00Z";
+      S.onboard.businessName = "Fixture organization";
+      render();
+    });
+    assert.equal(await page.locator("[data-cob-buyplan]").count(), 0);
+    assert.match(await page.locator("#app").innerText(), /Sporv Solo — unavailable/);
+    assert.equal(await page.evaluate(() => S.onboard.plan), "solo");
+    await noOverflow(page, "unavailable submitted plan viewport");
+    checks += 4;
+    await page.screenshot({ path: "test-results/plan-catalog/unavailable-" + width + ".png", fullPage: true });
+
+    await page.evaluate(async () => {
+      window.SporveAPI.from = async () => { throw new Error("fixture network failure"); };
+      await window.SporveCoach.refreshPlans().catch(() => {});
+      S.route = { name: "dashboard", arg: null };
+      S.coachTab = "billing";
+      render();
+    });
+    assert.match(await page.locator("#app").innerText(), /Plan details unavailable/);
+    assert.equal(await page.locator("[data-cb-refresh]").count(), 1);
+    assert.equal(await page.locator("[data-cb-buy]").count(), 0);
+    assert.equal(errors.length, 0, errors.join("\n"));
+    checks += 4;
+    await page.screenshot({ path: "test-results/plan-catalog/error-" + width + ".png", fullPage: true });
+    console.log("PASS real Chromium at " + width + "px: catalog values, selected onboarding plan, no horizontal scroll, visible error/retry, no JavaScript errors");
+    await page.close();
+  }
+  console.log("PASS " + checks + " DOM assertions; mocked catalog only, no live billing acceptance");
+} finally {
+  await browser.close();
+}

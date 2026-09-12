@@ -1,0 +1,92 @@
+name: Entitlement source contract
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  no-plan-name-comparisons:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: P1.02 exact source scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          # Every file under all three owner-specified paths is included.
+          # grep exit 1 means no matches; exit 2 is an error, never a pass.
+          if grep -rnE "plan\s*===\s*['\"]|plan_key\s*===\s*['\"]" src/ api/ supabase/; then
+            echo "FAIL P1.02: plan-name comparison matches above"
+            exit 1
+          else
+            scan_status=$?
+            if [ "$scan_status" -ne 1 ]; then
+              echo "FAIL P1.02: grep could not complete (exit $scan_status)"
+              exit "$scan_status"
+            fi
+          fi
+          echo "PASS P1.02: zero matches across src/, api/, supabase/"
+
+  checkout-catalog-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.16.0"
+      - name: Execute actual checkout handler against intercepted services
+        run: node --test supabase/functions/billing-create-checkout/handler.test.mjs
+
+  frontend-catalog-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.16.0"
+      - name: Actual frontend catalog and checkout decisions
+        run: node --test scripts/plan-catalog-contract.test.mjs
+
+  catalog-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.16.0"
+      - name: Install pinned browser harness
+        run: npm ci --prefix scripts/ci-browser --ignore-scripts --no-audit --no-fund
+      - name: Install browser
+        run: node scripts/ci-browser/node_modules/playwright/cli.js install chromium
+      - name: Verify committed build in real Chromium
+        run: node scripts/plan-catalog-browser.test.mjs
+      - name: Preserve browser screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: plan-catalog-browser
+          path: |
+            test-results/plan-catalog/billing-390.png
+            test-results/plan-catalog/billing-1440.png
+            test-results/plan-catalog/onboarding-390.png
+            test-results/plan-catalog/onboarding-1440.png
+            test-results/plan-catalog/unavailable-390.png
+            test-results/plan-catalog/unavailable-1440.png
+            test-results/plan-catalog/error-390.png
+            test-results/plan-catalog/error-1440.png
+          if-no-files-found: error
