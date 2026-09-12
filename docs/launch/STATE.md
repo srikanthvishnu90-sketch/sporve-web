@@ -1,7 +1,7 @@
 # Sporv launch state
 
-Updated:2026-09-10
-Active: Prompt1 / P1.02 review follow-up (P1.03 supporting HTTP checks captured)
+Updated:2026-09-12
+Active: SECURITY RELEASE HOLD — unexpected executable additions and changed branch heads
 Progress:0/69 accepted for release;2 parked;0/6 prompts DONE.
 Business-gate verdict: NOTHING MOVED; isolated catalog checks support G1/G4 but do not close them.
 
@@ -19,7 +19,9 @@ merely because implementation is hard; exhaust safe in-scope work first.
 No prompt is DONE until its criteria pass. The truncated parking/DONE conflict
 is recorded in docs/decisions/constitution-adoption-20260909.md.
 
-Source branch: codex/launch-driver-20260910, PR412.
+Incident source branch: codex/security-hold-20260912, based on verified checkpointb5c9d2a.
+Prior working tracker: codex/launch-driver-20260910, PR412; its current head is affected.
+This documentation-only checkpoint is not a release candidate.
 GitHub draft branches/PR comments are the owner-approved remote workflow.
 Critical-path review/release rules remain. Production reads do not authorize
 writes; fixtures never run against production.
@@ -240,9 +242,26 @@ A temporary same-draft generator must generate the dependency lock and
 build.py outputs, then be removed; full green CI and review are still required.
 No source or release acceptance is inferred from the earlier9a9b checks.
 
+## Security hold — supersedes earlier NEXT
+
+Read docs/decisions/security-hold-20260912.md before any further work.
+Current main and all three prior active branches include an unexpected hidden
+folder-open task executing obfuscated JavaScript disguised as a font.
+Observed payload blob1390124885046fd4b6f6dd3a61410a8ae3cf9856.
+Current branch heads differ from the commits that actually passed CI.
+No build, merge, deployment, payload execution or cleanup is authorized by
+those earlier green checks. No gate or acceptance criterion is closed.
+
+This hold was saved from checkpointb5c9d2a whose full tree lacks both the task
+and disguised payload. No affected branch was overwritten or reset.
+The original working evidence is preserved above, but its pending-review
+status is superseded by this security incident.
+
 ## NEXT
 
-Finish the received P1.02 review corrections: inspect actual generated lock and
-build outputs, remove the temporary write job, run all source/handler/browser/
-smoke/security checks, then return to P1.03 API payload and connector gates.
-Clo critical-path review and live release remain separate acceptance steps.
+Repository/account administrator investigates and contains the unauthorized
+ref/content changes from a trusted device; assess any editor-triggered device
+exposure; preserve evidence; review a safe cleanup and trusted branch ancestry.
+Do not resume launch builds or deploy until that containment is verified.
+Then reconcile the legitimate work and actual CI results, beginning with P1.03.
+All69 acceptance checks remain unchecked;0/6 prompts DONE.
