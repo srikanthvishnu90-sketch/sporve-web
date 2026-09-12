@@ -1,0 +1,87 @@
+name: Isolated entitlement HTTP
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/red-drafts/**.sql'
+      - 'scripts/test-entitlement-http.mjs'
+      - '.github/workflows/entitlement-http.yml'
+permissions:
+  contents: read
+jobs:
+  authenticated-capacity:
+    name: HTTP / ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: narrow capacity guards
+            database: sporv_entitlement_guard_test
+            fixture: 2026-09-10-entitlement-http.test.sql
+          - name: full catalog and trial resolver
+            database: sporv_entitlement_fixture
+            fixture: 2026-09-10-entitlement-http-integrated.test.sql
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture-only-password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGPASSWORD: fixture-only-password
+      PGDATABASE: ${{ matrix.database }}
+      HTTP_FIXTURE: ${{ matrix.fixture }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.16.0"
+      - name: Initialize disposable guard and JWT fixture
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = 127.0.0.1
+          createdb "$PGDATABASE"
+          psql -X -v ON_ERROR_STOP=1 -f "docs/red-drafts/$HTTP_FIXTURE"
+      - name: Start pinned loopback-only API
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: |
+          set -euo pipefail
+          docker run --detach --name sporv-entitlement-api --network host \
+            -e "PGRST_DB_URI=postgres://fixture_authenticator:fixture-only-http-password@127.0.0.1:$PGPORT/$PGDATABASE" \
+            -e PGRST_DB_SCHEMAS=public \
+            -e PGRST_DB_ANON_ROLE=anon \
+            -e PGRST_JWT_SECRET=fixture-only-jwt-secret-with-at-least-32-bytes \
+            -e PGRST_SERVER_HOST=127.0.0.1 \
+            -e PGRST_SERVER_PORT=3007 \
+            postgrest/postgrest:v14.18
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3007/ >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:3007/ >/dev/null
+      - name: Signed customer requests and concurrent final-slot writes
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: node scripts/test-entitlement-http.mjs
+      - name: API diagnostics
+        if: failure()
+        run: docker logs sporv-entitlement-api
