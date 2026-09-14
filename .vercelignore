@@ -1,0 +1,40 @@
+# .vercelignore — keep CLI deploys small and fast.
+# This is a STATIC site: the served payload is index.html at the root plus the
+# real asset dirs (public/, assets/, api/) and the root icon/manifest files.
+# Everything below is build source, tooling, tests, docs, or local-only heavy
+# state that must never be uploaded (they made `vercel` time out).
+# NOTHING here is loaded by the served page — verified against index.html.
+
+# local-only heavy state
+node_modules
+.git
+.claude
+strix_runs
+backups
+prompts
+*.git
+
+# build source & backend (not served by the static site)
+src
+supabase
+lib
+evals
+
+# tooling / CI / dev config
+tools
+scripts
+.github
+.codex
+.impeccable
+.vscode
+.clo-sync
+deno.lock
+package-lock.json
+
+# docs & specs (not served)
+docs
+*.md
+
+# editor / os cruft
+.DS_Store
+*.log
