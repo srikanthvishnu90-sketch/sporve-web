@@ -21,7 +21,7 @@
 <meta name="twitter:description" content="Find coaches, trainers, camps and teams across 20+ sports in Chicagoland.">
 <meta name="twitter:image" content="https://sporv.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2309090B'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='6'%20fill='white'/%3E%3C/svg%3E">
-<meta name="sporve-build" content="7245fe18ac7e57c0">
+<meta name="sporve-build" content="99c0737052663598">
 </head>
 <body>
 <noscript><h1>Sporv — Every sport. One app.</h1><p>Sporv connects families and athletes with coaches, trainers, camps, and teams across more than 20 sports. Please enable JavaScript to use the app.</p></noscript>
@@ -2438,31 +2438,6 @@ html.coldock .aidock-fab{display:none}
   border-radius:999px;background:#E9EEF4;color:#14202C;font:800 11px/19px var(--sans);
   text-align:center;box-shadow:0 0 0 2px #0A0C0F}
 .aidock-fab-mark{font-family:var(--display);font-weight:700;font-size:var(--text-xl);line-height:1;letter-spacing:-.04em}
-/* THE CHAT DOCK IS BLACK. Owner spec 2026-08-12: black ground, white text, a
-   grey-slate glow around it, sitting at the bottom of the screen — the shape
-   Claude and Ambora use.
-
-   Literals, not tokens, for the ground and the text. --paper INVERTS under
-   data-theme="dark", so a panel painted with it would flip to near-white in
-   dark mode while its children stayed light-on-dark. §3 records that exact
-   defect ("--paper has produced near-black-on-black"), so a surface that is
-   ALWAYS dark must say so in hex. */
-/* max-height, not height. A fixed 520px made the empty state a tall black
-   slab; the spec wants a PILL that grows into a panel as the thread does. The
-   scroll region is flex:1 with overflow-y:auto, so it absorbs the difference
-   and the composer stays pinned to the bottom either way. */
-/* .talking gives the panel a real HEIGHT once a conversation exists.
-   max-height alone let the flex children size to their content, so the thread
-   region collapsed to ~171px inside a 441px panel — the composer and header ate
-   the rest and the reply was legible only through a slot. This is the regression
-   behind "you can't even see the response". Empty, it stays a compact pill;
-   talking, it commits to the full stage and .aidock-scroll's flex:1 fills it. */
-/* 620, not 520. Measured on a 900px viewport the panel spent 248px of its 520
-   on chrome — head 68 + chips 32 + composer 148 — leaving the conversation 250px,
-   less than half the box, so a two-message exchange already overflowed and the
-   reply was read through a slot. The composer keeps its reference geometry; the
-   panel grows instead. calc(100vh - 160px) still governs short viewports, so
-   this cannot push the pill off a laptop screen. */
 .aidock-panel.talking{height:min(620px,calc(100vh - 160px));
   transform-origin:center;animation:aigrow .24s cubic-bezier(.32,.72,0,1)}
 /* Centred scale-in (the panel is viewport-centred, so it grows from its middle
@@ -8924,20 +8899,32 @@ function coachLandingHTML(){
        hairline rows, the real number, no card. */""}
   <section class="band">
     <div class="shell">
-      <h2>What it costs</h2>
+      <h2>What it costs & how it compares</h2>
       <div class="cmp-wrap" style="margin-top:18px">
-        <table class="cmp" aria-label="Coach fees, compared">
-          <thead><tr><th>The job</th><th>Elsewhere</th><th>On Sporv</th></tr></thead>
+        <table class="cmp" aria-label="Coach fees and workflows, compared">
+          <thead><tr><th>The workflow</th><th>Marketplace & team incumbents</th><th>On Sporv</th></tr></thead>
           <tbody>
             <tr><th scope="row">Getting paid</th>
-              <td>A percentage of every booking, skimmed before it reaches you.</td>
+              <td>A percentage of every booking (typically 20% on all sessions forever at Athletes Untapped or CoachUp).</td>
               <td>Automatic payout of the full amount — Sporv takes ${FEE_PCT}% of bookings. You keep every dollar families pay.</td></tr>
+            <tr><th scope="row">Existing clients</th>
+              <td>Existing clients imported to the platform are taxed the same 20% commission on every lesson.</td>
+              <td>0% platform take-rate on imported clients. Keep 100% of your earnings from the book of business you built.</td></tr>
+            <tr><th scope="row">Switching from TeamSnap or SportsEngine</th>
+              <td>Export friction, locked-in rosters, and manual setup taking days or weeks.</td>
+              <td>1-click roster and schedule importer from TeamSnap, SportsEngine, or CSV. Switch in an afternoon with full data portability.</td></tr>
             <tr><th scope="row">Running the software</th>
-              <td>A directory fee plus a cut of the work itself.</td>
+              <td>A directory fee plus a cut of the work itself, or ad-cluttered team tiers.</td>
               <td>A flat subscription and nothing from bookings. Free to start; Pro is $34.99 a month when the business grows.</td></tr>
-            <tr><th scope="row">The background check</th>
-              <td>Billed to you, or skipped.</td>
-              <td>Run at Sporv's cost. Never billed to you, never optional.</td></tr>
+            <tr><th scope="row">Communication & AI operations</th>
+              <td>Unmoderated reply storms, blast emails, and zero in-workflow AI assistance.</td>
+              <td>Draft-first AI recaps, parent reminders, and schedule updates generated in &le;2 min of coach time, sent with 1-click approval.</td></tr>
+            <tr><th scope="row">Background check & trust</th>
+              <td>One-time $10 check that goes stale within 12 months, or shallow volunteer checklists.</td>
+              <td>Continuous webhook-verified background checks and SafeSport tracking that fail closed. Run at Sporv's cost and never billed to you.</td></tr>
+            <tr><th scope="row">Family booking & checkout</th>
+              <td>Inquiry message ping-pong before booking, or surprise junk-fee stacking at checkout.</td>
+              <td>Instant-book against live calendar availability in &le;90s. Price browsed = price paid with zero parent-side junk fees.</td></tr>
           </tbody>
         </table>
       </div>
@@ -9215,6 +9202,8 @@ function productHTML(){
   ];
   const rules=[
     ["Background checks are per person","An approved organisation never vouches for an individual on its roster. Unverified coaches are filtered out before sport, age, or budget."],
+    ["No junk fees for families","The price browsed is the price paid at checkout. No surprise service fees or processor markups stacked onto parents."],
+    ["0% fee on imported clients","Coaches keep 100% of earnings from clients they import. We never tax your existing client relationships."],
     ["Parental consent gates child profiles","No consent, no athlete record. Consent is stamped with a version and a timestamp."],
     ["Media consent is enforced","A coach can request consent for a photo of a minor. A coach can never grant it on a family's behalf."],
     ["Reviews follow completed sessions","Booking something is not an opinion about it."],

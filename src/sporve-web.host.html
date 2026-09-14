@@ -8855,20 +8855,32 @@ function coachLandingHTML(){
        hairline rows, the real number, no card. */""}
   <section class="band">
     <div class="shell">
-      <h2>What it costs</h2>
+      <h2>What it costs & how it compares</h2>
       <div class="cmp-wrap" style="margin-top:18px">
-        <table class="cmp" aria-label="Coach fees, compared">
-          <thead><tr><th>The job</th><th>Elsewhere</th><th>On Sporv</th></tr></thead>
+        <table class="cmp" aria-label="Coach fees and workflows, compared">
+          <thead><tr><th>The workflow</th><th>Marketplace & team incumbents</th><th>On Sporv</th></tr></thead>
           <tbody>
             <tr><th scope="row">Getting paid</th>
-              <td>A percentage of every booking, skimmed before it reaches you.</td>
+              <td>A percentage of every booking (typically 20% on all sessions forever at Athletes Untapped or CoachUp).</td>
               <td>Automatic payout of the full amount — Sporv takes ${FEE_PCT}% of bookings. You keep every dollar families pay.</td></tr>
+            <tr><th scope="row">Existing clients</th>
+              <td>Existing clients imported to the platform are taxed the same 20% commission on every lesson.</td>
+              <td>0% platform take-rate on imported clients. Keep 100% of your earnings from the book of business you built.</td></tr>
+            <tr><th scope="row">Switching from TeamSnap or SportsEngine</th>
+              <td>Export friction, locked-in rosters, and manual setup taking days or weeks.</td>
+              <td>1-click roster and schedule importer from TeamSnap, SportsEngine, or CSV. Switch in an afternoon with full data portability.</td></tr>
             <tr><th scope="row">Running the software</th>
-              <td>A directory fee plus a cut of the work itself.</td>
+              <td>A directory fee plus a cut of the work itself, or ad-cluttered team tiers.</td>
               <td>A flat subscription and nothing from bookings. Free to start; Pro is $34.99 a month when the business grows.</td></tr>
-            <tr><th scope="row">The background check</th>
-              <td>Billed to you, or skipped.</td>
-              <td>Run at Sporv's cost. Never billed to you, never optional.</td></tr>
+            <tr><th scope="row">Communication & AI operations</th>
+              <td>Unmoderated reply storms, blast emails, and zero in-workflow AI assistance.</td>
+              <td>Draft-first AI recaps, parent reminders, and schedule updates generated in &le;2 min of coach time, sent with 1-click approval.</td></tr>
+            <tr><th scope="row">Background check & trust</th>
+              <td>One-time $10 check that goes stale within 12 months, or shallow volunteer checklists.</td>
+              <td>Continuous webhook-verified background checks and SafeSport tracking that fail closed. Run at Sporv's cost and never billed to you.</td></tr>
+            <tr><th scope="row">Family booking & checkout</th>
+              <td>Inquiry message ping-pong before booking, or surprise junk-fee stacking at checkout.</td>
+              <td>Instant-book against live calendar availability in &le;90s. Price browsed = price paid with zero parent-side junk fees.</td></tr>
           </tbody>
         </table>
       </div>
@@ -9146,6 +9158,8 @@ function productHTML(){
   ];
   const rules=[
     ["Background checks are per person","An approved organisation never vouches for an individual on its roster. Unverified coaches are filtered out before sport, age, or budget."],
+    ["No junk fees for families","The price browsed is the price paid at checkout. No surprise service fees or processor markups stacked onto parents."],
+    ["0% fee on imported clients","Coaches keep 100% of earnings from clients they import. We never tax your existing client relationships."],
     ["Parental consent gates child profiles","No consent, no athlete record. Consent is stamped with a version and a timestamp."],
     ["Media consent is enforced","A coach can request consent for a photo of a minor. A coach can never grant it on a family's behalf."],
     ["Reviews follow completed sessions","Booking something is not an opinion about it."],
