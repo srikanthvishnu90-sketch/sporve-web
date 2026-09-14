@@ -157,6 +157,34 @@ async function billingProviderId(
   return (data?.provider_id as string | undefined) ?? null;
 }
 
+// [CRITICAL-PATH: money] apply_stripe_billing_event RETURNS text and never
+// raises, so `error` is null for EVERY verdict — including the rejected ones.
+// Reading only `error` acknowledged every rejected payment as delivered (Stripe
+// records success and stops retrying), and because the RPC records ignored
+// verdicts in payment_event_ledger as seen events, a redelivery then returns
+// 'duplicate': the org paid and got nothing, permanently. Every verdict is
+// mapped EXPLICITLY below; anything unrecognized is REJECTED, never success, so
+// a future return value cannot silently pass.
+type BillingBucket = "applied" | "rejected";
+function billingVerdictBucket(
+  verdict: unknown,
+): { bucket: BillingBucket; critical: boolean; reason: string } {
+  if (typeof verdict !== "string") {
+    return { bucket: "rejected", critical: false,
+      reason: `non_string_verdict:${JSON.stringify(verdict) ?? typeof verdict}` };
+  }
+  if (verdict.startsWith("applied:")) return { bucket: "applied", critical: false, reason: verdict };
+  // Idempotent no-op: this event id is already in the ledger.
+  if (verdict === "duplicate") return { bucket: "applied", critical: false, reason: verdict };
+  // Out-of-order delivery; the mirror already holds a newer state. Kept, logged.
+  if (verdict === "stale") return { bucket: "applied", critical: false, reason: verdict };
+  if (verdict.startsWith("ignored_bad_plan:")) return { bucket: "rejected", critical: false, reason: verdict };
+  if (verdict.startsWith("ignored_unknown_status:")) return { bucket: "rejected", critical: false, reason: verdict };
+  // A payment for an organisation that does not exist is not a routine outcome.
+  if (verdict === "provider_not_found") return { bucket: "rejected", critical: true, reason: verdict };
+  return { bucket: "rejected", critical: false, reason: `unrecognized_verdict:${verdict}` };
+}
+
 async function applyBillingEvent(
   event: Stripe.Event,
   sub: Stripe.Subscription,
@@ -171,7 +199,7 @@ async function applyBillingEvent(
     return;
   }
   const price = sub.items?.data?.[0]?.price ?? null;
-  const { error } = await admin.rpc("apply_stripe_billing_event", {
+  const { data: verdict, error } = await admin.rpc("apply_stripe_billing_event", {
     p_event_id: event.id,
     p_event_type: event.type,
     p_provider_id: providerId,
@@ -193,6 +221,31 @@ async function applyBillingEvent(
     p_occurred_at: new Date(event.created * 1000).toISOString(),
   });
   if (error) throw new Error(`billing ledger failed: ${error.message}`);
+  const v = billingVerdictBucket(verdict);
+  if (v.bucket === "applied") {
+    if (v.reason === "stale") {
+      console.error("billing event stale (out-of-order; newer state kept):", event.id, sub.id);
+    }
+    return;
+  }
+  // REJECTED. Not transient: plan/status/provider are identical on retry, and the
+  // RPC has ALREADY recorded this event, so a Stripe retry can only return
+  // 'duplicate'. 5xx-forever therefore buys nothing and risks Stripe disabling
+  // the endpoint — but a 200 with NO record is precisely the bug. So: write a
+  // durable, queryable dead letter FIRST (the production-invariants job alarms
+  // on unresolved rows), and only then acknowledge. If that write fails there is
+  // no record, so this throws and the outer handler answers 500. Never a silent
+  // 200. Repair path: docs/red-drafts/2026-09-14-stripe-billing-event-reprocess.sql
+  const tag = v.critical ? `CRITICAL:${v.reason}` : `REJECTED:${v.reason}`;
+  console.error("billing verdict rejected:", tag, event.id, sub.id, providerId);
+  const { error: dlError } = await admin.rpc("record_webhook_dead_letter", {
+    p_event_id: event.id,
+    p_event_type: event.type,
+    p_payload_sha256: payloadHash,
+    p_error: tag,
+    p_occurred_at: new Date(event.created * 1000).toISOString(),
+  });
+  if (dlError) throw new Error(`billing verdict rejected and dead-letter failed: ${tag}`);
 }
 
 Deno.serve(async (req) => {
