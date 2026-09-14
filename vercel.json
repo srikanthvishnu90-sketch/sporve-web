@@ -62,5 +62,7 @@
       "destination": "https://tseszaprvtvqrkfpditu.supabase.co/functions/v1/unsubscribe",
       "permanent": false
     }
-  ]
+  ],
+  "buildCommand": "",
+  "outputDirectory": "."
 }
