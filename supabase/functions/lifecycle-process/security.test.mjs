@@ -69,7 +69,6 @@ async function invoke(options={}) {
     buildCoachVoiceProfile:options.voiceProfile ?? (async()=>[]),
     readBoundedJson,
     withHttpDeadline:(work,ms)=>{deadlines.push(ms);return deadline(work,options.deadlineMs ?? Math.min(ms,80));},
-    deliverPush:async()=>{external.push({kind:'push'});},
     fetch:async(url,init)=>{
       if(url==='https://fixture.invalid/functions/v1/ai-gateway') {
         models.push(JSON.parse(init.body));
