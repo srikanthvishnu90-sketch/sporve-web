@@ -20,8 +20,8 @@ export const ALL_EVENTS = [
   "rebook_nudge",
 ];
 
-export function isLogistics(eventType) {
-  return LOGISTICS_EVENTS.includes(eventType);
+export function isLogistics(eventType: unknown) {
+  return typeof eventType === "string" && LOGISTICS_EVENTS.includes(eventType);
 }
 
 // Resolve the effective action for a queued row. ENFORCES auto-only-logistics:
@@ -29,14 +29,14 @@ export function isLogistics(eventType) {
 // non-logistics type it falls back to model drafting. An
 // unknown/missing mode is treated as the safe default 'draft'.
 //   returns 'skip' | 'draft' | 'auto'
-export function resolveAction(mode, eventType) {
+export function resolveAction(mode: unknown, eventType: unknown) {
   if (mode === "off") return "skip";
   if (mode === "auto") return isLogistics(eventType) ? "auto" : "draft";
   return "draft";
 }
 
 // Short logistics reminders -> haiku; richer relational follow-ups -> sonnet.
-export function modelForEvent(eventType) {
+export function modelForEvent(eventType: unknown) {
   return isLogistics(eventType)
     ? "claude-haiku-4-5-20251001"
     : "claude-sonnet-4-6";
@@ -52,16 +52,16 @@ const CLAIM_PATTERNS = [
   /\b(?:injur(?:y|ies|ed|ing)|concussion|diagnos(?:is|ed)|medical|medication|prescrib\w*|cleared to play|safe to (?:play|return)|rehab\w*|physical therapy|recover(?:y|ed|ing))\b/i,
 ];
 
-function splitSentences(text) {
+function splitSentences(text: string) {
   return text.split(/(?<=[.!?])\s+|[\n;]+/).map((s) => s.trim()).filter(Boolean);
 }
 
-export function hasClaim(text) {
+export function hasClaim(text: unknown) {
   return CLAIM_PATTERNS.some((re) => re.test(String(text ?? "")));
 }
 
 // Strip claim sentences from a drafted body. Returns {body, removed}.
-export function enforceLifecycleDraft(text) {
+export function enforceLifecycleDraft(text: unknown) {
   const removed = [];
   const kept = [];
   for (const s of splitSentences(String(text ?? ""))) {
@@ -75,7 +75,8 @@ export function enforceLifecycleDraft(text) {
 // Thin personalization over a fixed template: child first name + date/time/place.
 // Returns null when it CANNOT be built as pure logistics (non-logistics type or
 // missing when) — the caller MUST fall back to draft. Never free-form.
-export function buildAutoTemplate(eventType, vars) {
+type TemplateVars = { dateText?: unknown; timeText?: unknown; childFirstName?: unknown; place?: unknown };
+export function buildAutoTemplate(eventType: unknown, vars?: TemplateVars | null) {
   if (!isLogistics(eventType)) return null;
   const v = vars ?? {};
   const date = String(v.dateText ?? "").trim();
@@ -94,7 +95,7 @@ export function buildAutoTemplate(eventType, vars) {
 // HARD GUARDRAIL for the auto path: an auto message may ONLY be the fixed
 // logistics template, and must contain NO claims. Returns the safe template to
 // stage for approval, or null meaning "fall back to model drafting".
-export function autoOrFallback(eventType, vars) {
+export function autoOrFallback(eventType: unknown, vars?: TemplateVars | null) {
   if (!isLogistics(eventType)) return null;
   const tpl = buildAutoTemplate(eventType, vars);
   if (!tpl) return null;            // missing logistics -> draft
