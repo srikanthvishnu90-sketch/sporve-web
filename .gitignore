@@ -4,7 +4,6 @@ node_modules/
 .clo-sync/
 .gstack/
 .vercel
-.env*
 backup/
 .agents/
 skills-lock.json
@@ -30,3 +29,4 @@ strix_runs/
 backups/
 .gitignore
 branch_structure.json
+config.bat

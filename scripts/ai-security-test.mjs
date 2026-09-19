@@ -6,6 +6,9 @@ import vm from 'node:vm';
 import {Buffer} from 'node:buffer';
 import * as boundary from '../lib/ai-request-boundary.js';
 import actualHandler from '../api/ai.js';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 const action={action:'open_tab',target:'roster',body:'',restated:'Open the roster.'};
 const modelResponse=()=>({stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify(action)}]});
