@@ -36,7 +36,7 @@ do $$ declare r jsonb; i integer; before_count integer; begin
   end loop;
   r:=public.consume_ai_quota();
   if r->>'allowed'<>'false' or r->>'reason'<>'quota_exhausted'
-    or r->>'current_plan'<>'free' or r->>'upgrade_to'<>'individual'
+    or r->>'current_plan'<>'free' or r->>'upgrade_to'<>'solo'
     or (r->>'limit')::int<>25 or (r->>'current')::int<>25
     or (r->>'contract_version')::int<>2 then raise exception 'FAIL: Ask 26: %',r; end if;
   if (select count(*) from public.ai_usage)<>25 then raise exception 'FAIL: denied usage written'; end if;
@@ -47,7 +47,7 @@ do $$ declare r jsonb; i integer; before_count integer; begin
     select '10000000-0000-4000-8000-000000000001'::uuid,'fixture' from generate_series(1,475);
   update public.plan_entitlements set purchasable=true,ask_quota_month=1000 where plan='free';
   r:=public.consume_ai_quota();
-  if r->>'upgrade_to' is distinct from 'enterprise' or (r->>'limit')::int is distinct from 500 then
+  if r->>'upgrade_to' is distinct from 'organization' or (r->>'limit')::int is distinct from 500 then
     raise exception 'FAIL: Solo limit 500: %',r; end if;
   update public.plan_entitlements set purchasable=false,ask_quota_month=25 where plan='free';
   update public.plan_entitlements set ask_quota_month=501 where plan='solo';
@@ -55,6 +55,11 @@ do $$ declare r jsonb; i integer; before_count integer; begin
 
   update public.provider_entitlement_assignments set plan_key='organization'
     where provider_id='10000000-0000-4000-8000-000000000001';
+  r:=public.consume_ai_quota();
+  if r->>'allowed'<>'true' or (r->>'quota')::int<>2500 then
+    raise exception 'FAIL: Organization base allowance 2500'; end if;
+  -- Explicit unlimited remains a supported DATA override, not the new base plan.
+  update public.plan_entitlements set ask_quota_month=-1 where plan='organization';
   r:=public.consume_ai_quota();
   if r->>'allowed'<>'true' or r->'quota'<>'null'::jsonb then raise exception 'FAIL: explicit unlimited'; end if;
   select count(*) into before_count from public.ai_usage;

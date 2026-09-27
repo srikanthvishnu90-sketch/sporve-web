@@ -43,7 +43,28 @@ create table public.organization_members(
 insert into public.providers values
   ('10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','pro');
 
+-- Optional compatibility case for the independently shipped connector column.
+-- The baseline job still starts without this column; no test is replaced.
+\if :{?invalid_connectors}
+alter table public.plan_entitlements add column connectors text not null default 'legacy-shape-sentinel';
+\else
+\if :{?existing_connectors}
+alter table public.plan_entitlements add column connectors text[] not null default '{}'::text[];
+update public.plan_entitlements set connectors=case plan
+  when 'free' then array['website','csv','stripe']
+  when 'pro' then array['website','csv','stripe','gmail','google_calendar','sms']
+  else array['website','csv','stripe','gmail','google_calendar','sms','outlook'] end;
+\endif
+\endif
+
 \ir 2026-09-08-plan-entitlements.sql
+
+select count(*) as catalog_rows,array_agg(plan order by plan) as plan_keys,
+  count(*) filter(where member_cap is null or admin_cap is null or group_cap is null
+    or connectors is null or jobs is null or modules is null or scan_mode is null
+    or draft_quota_month is null or send_quota_month is null or ask_quota_month is null
+    or branding_footer is null) as incomplete_rows
+from public.plan_entitlements;
 
 begin;
 set local request.jwt.claim.role='service_role';
@@ -62,20 +83,27 @@ begin
   if not exists(select 1 from public.plan_entitlements where plan='free'
       and member_cap=15 and admin_cap=1 and group_cap=1
       and draft_quota_month=20 and send_quota_month=20 and ask_quota_month=25
-      and connectors=array['website','csv'] and branding_footer and not camps_included
+      and display_name='Free' and public_slug='free'
+      and connectors=array['website','csv','stripe'] and branding_footer and camps_included
       and scan_mode='nightly') then raise exception 'FAIL: Free catalog'; end if;
   if not exists(select 1 from public.plan_entitlements where plan='solo'
       and member_cap=100 and admin_cap=1 and group_cap=-1
-      and draft_quota_month=-1 and send_quota_month=500 and ask_quota_month=500
-      and price_usd_month=39 and price_usd_year=390
+      and display_name='Solo' and public_slug='solo'
+      and draft_quota_month=-1 and send_quota_month=-1 and ask_quota_month=500
+      and price_usd_month>0 and price_usd_year=price_usd_month*10
       and 'gmail'=any(connectors) and not ('outlook'=any(connectors))) then
-    raise exception 'FAIL: Individual catalog'; end if;
+    raise exception 'FAIL: Solo catalog'; end if;
   if not exists(select 1 from public.plan_entitlements where plan='organization'
-      and member_cap=-1 and admin_cap=-1 and group_cap=-1
-      and draft_quota_month=-1 and send_quota_month=-1 and ask_quota_month=-1
-      and price_usd_month=449 and price_usd_year=4490
+      and display_name='Organization' and public_slug='organization'
+      and member_cap=150 and admin_cap=5 and group_cap=-1
+      and draft_quota_month=-1 and send_quota_month=-1 and ask_quota_month=2500
+      and price_usd_month>0 and price_usd_year=price_usd_month*10
       and 'outlook'=any(connectors) and camps_included) then
-    raise exception 'FAIL: Enterprise catalog'; end if;
+    raise exception 'FAIL: Organization catalog'; end if;
+  if exists(select from public.plan_entitlements where not ('stripe'=any(connectors)))
+    or exists(select from public.billing_policy where camp_price_cents<>0)
+    or exists(select from public.plan_entitlements where plan in ('free','solo') and 'treasurer_summary'=any(jobs)) then
+    raise exception 'FAIL: Stripe availability, no camp fee or Organization-only treasurer job'; end if;
   e:=public.get_provider_entitlements('10000000-0000-4000-8000-000000000001');
   if e->>'plan'<>'solo' or e->>'entitlement_source'<>'legacy' then
     raise exception 'FAIL: preserve legacy access without retroactive trial'; end if;
@@ -86,7 +114,7 @@ begin
     ('10000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002');
   e:=public.get_provider_entitlements('10000000-0000-4000-8000-000000000002');
   if e->>'plan'<>'organization' or e->>'entitlement_source'<>'trial' then
-    raise exception 'FAIL: new org no-card Enterprise trial'; end if;
+    raise exception 'FAIL: new org no-card Organization trial'; end if;
   if not exists(select 1 from public.provider_entitlement_assignments
       where provider_id='10000000-0000-4000-8000-000000000002'
       and ends_at-starts_at=interval '14 days') then raise exception 'FAIL: trial duration'; end if;
